@@ -1,25 +1,20 @@
-import { isInApp, postToApp } from '../transport';
+import { isGranted, notify } from '../transport';
 
 export interface OpenUrlOptions {
   /**
-   * An app's own scheme (`spotify:track:…`, `youtube://…`) that the host tries
-   * first, falling back to `url` when nothing on the device handles it — the
-   * rejected open is the probe, so no native allowlist is needed. A host that
-   * predates `appUrl` ignores it and opens `url`, which is still a working link.
+   * An app's own scheme (`spotify:track:…`, `youtube://…`) the app tries first,
+   * falling back to `url` when nothing on the device handles it.
    */
   appUrl?: string;
 }
 
 function send(url: string, appUrl: string | undefined): void {
-  postToApp(appUrl ? { type: 'web:open-url', url, appUrl } : { type: 'web:open-url', url });
+  notify('link.open', appUrl ? { url, appUrl } : { url });
 }
 
-/**
- * Open `url` outside this page: through the app inside it, in a new tab
- * outside it.
- */
+/** Open `url` outside this page: through the app inside it, in a new tab outside it. */
 export function openUrl(url: string, options: OpenUrlOptions = {}): void {
-  if (isInApp()) {
+  if (isGranted('link.open')) {
     send(url, options.appUrl);
     return;
   }
@@ -28,18 +23,12 @@ export function openUrl(url: string, options: OpenUrlOptions = {}): void {
 
 /**
  * The click handler for an `<a href target="_blank">` that leaves the page.
- *
- * Inside the app, the tap goes to the app and the anchor's default is
- * cancelled. In a browser the handler steps aside and the anchor's own `href`
- * does the work, which is what keeps middle-click, long-press and popup
- * blockers behaving.
+ * Inside the app the tap goes to the app and the default is cancelled; in a
+ * browser the anchor's own `href` does the work, which keeps middle-click,
+ * long-press and popup blockers behaving.
  */
-export function handleLinkClick(
-  event: { preventDefault(): void },
-  url: string,
-  options: OpenUrlOptions = {},
-): void {
-  if (!isInApp()) return;
+export function handleLinkClick(event: { preventDefault(): void }, url: string, options: OpenUrlOptions = {}): void {
+  if (!isGranted('link.open')) return;
   event.preventDefault();
   send(url, options.appUrl);
 }

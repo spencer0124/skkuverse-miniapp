@@ -9,139 +9,170 @@ audience: public
 
 # Miniapp bridge protocol
 
-> The messages a miniapp page and the skkuverse app exchange, the rules both sides follow, and the reserved shape of what comes next. For anyone writing a miniapp or touching the app's WebView shell.
+> How a miniapp page and the skkuverse app talk, what shell the app draws around a page, and where a page may put its content. For anyone building a miniapp or changing the app's miniapp shell.
 
 ## Overview
 
-A miniapp is a web page the app opens in a `react-native-webview`. The two talk over the
-WebView's message channel and nothing else. This repository owns that channel's contract:
-`packages/miniapp/src/protocol/v1.ts` is the source of truth, and the app
-(`skkuverse-app/packages/bridge/src/types.ts`) and `skkuverse-web` hold byte copies of it
-under the umbrella's `contracts/manifest.json`.
+A miniapp is a web page the app opens in a `react-native-webview`. The two sides agree on three things, all defined in `packages/miniapp/src/protocol/`. That module has no DOM, no React and no dependencies, so the app and skkuverse-server import it from npm and nobody keeps a copy.
 
-Pages never touch the channel directly. They call `@skkuverse/miniapp`, which is safe to
-call anywhere: outside the app every function is a no-op or a browser fallback.
+| Part | File | What it defines |
+| --- | --- | --- |
+| Messages | `messages.ts` | Notifications, requests, responses and events, and the parser the app runs on every message |
+| Shell | `manifest.ts` | What a miniapp declares in `public/skkuverse.json`, and what `shell.set` may change |
+| Viewport | `viewport.ts` | Safe-area insets and the `--sv-*` CSS variables |
+| Host object | `host.ts` | `window.skkuverse`, and the two scripts the app injects |
+
+Pages use the SDK, `@skkuverse/miniapp`, and never touch the channel directly. Every SDK function is safe outside the app: it is a no-op or a browser fallback.
+
+The app's generic `/webview` screen, which hosts skkuverse-web, speaks the older `@skkuverse/bridge` message set. That is a separate channel and this document does not cover it.
 
 ## Rules both sides follow
 
-1. **A message may be dropped, silently.** An app build that predates a message type drops
-   it, and so does an app that does not grant the page's origin. A page never waits on a v1
-   message and never assumes one was handled.
-2. **Detect features and don't guess versions.** A page asks `getCapabilities()` and offers what
-   is listed. It never reads the user agent or an app version to decide.
-3. **Grants follow the origin.** The app decides per message, from the URL of the document
-   that posted it, against the server's `BRIDGE_ORIGINS`. A new miniapp host must be added
-   there before any message from it is honoured.
-4. **Change additively.** Existing message shapes never change meaning, and new fields are optional.
-   An old app meets a new page every day, and a new app meets an old page just as often.
+1. **A notification has no answer.** A page never waits on one and never assumes one was handled.
+2. **Detect features instead of guessing versions.** A page offers a feature only when `getCapabilities()` lists its method. It never reads a user agent or an app version to decide.
+3. **Grants follow the origin.** The app decides per message, from the URL of the document that sent it, against the server's `BRIDGE_ORIGINS`. The app answers a request it does not grant with `denied` or `unsupported`, and drops a notification.
+4. **Parse everything.** The app runs `parseMessage` on every message. Anything malformed is dropped without a word.
 
-## v1: the wire format today
+## Messages
 
-Page to app, `window.ReactNativeWebView.postMessage(JSON.stringify(msg))`:
+Page to app goes through `window.ReactNativeWebView.postMessage(JSON)`. App to page goes through `window.skkuverse.receive(JSON)`, which the app calls with `injectJavaScript`.
 
-| Message | SDK | Granted today |
+| Kind | Direction | Shape |
 | --- | --- | --- |
-| `{ type: 'web:haptic', style }` | `haptic()` | yes |
-| `{ type: 'web:open-url', url, appUrl? }` | `openUrl()`, `handleLinkClick()` | yes |
-| `{ type: 'web:action', actionType: 'map', actionValue }` | `openMapPlace()` | yes, if `bridge.actions` lists `map` |
-| `{ type: 'web:action', actionType: 'miniapp', actionValue }` | `openMiniapp()` | yes, if `bridge.actions` lists `miniapp` |
-| `{ type: 'web:map-select', payload }` | `postToApp()` | yes (festival timetable) |
-| `{ type: 'web:analytics', event, params? }` | `track()` | not yet |
-| `{ type: 'web:ready' }` | `ready()` | not yet |
-| `{ type: 'web:navigate', path }` | none | removed from the grant set, never honoured |
+| Notification | page → app | `{ method, params }` |
+| Request | page → app | `{ id, method, params }`, answered by exactly one response |
+| Response | app → page | `{ id, ok: true, result }` or `{ id, ok: false, error: { code, message } }` |
+| Event | app → page | `{ event, data }` |
 
-App to page: `AppToWebMessage` is declared but no app build sends any of it yet.
+Error codes are `unsupported`, `denied`, `cancelled`, `timeout` and `failed`.
 
-Before the page's own script runs, the app injects:
+### Methods
 
-```js
-window.skkuverse = { bridge: { actions: ['map', 'miniapp'] } };
-```
+| Method | Kind | Params | SDK |
+| --- | --- | --- | --- |
+| `haptic.impact` | notification | `{ style: 'light' \| 'medium' \| 'heavy' }` | `haptic()` |
+| `link.open` | notification | `{ url, appUrl? }` | `openUrl()`, `handleLinkClick()` |
+| `map.openPlace` | notification | `{ place }` | `openMapPlace()` |
+| `miniapp.open` | notification | `{ target }` | `openMiniapp()` |
+| `analytics.track` | notification | `{ event, params? }` | `track()` |
+| `app.ready` | notification | none | `ready()` |
+| `shell.set` | notification | `ShellPatch` | `setShell()` |
 
-`getCapabilities()` derives a v1 host's capabilities from two signals. The channel's presence
-means `haptic` and `openUrl`, and each entry in `actions` means `action.<entry>`.
+No request method exists yet. The channel is implemented and tested, so the first request method is an entry in the table rather than a protocol change.
 
-## v2: reserved
+| Event | Data | SDK |
+| --- | --- | --- |
+| `viewport.changed` | `Viewport` | `onViewportChange()`, `useViewport()` |
 
-v1 cannot answer back. Rewarded ads, sign-in and launch tokens all need an answer, so v2
-adds a request/response envelope on the same channel. The types are in
-`packages/miniapp/src/protocol/v2.ts`. No host speaks it yet.
+### Adding a method
+
+1. Add it to `NotifyMethods` or `RequestMethods` in `messages.ts`. Name it `<namespace>.<verb>`.
+2. Add its params validator to `PARAMS`, or accept requests generically.
+3. Add a typed SDK wrapper in `sdk/`.
+4. Handle it in the app's miniapp shell and add it to the grants.
+5. Release the SDK, then the app. A page on the new SDK degrades on an older app, because the method is missing from `capabilities`.
+
+Anything that grants value, such as a reward or a ranking, must be confirmed by a server, never by an app response the page relays. A page can forge any message it likes.
+
+## The host object
+
+Before the page's own script runs, the app injects `hostBootstrapScript({ capabilities, viewport })`. It defines:
 
 ```ts
-// page → app
-{ v: 2, id: 'r1', method: 'ads.showRewarded', params: { placement: 'retry' } }
-// app → page, exactly one per request
-{ v: 2, id: 'r1', ok: true, result: { … } }
-{ v: 2, id: 'r1', ok: false, error: { code: 'unsupported', message: '…' } }
-// app → page, unsolicited
-{ v: 2, event: 'theme', data: { theme: 'dark' } }
+window.skkuverse = Object.freeze({
+  protocol: 1,             // envelope version, not a feature list
+  capabilities: [...],     // method names this page may use
+  getViewport(),           // current viewport, a fresh copy
+  receive(json),           // app → page delivery
+});
 ```
 
-- **Coexistence.** A v2 message has `v` and no `type`, so a v1 host's parser drops it. A page
-  therefore sends v2 only after `getCapabilities()` reports protocol 2.
-- **App to page.** The SDK installs `window.skkuverse.bridge.receive(json)`. The app calls it
-  through `injectJavaScript`, re-checking the page's origin immediately before each call so a
-  navigation cannot redirect a response to another site.
-- **Advertising.** A v2 host adds `protocol: 2` and `capabilities: string[]` to the object it
-  already injects. `getCapabilities()` then returns those as they are.
+`receive` belongs to the app, not the SDK. On `viewport.changed` it updates its state and the CSS variables. Then it dispatches `skkuverse:message` on `window` with the message as `detail`, and the SDK listens for that event. Because the object is frozen, a page script cannot replace it.
 
-### Reserved capabilities
+The app delivers each message with `hostDeliverScript(origin, message)`. That script first checks `location.origin` against the page the request came from, so a response never reaches a page that has since navigated elsewhere.
 
-| Capability | Meaning |
+## Shell
+
+A miniapp declares the shell the app draws around it in `public/skkuverse.json`, which is served at `https://<id>.mini.skkuverse.com/skkuverse.json`:
+
+```json
+{ "shell": { "bar": "top", "header": "opaque", "statusBar": "dark", "background": "#FFFFFF" } }
+```
+
+| Field | Values | Default | Meaning |
+| --- | --- | --- | --- |
+| `bar` | `top`, `bottom`, `none` | `bottom` | Where the name pill goes: in the header, in a floating bottom bar with back and forward, or nowhere |
+| `header` | `opaque`, `overlay` | `opaque` | Whether the page starts below a solid header, or at the top of the screen under a transparent one |
+| `statusBar` | `dark`, `light` | `dark` | Status bar icon colour |
+| `background` | `#RRGGBB` | `#FFFFFF` | Painted behind the page while it loads and on overscroll |
+
+skkuverse-server fetches the manifest of every first-party miniapp and merges it into `GET /miniapps/:id`. The app therefore knows the shell before it creates the WebView, and the first frame is already right. The merge order is default, then the registry entry, then the manifest. The registry still owns identity: the start URL, the name and the verified badge. A manifest can only change presentation. A change takes up to about ten minutes to reach users, through the server's cache and then the response cache.
+
+`shell.set` changes `header`, `statusBar` and `background` during a session, for example to go full-bleed for a game or switch to light icons over a dark scene. `bar` changes the layout, so only the manifest sets it.
+
+Parsing is tolerant on both sides. An unknown key or a bad value falls back to the default, so a broken manifest never stops a miniapp from opening.
+
+## Viewport and safe areas
+
+The app tells the page where content may go, in CSS pixels relative to the WebView, in two layers:
+
+- **`safeArea`**: the parts of the WebView the device itself covers, such as the status bar, a notch or the home indicator. An edge the WebView does not reach reads zero.
+- **`contentSafeArea`**: the parts the app's own UI covers, such as an overlay header or the bottom bar.
+- **`chrome`**: `glass` when that UI is translucent Liquid Glass (iOS 26 and later), `opaque` otherwise.
+
+```text
+ ┌──────────────────────────┐ ─┐
+ │ status bar               │  │ safeArea.top          ┐
+ ├──────────────────────────┤ ─┤                       │ --sv-inset-top
+ │ ‹  header (overlay)   ⋯  │  │ contentSafeArea.top   ┘
+ ├──────────────────────────┤ ─┘
+ │                          │
+ │   page content           │
+ │                          │
+ ├──────────────────────────┤ ─┐
+ │ ‹  [ name pill ]  ›      │  │ contentSafeArea.bottom ┐
+ ├──────────────────────────┤ ─┤                        │ --sv-inset-bottom
+ │ home indicator           │  │ safeArea.bottom        ┘
+ └──────────────────────────┘ ─┘
+```
+
+The app injects the values itself, as CSS variables on `<html>` and through `getViewport()`, and does not rely on `env(safe-area-inset-*)`. That CSS function reads zero on recent Android WebViews, and on iOS it doubles up when the scroll view also insets.
+
+| Variable | Value |
 | --- | --- |
-| `haptic`, `openUrl`, `action.map`, `action.miniapp` | v1 features, derivable today |
-| `openUrl.appUrl` | the host honours `appUrl` (not derivable from v1 signals) |
-| `ads.rewarded` | the host can show an AdMob rewarded ad |
-| `auth.idToken` | the host can hand over a short-lived token naming the signed-in user |
-| `launchToken` | the host opened this page with a launch token |
+| `--sv-safe-{top,bottom,left,right}` | `safeArea` |
+| `--sv-content-{top,bottom,left,right}` | `contentSafeArea` |
+| `--sv-inset-{top,bottom,left,right}` | their sum |
+| `html[data-sv-chrome]` | `glass` or `opaque` |
 
-## Designs for the reserved capabilities
+`MiniappRoot` sets the same variables to zero outside the app, so they are always defined.
 
-These are the intended flows, written down so the SDK's shape is fixed before the first host
-implements any of them. One principle runs through all three: **the page never trusts
-something the app told it.** Anything that grants value is confirmed by the server.
+### Page recipe
 
-### Rewarded ads (`ads.rewarded`)
+Paint the background edge to edge, and keep content inside the insets:
 
-1. The page asks the miniapp's backend for a reward nonce, bound to the user and the reward.
-2. The page calls `ads.showRewarded({ nonce })`. The app shows the AdMob rewarded ad with
-   server-side verification enabled and `customData = nonce`.
-3. When the ad completes, Google calls the backend's SSV callback. The backend verifies
-   Google's signature against the published keys, checks `transaction_id` for replay, and
-   marks the nonce rewarded.
-4. The page asks the backend whether the nonce was rewarded. That answer is the only one it acts on.
+```css
+body { background: var(--page-bg); }
+.page {
+  padding-top: calc(var(--sv-inset-top) + 16px);
+  padding-bottom: calc(var(--sv-inset-bottom) + 16px);
+}
+```
 
-The app's own response to `ads.showRewarded` is for the user experience only, such as closing
-a spinner. A page that grants a reward on it can be fooled by anyone with a JavaScript console.
+- With `header: opaque`, the page starts below the header, so `--sv-inset-top` is 0 and nothing changes.
+- With `header: overlay`, the page runs under the status bar and the header:
+  - With `chrome: glass`, the background shows through the header, blurred. Paint something worth showing up there.
+  - With `chrome: opaque`, the header's buttons float on the page, and the page paints the whole top band itself.
 
-### Sign-in (`auth.idToken`)
+Canvas games read `getViewport()`, or `useViewport()` in React, and follow `viewport.changed`.
 
-1. The page calls `auth.getIdToken()`.
-2. The app sends its Firebase ID token to the skkuverse server, which returns a token it
-   signs itself (ES256, lifetime of 5 minutes or less, `aud` = the miniapp's origin, `sub` = the user).
-3. The page forwards that token to its own backend, which verifies it against the server's
-   JWKS and checks `aud`, then issues its own session.
+## Outside the app
 
-The long-lived Firebase credential never enters the page. A token minted for one miniapp is
-useless to another because of `aud`.
+`MiniappRoot` blocks a plain browser by default. It renders a full-screen "스꾸버스 앱에서 열기" page linking to `https://skkuverse.com/p/m/<id>`. <!-- conventions:allow-korean: the gate's button label, quoted as product copy --> That universal link opens the app when it is installed and shows the store links otherwise. A miniapp opts out with `browser="allow"`. On localhost and private addresses, or with `dev`, it never blocks and shows a small banner instead.
 
-### Keeping a miniapp inside the app (`launchToken`)
-
-A static page cannot be hidden from a browser: its HTML and JavaScript are public by nature,
-and a user-agent check is one header away from being spoofed. The enforceable boundary is
-the miniapp's data, not its shell.
-
-1. When opening a miniapp, the app calls `POST /miniapps/:id/launch` and appends the result
-   to `startUrl` as a fragment: `#lt=<token>`. A fragment never reaches a server log or a
-   `Referer` header.
-2. The SDK reads the token, removes it from the URL with `history.replaceState`, and keeps it
-   in memory.
-3. The miniapp's data APIs require it (short TTL, `aud` = the miniapp). Opened directly in a
-   browser, the page loads but its data calls fail, and the page can say "open this in the
-   skkuverse app" — a user-agent check is fine for that message, never for access.
+The gate is presentation, not protection. The page's HTML and JavaScript are public by nature. Anything that must not be reachable from a browser needs a server check.
 
 ## Related
 
-- [0001-sdk-distribution](../decisions/0001-sdk-distribution.md) — why the SDK is an npm package and how it relates to the hosted-script plan
-- `skkuverse-app/docs/decisions/0006-miniapp-webview-push-architecture.md` — the origin gate and the capability handshake
-- `skkuverse/docs/decisions/0002-pull-based-config-contracts.md` — how the byte copies of `v1.ts` are kept honest
+- [0001-sdk-distribution](../decisions/0001-sdk-distribution.md): why this is an npm package
+- `skkuverse-app/docs/decisions/0006-miniapp-webview-push-architecture.md`: the origin gate
