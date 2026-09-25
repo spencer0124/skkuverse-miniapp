@@ -6,9 +6,10 @@
  * `FixedBottomCTA` is documented upstream as literally `BottomCTA` with
  * `fixed={true}`, so that is exactly how it is defined here.
  *
- * The bottom inset is `max(16px, env(safe-area-inset-bottom))` rather than a
- * measured value from `useSafeAreaInsets`. It needs `viewport-fit=cover` on the
- * viewport meta tag, which the web view's index.html already sets.
+ * The bottom inset is `max(16px, var(--sv-inset-bottom))`: the skkuverse app
+ * injects `--sv-inset-bottom` as the home indicator plus whatever of its own UI
+ * covers the page bottom. Outside the app it falls back to
+ * `env(safe-area-inset-bottom)`, which needs `viewport-fit=cover`.
  *
  * Usage:
  *   <FixedBottomCTA onClick={submit}>보내기</FixedBottomCTA>
@@ -40,7 +41,7 @@ function Shell({ fixed = false, style, children }: BottomCTABaseProps & { childr
           paddingLeft: 20,
           paddingRight: 20,
           paddingTop: 12,
-          paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+          paddingBottom: 'max(16px, var(--sv-inset-bottom, env(safe-area-inset-bottom, 0px)))',
           boxShadow: toBoxShadow('#000000', 0, -2, 6, 0.06),
         },
         style,

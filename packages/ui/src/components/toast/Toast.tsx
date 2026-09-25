@@ -107,7 +107,9 @@ export function Toast({
         left: 16,
         right: 16,
         zIndex: 1100,
-        ...(type === 'top' ? { top: inset } : { bottom: `calc(${inset}px + env(safe-area-inset-bottom))` }),
+        ...(type === 'top'
+          ? { top: `calc(${inset}px + var(--sv-inset-top, 0px))` }
+          : { bottom: `calc(${inset}px + var(--sv-inset-bottom, env(safe-area-inset-bottom, 0px)))` }),
         display: 'flex',
         alignItems: 'center',
         gap: 10,
