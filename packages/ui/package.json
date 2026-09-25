@@ -1,0 +1,44 @@
+{
+  "name": "@skkuverse/ui",
+  "version": "0.1.0",
+  "description": "SKKU Design System (SDS) for the web: providers and components ported from the skkuverse app.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spencer0124/skkuverse-miniapp.git",
+    "directory": "packages/ui"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "publint && attw --pack . --profile esm-only"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@skkuverse/tokens": "workspace:^",
+    "lottie-react": "^2.4.1"
+  },
+  "peerDependencies": {
+    "react": ">=19",
+    "react-dom": ">=19"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:"
+  }
+}

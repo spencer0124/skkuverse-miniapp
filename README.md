@@ -1,0 +1,45 @@
+# skkuverse-miniapp
+
+The shared code every skkuverse miniapp imports: the web design system and the SDK
+for talking to the skkuverse app.
+
+| Package | What it is |
+| --- | --- |
+| [`@skkuverse/ui`](packages/ui) | SKKU Design System for the web: `SDSProvider` and components |
+| [`@skkuverse/tokens`](packages/tokens) | Design tokens, copied from the app and hash-checked |
+| [`@skkuverse/miniapp`](packages/miniapp) | Bridge protocol, SDK and React bindings |
+
+```tsx
+import { SDSProvider, Button } from '@skkuverse/ui';
+import { haptic, openUrl } from '@skkuverse/miniapp';
+import { MapButton } from '@skkuverse/miniapp/react';
+```
+
+- [docs/reference/protocol.md](docs/reference/protocol.md) covers the messages, the rules both sides follow, and
+  the reserved v2 for ads, sign-in and launch tokens.
+- [docs/decisions/0001-sdk-distribution.md](docs/decisions/0001-sdk-distribution.md) explains why this is an npm
+  package.
+
+## Developing
+
+```sh
+pnpm install
+pnpm build && pnpm typecheck && pnpm test && pnpm lint
+```
+
+To try a change in a miniapp before releasing it, build here, then in the miniapp run
+`pnpm link ../../skkuverse-miniapp/packages/<name>`. Never commit the link.
+
+## Releasing
+
+1. Add a changeset with the change: `pnpm changeset`.
+2. Merge to `main`. The release workflow opens a "Version Packages" PR.
+3. Merge that PR. The workflow publishes to npm with provenance.
+4. Bump the dependency in each miniapp that needs the change.
+
+Change `packages/miniapp/src/protocol/v1.ts` additively only. The app and `skkuverse-web`
+copy it byte for byte, and an old app build meets a new page every day.
+
+## License
+
+Apache-2.0
