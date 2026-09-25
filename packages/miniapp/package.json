@@ -17,6 +17,10 @@
     "./react": {
       "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.js"
+    },
+    "./react/ui": {
+      "types": "./dist/react/ui/index.d.ts",
+      "import": "./dist/react/ui/index.js"
     }
   },
   "files": [
@@ -36,6 +40,9 @@
     "lint": "publint && attw --pack . --profile esm-only",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@skkuverse/tokens": "workspace:^"
+  },
   "peerDependencies": {
     "@skkuverse/ui": "workspace:^",
     "react": ">=19"
@@ -51,7 +58,9 @@
   "devDependencies": {
     "@skkuverse/ui": "workspace:^",
     "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "react": "catalog:",
+    "react-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "^3.2.4"
   }

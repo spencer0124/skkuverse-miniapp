@@ -1,113 +1,151 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   canOpenMap,
   getCapabilities,
+  getViewport,
   handleLinkClick,
   haptic,
+  MiniappError,
+  onViewportChange,
   openMapPlace,
   openUrl,
-  postToApp,
+  request,
+  setShell,
 } from '../src';
-import type { HostBridgeGlobal } from '../src/protocol';
+import { MESSAGE_EVENT, ZERO_VIEWPORT, type HostMessage, type Viewport } from '../src/protocol';
 
-// No DOM here: each case builds the slice of `window` it needs, the way the
-// app's WebView or a plain browser would present it.
+// One window for the whole file: the transport attaches its listener once.
+// Each case sets up the slice the app or a browser would present.
+const win = Object.assign(new EventTarget(), {} as Record<string, unknown>);
+vi.stubGlobal('window', win);
+
+let sent: Record<string, unknown>[] = [];
+const VIEWPORT: Viewport = {
+  safeArea: { top: 47, bottom: 34, left: 0, right: 0 },
+  contentSafeArea: { top: 0, bottom: 0, left: 0, right: 0 },
+  chrome: 'glass',
+};
+
+function inApp(capabilities: string[]) {
+  win.ReactNativeWebView = { postMessage: (s: string) => sent.push(JSON.parse(s)) };
+  win.skkuverse = {
+    protocol: 1,
+    capabilities,
+    getViewport: () => VIEWPORT,
+    receive: (json: string) => win.dispatchEvent(new CustomEvent(MESSAGE_EVENT, { detail: JSON.parse(json) })),
+  };
+}
+
 function inBrowser() {
-  const open = vi.fn();
-  vi.stubGlobal('window', { open });
-  return { open };
+  delete win.ReactNativeWebView;
+  delete win.skkuverse;
+  win.open = vi.fn();
 }
 
-function inApp(bridge?: HostBridgeGlobal) {
-  const sent: unknown[] = [];
-  vi.stubGlobal('window', {
-    ReactNativeWebView: { postMessage: (s: string) => sent.push(JSON.parse(s)) },
-    skkuverse: bridge ? { bridge } : undefined,
-    open: vi.fn(),
-  });
-  return { sent };
+function deliver(message: HostMessage) {
+  (win.skkuverse as { receive(json: string): void }).receive(JSON.stringify(message));
 }
+
+beforeEach(() => {
+  sent = [];
+  inBrowser();
+});
 
 afterEach(() => {
-  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
-describe('getCapabilities', () => {
-  it('grants nothing in a plain browser', () => {
-    inBrowser();
+describe('capabilities', () => {
+  it('grants nothing in a browser', () => {
     expect(getCapabilities()).toEqual({ inApp: false, protocol: 0, capabilities: new Set() });
+    expect(getViewport()).toEqual(ZERO_VIEWPORT);
   });
 
-  it('derives v1 capabilities from the channel and bridge.actions', () => {
-    inApp({ actions: ['map', 'miniapp'] });
-    const info = getCapabilities();
-    expect(info.protocol).toBe(1);
-    expect([...info.capabilities].sort()).toEqual(['action.map', 'action.miniapp', 'haptic', 'openUrl']);
+  it('reads what the app grants', () => {
+    inApp(['haptic.impact', 'map.openPlace']);
+    expect(getCapabilities().protocol).toBe(1);
+    expect(canOpenMap()).toBe(true);
+    expect(getViewport()).toEqual(VIEWPORT);
   });
 
-  it('treats an app build without the injected bridge as v1 with no actions', () => {
-    inApp();
-    expect([...getCapabilities().capabilities].sort()).toEqual(['haptic', 'openUrl']);
-    expect(canOpenMap()).toBe(false);
-  });
-
-  it('takes a v2 host at its word', () => {
-    inApp({ protocol: 2, capabilities: ['haptic', 'ads.rewarded'], actions: ['map'] });
-    const info = getCapabilities();
-    expect(info.protocol).toBe(2);
-    expect([...info.capabilities].sort()).toEqual(['ads.rewarded', 'haptic']);
+  it('is not fooled by a lone ReactNativeWebView', () => {
+    win.ReactNativeWebView = { postMessage: () => {} };
+    expect(getCapabilities().inApp).toBe(false);
   });
 });
 
-describe('messages', () => {
-  it('sends nothing outside the app', () => {
-    inBrowser();
-    expect(() => postToApp({ type: 'web:ready' })).not.toThrow();
-    expect(() => haptic('light')).not.toThrow();
-  });
-
-  it('sends the v1 wire shapes the app parses', () => {
-    const { sent } = inApp({ actions: ['map'] });
+describe('notifications', () => {
+  it('sends only granted methods', () => {
+    inApp(['haptic.impact', 'link.open', 'shell.set']);
     haptic('heavy');
     openMapPlace('event:42');
     openUrl('https://open.spotify.com/track/x', { appUrl: 'spotify:track:x' });
-    openUrl('https://example.com');
+    setShell({ statusBar: 'light' });
     expect(sent).toEqual([
-      { type: 'web:haptic', style: 'heavy' },
-      { type: 'web:action', actionType: 'map', actionValue: 'event:42' },
-      { type: 'web:open-url', url: 'https://open.spotify.com/track/x', appUrl: 'spotify:track:x' },
-      { type: 'web:open-url', url: 'https://example.com' },
+      { method: 'haptic.impact', params: { style: 'heavy' } },
+      { method: 'link.open', params: { url: 'https://open.spotify.com/track/x', appUrl: 'spotify:track:x' } },
+      { method: 'shell.set', params: { statusBar: 'light' } },
     ]);
   });
 
-  it('vibrates in a browser only when asked', () => {
+  it('falls back in a browser', () => {
     const vibrate = vi.fn();
-    inBrowser();
     vi.stubGlobal('navigator', { vibrate });
     haptic('heavy');
     haptic('heavy', { vibrate: 40 });
     expect(vibrate).toHaveBeenCalledTimes(1);
-    expect(vibrate).toHaveBeenCalledWith(40);
-  });
-
-  it('opens a new tab outside the app', () => {
-    const { open } = inBrowser();
     openUrl('https://example.com');
-    expect(open).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
-  });
-
-  it('lets an anchor do its own work outside the app', () => {
-    inBrowser();
+    expect(win.open).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
     const preventDefault = vi.fn();
     handleLinkClick({ preventDefault }, 'https://example.com');
     expect(preventDefault).not.toHaveBeenCalled();
   });
 
-  it('takes over an anchor inside the app', () => {
-    const { sent } = inApp();
+  it('takes over a link inside the app', () => {
+    inApp(['link.open']);
     const preventDefault = vi.fn();
     handleLinkClick({ preventDefault }, 'https://example.com');
     expect(preventDefault).toHaveBeenCalledOnce();
-    expect(sent).toEqual([{ type: 'web:open-url', url: 'https://example.com' }]);
+    expect(sent).toEqual([{ method: 'link.open', params: { url: 'https://example.com' } }]);
+  });
+});
+
+describe('requests', () => {
+  it('rejects unsupported outside the app or without a grant', async () => {
+    await expect(request('ads.showRewarded')).rejects.toMatchObject({ code: 'unsupported' });
+    inApp([]);
+    await expect(request('ads.showRewarded')).rejects.toBeInstanceOf(MiniappError);
+  });
+
+  it('pairs a response with its request by id', async () => {
+    inApp(['demo.echo']);
+    const a = request<string>('demo.echo', { n: 1 });
+    const b = request<string>('demo.echo', { n: 2 });
+    const [first, second] = sent as { id: string }[];
+    deliver({ id: second!.id, ok: true, result: 'two' });
+    deliver({ id: first!.id, ok: false, error: { code: 'denied', message: 'no' } });
+    await expect(b).resolves.toBe('two');
+    await expect(a).rejects.toMatchObject({ code: 'denied' });
+  });
+
+  it('times out', async () => {
+    vi.useFakeTimers();
+    inApp(['demo.echo']);
+    const p = request('demo.echo', {}, { timeoutMs: 50 });
+    vi.advanceTimersByTime(60);
+    await expect(p).rejects.toMatchObject({ code: 'timeout' });
+  });
+});
+
+describe('events', () => {
+  it('delivers viewport changes to subscribers', () => {
+    inApp([]);
+    const seen: Viewport[] = [];
+    const off = onViewportChange((v) => seen.push(v));
+    const next = { ...VIEWPORT, chrome: 'opaque' as const };
+    deliver({ event: 'viewport.changed', data: next });
+    off();
+    deliver({ event: 'viewport.changed', data: VIEWPORT });
+    expect(seen).toEqual([next]);
   });
 });

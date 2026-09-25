@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button, type ButtonProps } from '@skkuverse/ui';
-import { openMapPlace } from '../sdk/actions';
-import { useCanOpenMap } from './hooks';
+import { openMapPlace } from '../../sdk/actions';
+import { useCanOpenMap } from '../hooks';
 
 export interface MapButtonProps extends Omit<ButtonProps, 'onClick' | 'children'> {
   /** `[<kind>:]<placeId>`, as `openMapPlace` takes it. */

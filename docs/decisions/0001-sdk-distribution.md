@@ -41,8 +41,11 @@ the build must install without credentials.
 | `@skkuverse/ui` | The web port of the SKKU Design System: providers and components |
 | `@skkuverse/miniapp` | The bridge protocol (`/protocol`), the SDK (`.`), and React bindings (`/react`) |
 
-- **The bridge protocol's source of truth moves here.** `v1.ts` is the file the app and
-  `skkuverse-web` copy, and new messages are defined here first.
+- **The bridge protocol's source of truth moves here.** `packages/miniapp/src/protocol/`
+  has no DOM, React or dependencies, and the app and skkuverse-server import it from
+  npm rather than copying it. Since 0.2.0 the miniapp channel has its own envelope,
+  with requests, responses and events. skkuverse-web keeps the older
+  `@skkuverse/bridge` messages on the app's generic `/webview` screen.
 - **Built, not raw source.** Each package ships ESM plus declarations built by tsup. Raw
   TypeScript in `node_modules` gets type-checked under every consumer's compiler flags,
   because `skipLibCheck` skips only `.d.ts` files.
@@ -87,4 +90,4 @@ repository.
 
 ## Related
 
-- [protocol](../reference/protocol.md) — the messages, the rules, and the reserved v2 shape
+- [protocol](../reference/protocol.md) — the messages, the shell manifest, and the viewport

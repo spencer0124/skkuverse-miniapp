@@ -37,8 +37,9 @@ To try a change in a miniapp before releasing it, build here, then in the miniap
 3. Merge that PR. The workflow publishes to npm with provenance.
 4. Bump the dependency in each miniapp that needs the change.
 
-Change `packages/miniapp/src/protocol/v1.ts` additively only. The app and `skkuverse-web`
-copy it byte for byte, and an old app build meets a new page every day.
+`packages/miniapp/src/protocol/` is the contract with the app. Add methods there first,
+then release the SDK before the app. A page detects each method in `getCapabilities()`, so
+a page on a newer SDK still runs on an older app.
 
 ## License
 
