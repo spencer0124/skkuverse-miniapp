@@ -145,7 +145,7 @@ The app injects the values itself, as CSS variables on `<html>` and through `get
 | `--sv-inset-{top,bottom,left,right}` | their sum |
 | `html[data-sv-chrome]` | `glass` or `opaque` |
 
-`MiniappRoot` sets the same variables to zero outside the app, so they are always defined.
+Outside the app, `MiniappRoot` sets them to the browser's `env(safe-area-inset-*)` and the content layer to zero, so they are always defined and an allowed page still clears the notch in Safari.
 
 ### Page recipe
 

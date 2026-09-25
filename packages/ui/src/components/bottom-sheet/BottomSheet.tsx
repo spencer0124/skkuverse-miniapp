@@ -102,7 +102,7 @@ function BottomSheetRoot({
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             backgroundColor: adaptive.layeredBackground,
-            paddingBottom: 'max(24px, env(safe-area-inset-bottom))',
+            paddingBottom: 'max(24px, var(--sv-inset-bottom, env(safe-area-inset-bottom, 0px)))',
             transform: `translateY(${open ? '0' : '100%'})`,
             transition: `transform ${EXIT_MS}ms cubic-bezier(0.33, 1, 0.68, 1)`,
           },
