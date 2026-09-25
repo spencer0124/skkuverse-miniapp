@@ -12,19 +12,21 @@ for talking to the skkuverse app.
 ```tsx
 import { SDSProvider, Button } from '@skkuverse/ui';
 import { haptic, openUrl } from '@skkuverse/miniapp';
-import { MapButton } from '@skkuverse/miniapp/react';
+import { MiniappRoot } from '@skkuverse/miniapp/react';
+import { MapButton } from '@skkuverse/miniapp/react/ui';
 ```
 
-- [docs/reference/protocol.md](docs/reference/protocol.md) covers the messages, the rules both sides follow, and
-  the reserved v2 for ads, sign-in and launch tokens.
-- [docs/decisions/0001-sdk-distribution.md](docs/decisions/0001-sdk-distribution.md) explains why this is an npm
-  package.
+Documentation is indexed in [docs/README.md](docs/README.md). Start with:
+
+- [explanation/architecture.md](docs/explanation/architecture.md), for how the packages, the app and the server fit
+- [reference/protocol.md](docs/reference/protocol.md), for the contract with the app
+- [how-to/create-a-miniapp.md](docs/how-to/create-a-miniapp.md), for building a new miniapp
 
 ## Developing
 
 ```sh
 pnpm install
-pnpm build && pnpm typecheck && pnpm test && pnpm lint
+pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm lint:md
 ```
 
 To try a change in a miniapp before releasing it, build here, then in the miniapp run
@@ -32,22 +34,10 @@ To try a change in a miniapp before releasing it, build here, then in the miniap
 
 ## Releasing
 
-1. Add a changeset with the change: `pnpm changeset`.
-2. Merge to `main`. The release workflow opens a "Version Packages" PR.
-3. Merge that PR, then publish from a local checkout of `main`:
-   `pnpm install && pnpm build && node scripts/publish.mjs`. It publishes only
-   versions npm does not have, in dependency order, and asks for 2FA once.
-4. Bump the dependency in each miniapp that needs the change.
-
-CI does not publish for now. npm trusted publishing rejects this repository's OIDC
-tokens, because repositories created after 2026-07-15 get GitHub's immutable
-`sub` claim format, which npm does not match yet
-([npm/cli#9969](https://github.com/npm/cli/issues/9969)). When that is fixed, add
-`publish: pnpm release` back to the changesets step in `release.yml`.
-
-`packages/miniapp/src/protocol/` is the contract with the app. Add methods there first,
-then release the SDK before the app. A page detects each method in `getCapabilities()`, so
-a page on a newer SDK still runs on an older app.
+Add a changeset with each change (`pnpm changeset`). Merging to `main` opens a "Version
+Packages" PR. After merging it, publish locally with `node scripts/publish.mjs`: CI cannot
+publish yet ([npm/cli#9969](https://github.com/npm/cli/issues/9969)). The whole procedure is in
+[how-to/release-packages.md](docs/how-to/release-packages.md).
 
 ## License
 
