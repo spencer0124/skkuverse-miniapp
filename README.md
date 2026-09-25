@@ -34,8 +34,16 @@ To try a change in a miniapp before releasing it, build here, then in the miniap
 
 1. Add a changeset with the change: `pnpm changeset`.
 2. Merge to `main`. The release workflow opens a "Version Packages" PR.
-3. Merge that PR. The workflow publishes to npm with provenance.
+3. Merge that PR, then publish from a local checkout of `main`:
+   `pnpm install && pnpm build && node scripts/publish.mjs`. It publishes only
+   versions npm does not have, in dependency order, and asks for 2FA once.
 4. Bump the dependency in each miniapp that needs the change.
+
+CI does not publish for now. npm trusted publishing rejects this repository's OIDC
+tokens, because repositories created after 2026-07-15 get GitHub's immutable
+`sub` claim format, which npm does not match yet
+([npm/cli#9969](https://github.com/npm/cli/issues/9969)). When that is fixed, add
+`publish: pnpm release` back to the changesets step in `release.yml`.
 
 `packages/miniapp/src/protocol/` is the contract with the app. Add methods there first,
 then release the SDK before the app. A page detects each method in `getCapabilities()`, so
