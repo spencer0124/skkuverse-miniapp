@@ -1,6 +1,6 @@
 import { createContext, useContext, useLayoutEffect, useMemo, type CSSProperties, type ReactNode } from 'react';
 import { CssTypo, SdsColors } from '@skkuverse/tokens';
-import { ZERO_VIEWPORT, viewportCssVars, type Viewport } from '../protocol';
+import { viewportCssVars, type Viewport } from '../protocol';
 import { isInApp } from '../transport';
 
 export interface MiniappRootProps {
@@ -51,17 +51,35 @@ export function openInAppUrl(id: string): string {
   return `https://skkuverse.com/p/m/${encodeURIComponent(id)}`;
 }
 
-function applyViewport(viewport: Viewport): void {
+function applyVars(vars: Record<string, string>, chrome: Viewport['chrome']): void {
   const root = document.documentElement;
-  for (const [name, value] of Object.entries(viewportCssVars(viewport))) root.style.setProperty(name, value);
-  root.setAttribute('data-sv-chrome', viewport.chrome);
+  for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, value);
+  root.setAttribute('data-sv-chrome', chrome);
+}
+
+/**
+ * Outside the app there is no app UI, and the device safe area is whatever the
+ * browser reports: `env()`, which Safari fills in under `viewport-fit=cover`.
+ * Setting the variables to `env()` rather than to zero keeps an allowed page
+ * clear of the notch in a browser too.
+ */
+function browserVars(): Record<string, string> {
+  const vars: Record<string, string> = {};
+  for (const edge of ['top', 'bottom', 'left', 'right']) {
+    const safe = `env(safe-area-inset-${edge}, 0px)`;
+    vars[`--sv-safe-${edge}`] = safe;
+    vars[`--sv-content-${edge}`] = '0px';
+    vars[`--sv-inset-${edge}`] = safe;
+  }
+  return vars;
 }
 
 /**
  * The root every miniapp renders inside. Outside the app it blocks by default
  * (see `browser`). It also guarantees the `--sv-*` CSS variables exist: the
  * app sets them before the page loads, and outside it they are set here, to
- * zeros or to `mockViewport`, so `var(--sv-inset-top)` never falls through.
+ * the browser's `env(safe-area-inset-*)` or to `mockViewport`, so
+ * `var(--sv-inset-top)` never falls through.
  */
 export function MiniappRoot({ id, browser = 'block', dev, mockViewport, children }: MiniappRootProps) {
   const inApp = isInApp();
@@ -69,7 +87,9 @@ export function MiniappRoot({ id, browser = 'block', dev, mockViewport, children
   const state = useMemo(() => ({ id }), [id]);
 
   useLayoutEffect(() => {
-    if (!inApp) applyViewport(devMode && mockViewport ? mockViewport : ZERO_VIEWPORT);
+    if (inApp) return;
+    if (devMode && mockViewport) applyVars(viewportCssVars(mockViewport), mockViewport.chrome);
+    else applyVars(browserVars(), 'opaque');
   }, [inApp, devMode, mockViewport]);
 
   if (!inApp && browser === 'block' && !devMode) return <BrowserGate id={id} />;
