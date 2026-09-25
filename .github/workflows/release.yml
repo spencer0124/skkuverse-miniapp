@@ -33,12 +33,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # With pending changesets this opens (or updates) a "Version Packages" PR.
-      # Merging that PR lands here again with none pending, and then it
-      # publishes whatever versions are not on npm yet.
+      # Opens (or updates) the "Version Packages" PR while changesets are pending.
+      # It does not publish: npm trusted publishing rejects OIDC tokens from
+      # repositories created after 2026-07-15, whose `sub` claim uses GitHub's
+      # immutable format (npm/cli#9969), and this repository is one of them.
+      # Until npm fixes that, publish locally after merging the Version PR:
+      #   pnpm install && pnpm build && node scripts/publish.mjs
+      # Restoring CI publishing is `publish: pnpm release` on this step.
       - uses: changesets/action@v1
         with:
-          publish: pnpm release
           title: Version Packages
           commit: Version Packages
         env:
