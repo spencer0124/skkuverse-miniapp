@@ -3,7 +3,7 @@ title: Distribute The Miniapp SDK And SDS As Public npm Packages
 type: adr
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-09-25
+last-updated: 2026-09-26
 audience: public
 ---
 
@@ -87,6 +87,12 @@ repository would still need a token.
 **Keep copying, add the miniapps to the contracts manifest.** Rejected. It would catch drift
 in `types.ts` but not in the helpers, and it keeps a design system's worth of files in every
 repository.
+
+## Amendment 2026-09-26: publishing is local for now
+
+Trusted publishing from CI does not work for this repository. GitHub gives repositories created after 2026-07-15 an immutable OIDC `sub` claim (`repo:owner@id/repo@id`). npm's token exchange does not match that claim yet and answers `package not found` ([npm/cli#9969](https://github.com/npm/cli/issues/9969)). The repository cannot opt out of the immutable claim.
+
+Until npm fixes it, `release.yml` only opens the Version Packages PR. A maintainer then publishes from a local checkout with `scripts/publish.mjs`, which uses npm's web two-factor login. The trusted publishers stay configured, so restoring CI publishing is one line in the workflow. See [release-packages](../how-to/release-packages.md).
 
 ## Related
 
