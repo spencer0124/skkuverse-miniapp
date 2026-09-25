@@ -13,11 +13,13 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "changeset": "changeset",
-    "release": "turbo run build && node scripts/publish.mjs"
+    "release": "turbo run build && node scripts/publish.mjs",
+    "lint:md": "markdownlint-cli2"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@changesets/cli": "^2.31.1",
+    "markdownlint-cli2": "^0.23.3",
     "publint": "^0.3.24",
     "tsup": "^8.5.1",
     "turbo": "^2.6.1"
