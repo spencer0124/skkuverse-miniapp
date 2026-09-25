@@ -1,35 +1,28 @@
-import { postToApp } from '../transport';
-import { hasCapability } from './capabilities';
+import { isGranted, notify } from '../transport';
 
 /**
- * Whether the host app can open its map on a place. A button that asks for it
- * must not be drawn otherwise: in a plain browser there is no map to open.
+ * Whether the app can open its map on a place. A button that asks for it must
+ * not be drawn otherwise: in a browser there is no map to open.
  */
 export function canOpenMap(): boolean {
-  return hasCapability('action.map');
+  return isGranted('map.openPlace');
 }
 
 /**
- * Ask the app to close this page and open its campus map on one place, with its
- * sheet up. `place` is `[<kind>:]<placeId>` — `event:<placeId>` for a festival
- * place — the same string as the app's `skkuverse://map?place=` link.
- *
- * The app only honours this from an origin on the server's BRIDGE_ORIGINS, so a
- * new deployment of a page needs its host added there first.
+ * Close this page and open the campus map on one place, sheet up. `place` is
+ * `[<kind>:]<placeId>` — `event:<placeId>` for a festival place — the same
+ * string as the app's `skkuverse://map?place=` link.
  */
 export function openMapPlace(place: string): void {
-  postToApp({ type: 'web:action', actionType: 'map', actionValue: place });
+  notify('map.openPlace', { place });
 }
 
-/** Whether the host app can open another miniapp. */
+/** Whether the app can open another miniapp. */
 export function canOpenMiniapp(): boolean {
-  return hasCapability('action.miniapp');
+  return isGranted('miniapp.open');
 }
 
-/**
- * Ask the app to open another registered miniapp. `target` is `<id>[/path]`,
- * the same grammar as the `skkuverse://m/<id>` deep link.
- */
+/** Open another registered miniapp. `target` is `<id>[/path]`, as in `skkuverse://m/<id>`. */
 export function openMiniapp(target: string): void {
-  postToApp({ type: 'web:action', actionType: 'miniapp', actionValue: target });
+  notify('miniapp.open', { target });
 }

@@ -2,12 +2,14 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig([
   {
-    // The npm build. Three entries, so `./protocol` stays free of DOM and React
-    // and `./react` is the only one that touches either peer.
+    // The npm build. `./protocol` stays free of DOM and React, `./react` of
+    // `@skkuverse/ui`: only `./react/ui` imports it, so a page that uses the
+    // hooks without the design system installs cleanly.
     entry: {
       index: 'src/index.ts',
       'protocol/index': 'src/protocol/index.ts',
       'react/index': 'src/react/index.ts',
+      'react/ui/index': 'src/react/ui/index.ts',
     },
     format: ['esm'],
     dts: true,
