@@ -1,0 +1,55 @@
+{
+  "lockVersion": 1,
+  "repo": "miniapp",
+  "note": "Written by sync_contracts.py. Do not hand-edit, and never resolve a merge conflict here by hand - take either side, then re-run `pull --repo miniapp`.",
+  "contracts": {
+    "design.colors": {
+      "path": "packages/tokens/src/colors.ts",
+      "sha256": "878627674dc90a70a6d4c05462ee9b34932a3a7a40d9a135087b26dfd7ea4e2e",
+      "producer": {
+        "repo": "app",
+        "path": "packages/shared/src/tokens/colors.ts",
+        "ref": "main",
+        "commit": "0bc0ef5667f86dce97e2bdb5e3ef2e38477cded2",
+        "sha256": "878627674dc90a70a6d4c05462ee9b34932a3a7a40d9a135087b26dfd7ea4e2e"
+      },
+      "syncedAt": "2026-09-25T10:36:42Z"
+    },
+    "design.radius": {
+      "path": "packages/tokens/src/radius.ts",
+      "sha256": "3d5326cafdaf5139adfb625b367c3c29b0e8bb622b46aa601dbe6b68a292ade3",
+      "producer": {
+        "repo": "app",
+        "path": "packages/shared/src/tokens/radius.ts",
+        "ref": "main",
+        "commit": "0bc0ef5667f86dce97e2bdb5e3ef2e38477cded2",
+        "sha256": "3d5326cafdaf5139adfb625b367c3c29b0e8bb622b46aa601dbe6b68a292ade3"
+      },
+      "syncedAt": "2026-09-25T10:36:45Z"
+    },
+    "design.spacing": {
+      "path": "packages/tokens/src/spacing.ts",
+      "sha256": "9aecbfd463ef5eadd48f072e68b6c1553a3c43d89738878fe7e1e1f5680a5f9f",
+      "producer": {
+        "repo": "app",
+        "path": "packages/shared/src/tokens/spacing.ts",
+        "ref": "main",
+        "commit": "0bc0ef5667f86dce97e2bdb5e3ef2e38477cded2",
+        "sha256": "9aecbfd463ef5eadd48f072e68b6c1553a3c43d89738878fe7e1e1f5680a5f9f"
+      },
+      "syncedAt": "2026-09-25T10:36:44Z"
+    },
+    "design.typography": {
+      "path": "packages/tokens/src/typography.ts",
+      "sha256": "e59079c504722028370022212545a20e782b42519b5b2d37800674f87398fa44",
+      "producer": {
+        "repo": "app",
+        "path": "packages/shared/src/tokens/typography.ts",
+        "ref": "main",
+        "commit": "0bc0ef5667f86dce97e2bdb5e3ef2e38477cded2",
+        "sha256": "e59079c504722028370022212545a20e782b42519b5b2d37800674f87398fa44"
+      },
+      "syncedAt": "2026-09-25T10:36:43Z"
+    }
+  }
+}

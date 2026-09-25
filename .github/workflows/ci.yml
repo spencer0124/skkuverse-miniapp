@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      # node-version-file rather than a literal, so .nvmrc stays the one place
+      # the version is decided.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+      # publint and are-the-types-wrong, per package: what a consumer's install
+      # and type resolution will actually see, checked before npm does.
+      - run: pnpm lint
+
+  conventions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The umbrella's checks are stdlib-only Python and are cloned rather than
+      # vendored. No setup-python: ubuntu-latest ships python3.
+      - name: Fetch shared tooling
+        run: git clone --depth 1 https://github.com/spencer0124/skkuverse "$RUNNER_TEMP/sv"
+
+      - name: Conventions
+        run: python3 "$RUNNER_TEMP/sv/exported/lint_conventions.py" --root .
+
+      # packages/tokens/src/{colors,typography,spacing,radius}.ts are byte copies
+      # owned by skkuverse-app. This compares them against this repo's own
+      # .contracts.lock.json, so it is offline and cannot go red because someone
+      # edited the upstream. Editing a copy here is what this catches.
+      - name: Contract integrity
+        run: python3 "$RUNNER_TEMP/sv/exported/sync_contracts.py" check --repo miniapp --root .
