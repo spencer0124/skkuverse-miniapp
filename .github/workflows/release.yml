@@ -25,7 +25,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-          registry-url: https://registry.npmjs.org
+          # No registry-url: it writes an .npmrc with a placeholder token, and npm
+          # then authenticates with that instead of trading the OIDC token.
 
       # Trusted publishing needs npm >= 11.5; Node 22 ships 10.x.
       - run: npm install -g npm@latest
@@ -42,4 +43,3 @@ jobs:
           commit: Version Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: 'true'
