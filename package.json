@@ -13,7 +13,7 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "changeset": "changeset",
-    "release": "turbo run build && changeset publish"
+    "release": "turbo run build && node scripts/publish.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
