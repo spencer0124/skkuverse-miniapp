@@ -55,7 +55,8 @@ for (const { dir, json } of ordered) {
   try {
     execFileSync('pnpm', ['pack', '--pack-destination', out], { cwd: dir, stdio: 'inherit' });
     const tarball = join(out, `${name.replace('@', '').replace('/', '-')}-${version}.tgz`);
-    execFileSync('npm', ['publish', tarball, '--access', 'public'], { stdio: 'inherit' });
+    // verbose: when trusted publishing is refused, npm says why only at this level.
+    execFileSync('npm', ['publish', tarball, '--access', 'public', '--loglevel', 'verbose'], { stdio: 'inherit' });
     console.log(`New tag: ${name}@${version}`);
   } catch (error) {
     console.error(`failed to publish ${name}@${version}`);
