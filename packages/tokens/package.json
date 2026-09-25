@@ -1,0 +1,31 @@
+{
+  "name": "@skkuverse/tokens",
+  "version": "0.1.0",
+  "description": "SKKU Design System tokens for the web: colors, typography, spacing and radius, plus CSS adapters.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spencer0124/skkuverse-miniapp.git",
+    "directory": "packages/tokens"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "publint && attw --pack . --profile esm-only"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

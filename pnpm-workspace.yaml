@@ -1,0 +1,25 @@
+packages:
+  - "packages/*"
+
+# pnpm blocks dependency install scripts until each is named here. esbuild is
+# tsup's bundler and its script links the platform binary. Approve additions one
+# at a time rather than blanket-enabling — the prompt is the point.
+allowBuilds:
+  esbuild: true
+
+# One version per tool across the workspace. Members reference these with
+# `"typescript": "catalog:"`, so a bump happens here rather than in every
+# package.json.
+catalog:
+  typescript: ^5.9.3
+  react: ^19.1.0
+  react-dom: ^19.1.0
+  "@types/react": ^19.1.0
+  "@types/react-dom": ^19.1.0
+
+# esbuild 0.28.2's darwin-arm64 binary hangs on `--version` (its own install
+# check) on the maintainer's Mac, so install never finishes. tsup already sits
+# on 0.27 and vite accepts `^0.27 || ^0.28`, so hold every consumer there.
+# Remove once a 0.28 release is confirmed to start.
+overrides:
+  esbuild: ~0.27.7

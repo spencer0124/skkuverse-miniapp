@@ -1,0 +1,58 @@
+{
+  "name": "@skkuverse/miniapp",
+  "version": "0.1.0",
+  "description": "The skkuverse miniapp SDK: the web↔app bridge protocol, a typed client for it, and React bindings.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol/index.d.ts",
+      "import": "./dist/protocol/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spencer0124/skkuverse-miniapp.git",
+    "directory": "packages/miniapp"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "publint && attw --pack . --profile esm-only",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@skkuverse/ui": "workspace:^",
+    "react": ">=19"
+  },
+  "peerDependenciesMeta": {
+    "@skkuverse/ui": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@skkuverse/ui": "workspace:^",
+    "@types/react": "catalog:",
+    "react": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "^3.2.4"
+  }
+}
