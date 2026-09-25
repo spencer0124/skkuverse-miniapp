@@ -3,7 +3,7 @@ title: Miniapp Bridge Protocol
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-09-25
+last-updated: 2026-09-26
 audience: public
 ---
 
@@ -66,13 +66,7 @@ No request method exists yet. The channel is implemented and tested, so the firs
 
 ### Adding a method
 
-1. Add it to `NotifyMethods` or `RequestMethods` in `messages.ts`. Name it `<namespace>.<verb>`.
-2. Add its params validator to `PARAMS`, or accept requests generically.
-3. Add a typed SDK wrapper in `sdk/`.
-4. Handle it in the app's miniapp shell and add it to the grants.
-5. Release the SDK, then the app. A page on the new SDK degrades on an older app, because the method is missing from `capabilities`.
-
-Anything that grants value, such as a reward or a ranking, must be confirmed by a server, never by an app response the page relays. A page can forge any message it likes.
+Adding a method means one entry here, one SDK wrapper and one handler in the app. See [add-a-bridge-method](../how-to/add-a-bridge-method.md). Anything that grants value, such as a reward or a ranking, must be confirmed by a server, never by an app response the page relays.
 
 ## The host object
 
@@ -147,24 +141,7 @@ The app injects the values itself, as CSS variables on `<html>` and through `get
 
 Outside the app, `MiniappRoot` sets them to the browser's `env(safe-area-inset-*)` and the content layer to zero, so they are always defined and an allowed page still clears the notch in Safari.
 
-### Page recipe
-
-Paint the background edge to edge, and keep content inside the insets:
-
-```css
-body { background: var(--page-bg); }
-.page {
-  padding-top: calc(var(--sv-inset-top) + 16px);
-  padding-bottom: calc(var(--sv-inset-bottom) + 16px);
-}
-```
-
-- With `header: opaque`, the page starts below the header, so `--sv-inset-top` is 0 and nothing changes.
-- With `header: overlay`, the page runs under the status bar and the header:
-  - With `chrome: glass`, the background shows through the header, blurred. Paint something worth showing up there.
-  - With `chrome: opaque`, the header's buttons float on the page, and the page paints the whole top band itself.
-
-Canvas games read `getViewport()`, or `useViewport()` in React, and follow `viewport.changed`.
+Paint the background edge to edge and keep content inside `--sv-inset-*`. The CSS, the choice between an opaque and an overlay header, and checking the result in a desktop browser are in [lay-out-for-safe-areas](../how-to/lay-out-for-safe-areas.md).
 
 ## Outside the app
 
@@ -174,5 +151,8 @@ The gate is presentation, not protection. The page's HTML and JavaScript are pub
 
 ## Related
 
+- [architecture](../explanation/architecture.md): how the SDK, the app and the server fit together
 - [0001-sdk-distribution](../decisions/0001-sdk-distribution.md): why this is an npm package
+- [0002-miniapp-protocol-shell-viewport](../decisions/0002-miniapp-protocol-shell-viewport.md): why this protocol, manifest and viewport
 - `skkuverse-app/docs/decisions/0006-miniapp-webview-push-architecture.md`: the origin gate
+- `skkuverse-server/docs/reference/miniapps-api.md`: the registry and the manifest merge

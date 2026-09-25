@@ -28,6 +28,7 @@ jobs:
       # publint and are-the-types-wrong, per package: what a consumer's install
       # and type resolution will actually see, checked before npm does.
       - run: pnpm lint
+      - run: pnpm lint:md
 
   conventions:
     runs-on: ubuntu-latest
