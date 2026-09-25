@@ -1,5 +1,13 @@
 # @skkuverse/miniapp
 
+## 0.2.1
+
+### Patch Changes
+
+- 61ba9f0: Outside the app, `MiniappRoot` sets `--sv-safe-*` and `--sv-inset-*` to the browser's `env(safe-area-inset-*)` instead of zero, so a page allowed in browsers still clears the notch in Safari.
+- Updated dependencies [61ba9f0]
+  - @skkuverse/ui@0.1.1
+
 ## 0.2.0
 
 ### Minor Changes
