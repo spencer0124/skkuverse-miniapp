@@ -11,6 +11,7 @@ import {
   openUrl,
   request,
   setShell,
+  share,
 } from '../src';
 import { MESSAGE_EVENT, ZERO_VIEWPORT, type HostMessage, type Viewport } from '../src/protocol';
 
@@ -147,5 +148,58 @@ describe('events', () => {
     off();
     deliver({ event: 'viewport.changed', data: VIEWPORT });
     expect(seen).toEqual([next]);
+  });
+});
+
+describe('share', () => {
+  const link = { url: 'https://skkuverse.com/p/m/booth-box/r/a', text: '뽑혔어요' };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal('window', win);
+  });
+
+  it('asks the app for its sheet when granted', async () => {
+    inApp(['share.open']);
+    await expect(share(link)).resolves.toBe('shared');
+    expect(sent).toEqual([{ method: 'share.open', params: link }]);
+  });
+
+  it("uses the browser's sheet, and reports a dismissal", async () => {
+    const nav = { share: vi.fn().mockResolvedValueOnce(undefined), clipboard: { writeText: vi.fn() } };
+    vi.stubGlobal('navigator', nav);
+    await expect(share(link)).resolves.toBe('shared');
+    expect(nav.share).toHaveBeenCalledWith(link);
+    nav.share.mockRejectedValueOnce(Object.assign(new Error('no'), { name: 'AbortError' }));
+    await expect(share(link)).resolves.toBe('cancelled');
+    expect(nav.clipboard.writeText).not.toHaveBeenCalled();
+    expect(sent).toEqual([]);
+  });
+
+  it('copies when there is no sheet, or the sheet refuses', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    await expect(share(link)).resolves.toBe('copied');
+    expect(writeText).toHaveBeenLastCalledWith(`${link.text}\n${link.url}`);
+
+    vi.stubGlobal('navigator', {
+      share: vi.fn().mockRejectedValue(Object.assign(new Error('x'), { name: 'NotAllowedError' })),
+      clipboard: { writeText },
+    });
+    await expect(share({ url: link.url })).resolves.toBe('copied');
+    expect(writeText).toHaveBeenLastCalledWith(link.url);
+  });
+
+  it('fails what the app would drop, and drops an empty message', async () => {
+    inApp(['share.open']);
+    await expect(share({ url: 'skkuverse:///m/x' })).resolves.toBe('failed');
+    await expect(share({ url: link.url, text: 'x'.repeat(513) })).resolves.toBe('failed');
+    await expect(share({ url: link.url, text: '' })).resolves.toBe('shared');
+    expect(sent).toEqual([{ method: 'share.open', params: { url: link.url } }]);
+  });
+
+  it('fails when nothing works', async () => {
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    await expect(share(link)).resolves.toBe('failed');
   });
 });

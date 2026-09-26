@@ -31,6 +31,11 @@ export interface NotifyMethods {
   'map.openPlace': { place: string };
   /** Open another registered miniapp: `<id>[/path]`. */
   'miniapp.open': { target: string };
+  /**
+   * Open the app's share sheet on `url`, with `text` as the message above it.
+   * The sheet's outcome is the user's business: the page is not told.
+   */
+  'share.open': { url: string; text?: string };
   'analytics.track': { event: string; params?: Record<string, unknown> };
   /** The page has rendered. */
   'app.ready': Record<string, never>;
@@ -96,6 +101,7 @@ export const NOTIFY_METHODS: readonly NotifyMethod[] = [
   'link.open',
   'map.openPlace',
   'miniapp.open',
+  'share.open',
   'analytics.track',
   'app.ready',
   'shell.set',
@@ -135,6 +141,11 @@ const PARAMS: { [M in NotifyMethod]: (p: Record<string, unknown>) => NotifyMetho
   },
   'map.openPlace': (p) => (shortString(p.place, 128) ? { place: p.place } : null),
   'miniapp.open': (p) => (shortString(p.target, 128) ? { target: p.target } : null),
+  'share.open': (p) => {
+    if (!isHttpUrl(p.url)) return null;
+    if (p.text === undefined) return { url: p.url };
+    return shortString(p.text, 512) ? { url: p.url, text: p.text } : null;
+  },
   'analytics.track': (p) => {
     if (!shortString(p.event, 64)) return null;
     if (p.params === undefined) return { event: p.event };
