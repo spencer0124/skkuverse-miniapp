@@ -60,6 +60,8 @@ Error codes are `unsupported`, `denied`, `cancelled`, `timeout` and `failed`.
 
 No request method exists yet. The channel is implemented and tested, so the first request method is an entry in the table rather than a protocol change.
 
+`link.open` tries `appUrl` first and falls back to `url` only when nothing on the device handles the scheme. An app that takes the scheme but ignores its path never reaches `url`: Instagram opens its home feed for `instagram://p/<shortcode>`. Leave `appUrl` off for a site whose https links its app already claims, Instagram included. The app hands the https address to the OS, which opens it in that app or in the browser.
+
 | Event | Data | SDK |
 | --- | --- | --- |
 | `viewport.changed` | `Viewport` | `onViewportChange()`, `useViewport()` |

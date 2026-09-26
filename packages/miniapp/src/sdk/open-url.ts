@@ -3,7 +3,9 @@ import { isGranted, notify } from '../transport';
 export interface OpenUrlOptions {
   /**
    * An app's own scheme (`spotify:track:…`, `youtube://…`) the app tries first,
-   * falling back to `url` when nothing on the device handles it.
+   * falling back to `url` when nothing on the device handles it. Leave it off
+   * for a site whose https links its app already claims, such as Instagram: an
+   * app that takes the scheme but ignores its path never reaches `url`.
    */
   appUrl?: string;
 }
