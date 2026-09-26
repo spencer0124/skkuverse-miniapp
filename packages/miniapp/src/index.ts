@@ -15,6 +15,7 @@ export { getCapabilities, hasCapability, type HostInfo } from './sdk/capabilitie
 export { haptic, type HapticStyle, type HapticOptions } from './sdk/haptic';
 export { openUrl, handleLinkClick, type OpenUrlOptions } from './sdk/open-url';
 export { canOpenMap, openMapPlace, canOpenMiniapp, openMiniapp } from './sdk/actions';
+export { canShare, share, type ShareOptions, type ShareResult } from './sdk/share';
 export { ready, track } from './sdk/lifecycle';
 export { getViewport, onViewportChange, setShell } from './sdk/shell';
 export type { Viewport, Insets, Chrome, ShellPatch, ShellConfig, Method } from './protocol';

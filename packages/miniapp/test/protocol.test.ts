@@ -20,6 +20,10 @@ describe('parseMessage', () => {
     expect(msg({ method: 'link.open', params: { url: 'https://x.dev', appUrl: 'spotify:track:1' } })).not.toBeNull();
     expect(msg({ method: 'map.openPlace', params: { place: 'event:42' } })).not.toBeNull();
     expect(msg({ method: 'miniapp.open', params: { target: 'mukja' } })).not.toBeNull();
+    expect(msg({ method: 'share.open', params: { url: 'https://skkuverse.com/p/m/x', text: 'hi' } })).toEqual({
+      method: 'share.open',
+      params: { url: 'https://skkuverse.com/p/m/x', text: 'hi' },
+    });
     expect(msg({ method: 'analytics.track', params: { event: 'spin' } })).not.toBeNull();
     expect(msg({ method: 'app.ready' })).toEqual({ method: 'app.ready', params: {} });
     expect(msg({ method: 'shell.set', params: { statusBar: 'light' } })).toEqual({
@@ -43,6 +47,8 @@ describe('parseMessage', () => {
     expect(msg({ method: 'link.open', params: { url: 'javascript:alert(1)' } })).toBeNull();
     expect(msg({ method: 'shell.set', params: { bar: 'top' } })).toBeNull();
     expect(msg({ method: 'map.openPlace', params: [] })).toBeNull();
+    expect(msg({ method: 'share.open', params: { url: 'skkuverse:///m/x' } })).toBeNull();
+    expect(msg({ method: 'share.open', params: { url: 'https://x.dev', text: '' } })).toBeNull();
     expect(msg({ method: 'toString' })).toBeNull();
     expect(parseMessage('x'.repeat(5000))).toBeNull();
   });
