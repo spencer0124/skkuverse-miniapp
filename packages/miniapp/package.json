@@ -1,6 +1,6 @@
 {
   "name": "@skkuverse/miniapp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "The skkuverse miniapp SDK: the web↔app bridge protocol, a typed client for it, and React bindings.",
   "license": "Apache-2.0",
   "type": "module",
