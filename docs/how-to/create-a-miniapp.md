@@ -20,10 +20,10 @@ audience: internal
 | 3 | GitHub repository | `spencer0124/miniapp-<name>` | `main` and `dev` branches |
 | 4 | Cloudflare Pages | Cloudflare API | a push to `main` deploys |
 | 5 | Custom domain | Cloudflare API and DNS | `https://<name>.mini.skkuverse.com` |
-| 6 | Server registry | skkuverse-server `dev` | the app knows the miniapp |
-| 7 | Production | server `dev → main` | a tile on the app's home grid |
+| 6 | Server registry and home layout | skkuverse-server `dev` | the app knows the miniapp and has a tile for it |
+| 7 | Production | server `dev → main`, then `mnemosyne` by hand | a tile on the app's home grid |
 
-The app needs no release: its home grid and the mini-app shell both read the server registry.
+The app needs no release: its home grid reads the server's home layout and registry, and the mini-app shell reads the registry.
 
 ## Prerequisites
 
@@ -174,17 +174,29 @@ The dashboard's warning icon next to a two-level subdomain can be ignored. Pages
 Follow skkuverse-server's [register a mini app](https://github.com/spencer0124/skkuverse-server/blob/main/docs/how-to/register-a-miniapp.md), on its `dev` branch. In short:
 
 1. Add an entry to `src/miniapps/index.json` and create `src/miniapps/details/<name>.json`.
-2. Add the details file to `scripts/copy-build-assets.js`. Forgetting it crashes production only.
-3. Add the origin to `BRIDGE_ORIGINS` in `src/infra/origins.ts`. The app grants SDK methods only to those origins, and without it every button silently does nothing. Update the literal list in the app-config test too.
-4. Leave `shell` out of the details file. The page's own manifest decides it.
+2. Add the id to `miniAppIds` in `src/ui/home/home-layout.json`, at the tile's position. Current app releases draw the home grid from that list, in its order; `index.json`'s `order` only reaches releases that predate it. Without this the miniapp is registered but has no tile.
+3. Add the details file to `scripts/copy-build-assets.js`. Forgetting it crashes production only.
+4. Add the origin to `BRIDGE_ORIGINS` in `src/infra/origins.ts`. The app grants SDK methods only to those origins, and without it every button silently does nothing. Update the literal list in the app-config test too.
+5. Leave `shell` out of the details file. The page's own manifest decides it.
 
 ### 7. Production
 
-Merge skkuverse-server `dev` into `main` through a PR, since only `main` deploys. Then check:
+Merge skkuverse-server `dev` into `main` through a PR, since only `main` deploys.
+
+The merge deploys only one of the API's two hosts. The load balancer splits traffic between `oracle` and `mnemosyne`, and the workflow skips `mnemosyne`, whose SSH GitHub's runners cannot reach, while the run still shows green. Once `deploy-oracle` finishes, deploy `mnemosyne` by hand from a machine that can SSH to it. The commands are at the end of step 7 in the server's [register a mini app](https://github.com/spencer0124/skkuverse-server/blob/main/docs/how-to/register-a-miniapp.md#7-deploy-dev--main). Skip it and every other request still answers `404` for the new miniapp.
+
+Then check:
 
 ```sh
 curl -s https://api.skkuverse.com/miniapps/<name>    # 200, with the page's shell merged in
 curl -s https://api.skkuverse.com/app/config         # data.webview.bridgeOrigins has the origin
+curl -s https://api.skkuverse.com/ui/home            # a miniapp_grid section lists the id
+
+# Both hosts, past the edge cache: 200 on every line, from both X-Served-By names
+for i in 1 2 3 4 5 6 7 8; do
+  curl -s -o /dev/null -D - "https://api.skkuverse.com/miniapps/<name>?b=$RANDOM$i" \
+    | tr -d '\r' | grep -iE '^HTTP|x-served-by' | tr '\n' ' '; echo
+done
 ```
 
 The app caches `/miniapps` for five minutes, so restart it if the tile is missing.
@@ -201,6 +213,8 @@ The app caches `/miniapps` for five minutes, so restart it if the tile is missin
 | The same, with `404` from the registry | npm's install metadata lags a few minutes after a publish | Wait, then retry |
 | The Pages build uses the wrong pnpm | `PNPM_VERSION` is unset | Set it on both environments |
 | The server crashes at boot in production only | The details file is missing from `copy-build-assets.js` | Add it |
+| Registered, but no tile on the home screen | The id is missing from `home-layout.json`'s `miniAppIds` | Add it (step 6) |
+| `/miniapps/<name>` is `404` on some requests and `200` on others after a green deploy | `mnemosyne` still runs the old build (`X-Served-By: mnemosyne-api`) | Deploy that host by hand (step 7) |
 | `index.json` fails at boot | An unknown key, such as `logo` or `homelogo` | Only the documented keys are allowed |
 
 ## Related
