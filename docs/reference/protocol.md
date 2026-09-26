@@ -54,6 +54,7 @@ Error codes are `unsupported`, `denied`, `cancelled`, `timeout` and `failed`.
 | `link.open` | notification | `{ url, appUrl? }` | `openUrl()`, `handleLinkClick()` |
 | `map.openPlace` | notification | `{ place }` | `openMapPlace()` |
 | `miniapp.open` | notification | `{ target }` | `openMiniapp()` |
+| `share.open` | notification | `{ url, text? }` | `share()` |
 | `analytics.track` | notification | `{ event, params? }` | `track()` |
 | `app.ready` | notification | none | `ready()` |
 | `shell.set` | notification | `ShellPatch` | `setShell()` |
@@ -61,6 +62,8 @@ Error codes are `unsupported`, `denied`, `cancelled`, `timeout` and `failed`.
 No request method exists yet. The channel is implemented and tested, so the first request method is an entry in the table rather than a protocol change.
 
 `link.open` tries `appUrl` first and falls back to `url` only when nothing on the device handles the scheme. An app that takes the scheme but ignores its path never reaches `url`: Instagram opens its home feed for `instagram://p/<shortcode>`. Leave `appUrl` off for a site whose https links its app already claims, Instagram included. The app hands the https address to the OS, which opens it in that app or in the browser.
+
+`share()` works without the grant too: outside the app it opens the browser's share sheet (Web Share), and where there is none it copies `text` and `url` to the clipboard and resolves `'copied'`, which the page should say. Call it from a tap, since browsers allow both only inside a user gesture.
 
 | Event | Data | SDK |
 | --- | --- | --- |
