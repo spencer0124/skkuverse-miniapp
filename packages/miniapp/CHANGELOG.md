@@ -1,5 +1,11 @@
 # @skkuverse/miniapp
 
+## 0.3.0
+
+### Minor Changes
+
+- 4e250d4: Add `share.open` and `share({ url, text })`. In the app it opens the native share sheet. In a browser it uses Web Share, then falls back to copying the link, and resolves `'shared'`, `'copied'`, `'cancelled'` or `'failed'` so the page can say what happened.
+
 ## 0.2.1
 
 ### Patch Changes
