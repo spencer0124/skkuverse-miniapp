@@ -21,7 +21,7 @@ audience: internal
 | 4 | Cloudflare Pages | Cloudflare API | a push to `main` deploys |
 | 5 | Custom domain | Cloudflare API and DNS | `https://<name>.mini.skkuverse.com` |
 | 6 | Server registry | skkuverse-server `dev` | the app knows the miniapp |
-| 7 | Production | server `dev → main` | a tile on the app's home grid |
+| 7 | Production | server `dev → main`, then `mnemosyne` by hand | a tile on the app's home grid |
 
 The app needs no release: its home grid and the mini-app shell both read the server registry.
 
@@ -180,11 +180,21 @@ Follow skkuverse-server's [register a mini app](https://github.com/spencer0124/s
 
 ### 7. Production
 
-Merge skkuverse-server `dev` into `main` through a PR, since only `main` deploys. Then check:
+Merge skkuverse-server `dev` into `main` through a PR, since only `main` deploys.
+
+The merge deploys only one of the API's two hosts. The load balancer splits traffic between `oracle` and `mnemosyne`, and the workflow skips `mnemosyne`, whose SSH GitHub's runners cannot reach, while the run still shows green. Once `deploy-oracle` finishes, deploy `mnemosyne` by hand from a machine that can SSH to it. The commands are at the end of step 7 in the server's [register a mini app](https://github.com/spencer0124/skkuverse-server/blob/main/docs/how-to/register-a-miniapp.md#7-deploy-dev--main). Skip it and every other request still answers `404` for the new miniapp.
+
+Then check:
 
 ```sh
 curl -s https://api.skkuverse.com/miniapps/<name>    # 200, with the page's shell merged in
 curl -s https://api.skkuverse.com/app/config         # data.webview.bridgeOrigins has the origin
+
+# Both hosts, past the edge cache: 200 on every line, from both X-Served-By names
+for i in 1 2 3 4 5 6 7 8; do
+  curl -s -o /dev/null -D - "https://api.skkuverse.com/miniapps/<name>?b=$RANDOM$i" \
+    | tr -d '\r' | grep -iE '^HTTP|x-served-by' | tr '\n' ' '; echo
+done
 ```
 
 The app caches `/miniapps` for five minutes, so restart it if the tile is missing.
@@ -201,6 +211,7 @@ The app caches `/miniapps` for five minutes, so restart it if the tile is missin
 | The same, with `404` from the registry | npm's install metadata lags a few minutes after a publish | Wait, then retry |
 | The Pages build uses the wrong pnpm | `PNPM_VERSION` is unset | Set it on both environments |
 | The server crashes at boot in production only | The details file is missing from `copy-build-assets.js` | Add it |
+| `/miniapps/<name>` is `404` on some requests and `200` on others after a green deploy | `mnemosyne` still runs the old build (`X-Served-By: mnemosyne-api`) | Deploy that host by hand (step 7) |
 | `index.json` fails at boot | An unknown key, such as `logo` or `homelogo` | Only the documented keys are allowed |
 
 ## Related
