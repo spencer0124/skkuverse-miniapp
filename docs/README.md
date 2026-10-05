@@ -3,7 +3,7 @@ title: Docs Index & Conventions
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-09-26
+last-updated: 2026-10-05
 audience: public
 ---
 
@@ -52,6 +52,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 | Document | Summary |
 | --- | --- |
 | [protocol.md](reference/protocol.md) | The miniapp ↔ app contract: messages, methods, the host object, the shell manifest and the viewport |
+| [miniapp-spec.md](reference/miniapp-spec.md) | What a miniapp must be before skkuverse hosts it: identity, package, build output, page, manifest and backend rules |
 
 ### explanation
 
