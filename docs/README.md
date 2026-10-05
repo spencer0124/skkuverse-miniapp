@@ -3,7 +3,7 @@ title: Docs Index & Conventions
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-09-26
+last-updated: 2026-10-05
 audience: public
 ---
 
@@ -42,7 +42,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 
 | Document | Summary |
 | --- | --- |
-| [create-a-miniapp.md](how-to/create-a-miniapp.md) | From an empty folder to a tile in the app: scaffold, repository, Pages, domain, server registry |
+| [create-a-miniapp.md](how-to/create-a-miniapp.md) | From an empty folder to a tile in the app: scaffold in skkuverse-mini, Pages, ship, domain, server registry |
 | [lay-out-for-safe-areas.md](how-to/lay-out-for-safe-areas.md) | Padding with `--sv-inset-*` so content clears the device and the app's UI |
 | [add-a-bridge-method.md](how-to/add-a-bridge-method.md) | Adding a feature a page asks the app for, and the release order |
 | [release-packages.md](how-to/release-packages.md) | Changesets, the local publish, and bumping the miniapps |
@@ -52,6 +52,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 | Document | Summary |
 | --- | --- |
 | [protocol.md](reference/protocol.md) | The miniapp ↔ app contract: messages, methods, the host object, the shell manifest and the viewport |
+| [miniapp-spec.md](reference/miniapp-spec.md) | What a miniapp must be before skkuverse hosts it: identity, package, build output, page, manifest and backend rules |
 
 ### explanation
 
