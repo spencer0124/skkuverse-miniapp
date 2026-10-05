@@ -3,7 +3,7 @@ title: Release The Packages
 type: how-to
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-09-26
+last-updated: 2026-10-05
 audience: internal
 ---
 
@@ -52,7 +52,7 @@ change + changeset ──▶ dev ──PR──▶ main ──▶ release.yml op
    curl -s https://registry.npmjs.org/@skkuverse%2Fminiapp | grep -o '"latest":"[^"]*"'
    ```
 
-6. **Bump the miniapps.** In each miniapp, raise the range in `apps/webview/package.json`, run `pnpm install`, then typecheck, test and build, and push `dev`. Their `pnpm-workspace.yaml` excludes `@skkuverse/*` from pnpm's release-age delay, so the new version installs at once.
+6. **Bump the miniapps.** In skkuverse-mini, raise the range in the catalog (`pnpm-workspace.yaml`) once for every miniapp, run `pnpm install`, then `pnpm typecheck && pnpm test && pnpm build && pnpm check`, and push `dev`. The workspace excludes `@skkuverse/*` from pnpm's release-age delay, so the new version installs at once. A new minor needs the catalog bump: a `0.x` caret never crosses one. Ship each miniapp that should pick it up.
 
 ## Troubleshooting
 

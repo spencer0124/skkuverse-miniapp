@@ -42,7 +42,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 
 | Document | Summary |
 | --- | --- |
-| [create-a-miniapp.md](how-to/create-a-miniapp.md) | From an empty folder to a tile in the app: scaffold, repository, Pages, domain, server registry |
+| [create-a-miniapp.md](how-to/create-a-miniapp.md) | From an empty folder to a tile in the app: scaffold in skkuverse-mini, Pages, ship, domain, server registry |
 | [lay-out-for-safe-areas.md](how-to/lay-out-for-safe-areas.md) | Padding with `--sv-inset-*` so content clears the device and the app's UI |
 | [add-a-bridge-method.md](how-to/add-a-bridge-method.md) | Adding a feature a page asks the app for, and the release order |
 | [release-packages.md](how-to/release-packages.md) | Changesets, the local publish, and bumping the miniapps |

@@ -3,7 +3,7 @@ title: Miniapp Platform Architecture
 type: explanation
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-09-26
+last-updated: 2026-10-05
 audience: public
 ---
 
@@ -13,7 +13,7 @@ audience: public
 
 ## Context
 
-A miniapp is a small web app, built with Vite and React, that runs inside the skkuverse app. Each one lives in its own repository (`spencer0124/miniapp-<name>`) and deploys to Cloudflare Pages at `https://<name>.mini.skkuverse.com`. The app opens it in a `react-native-webview` screen called the mini-app shell.
+A miniapp is a small web app, built with Vite and React, that runs inside the skkuverse app. First-party miniapps live together in [spencer0124/skkuverse-mini](https://github.com/spencer0124/skkuverse-mini), one package each, and deploy to Cloudflare Pages at `https://<name>.mini.skkuverse.com`, only after passing the [miniapp spec](../reference/miniapp-spec.md) check. The app opens it in a `react-native-webview` screen called the mini-app shell.
 
 Three things used to be copied into every miniapp: the design system, the bridge message types and a file of bridge helpers. By the sixth miniapp the copies had drifted. This repository replaced them with three npm packages ([ADR 0001](../decisions/0001-sdk-distribution.md)). It then gave the channel a proper contract: request/response messages, a declared shell and injected safe areas ([ADR 0002](../decisions/0002-miniapp-protocol-shell-viewport.md)).
 
@@ -29,7 +29,7 @@ Three things used to be copied into every miniapp: the design system, the bridge
  │   sdk/, react/                │                 │
  └───────────────────────────────┘                 │ imported by
                                                    ▼
-   miniapp-<name>          skkuverse-app                 skkuverse-server
+   skkuverse-mini          skkuverse-app                 skkuverse-server
    (a page)                (the host)                    (the registry)
  ┌──────────────────┐   ┌──────────────────────────┐   ┌───────────────────────┐
  │ <MiniappRoot>    │   │ app/mini-app.tsx         │   │ GET /miniapps/:id     │
