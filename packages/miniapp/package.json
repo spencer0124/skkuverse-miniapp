@@ -25,10 +25,16 @@
     "./react/ui": {
       "types": "./dist/react/ui/index.d.ts",
       "import": "./dist/react/ui/index.js"
-    }
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
+    },
+    "./fixtures/bounds.json": "./fixtures/bounds.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "fixtures"
   ],
   "repository": {
     "type": "git",

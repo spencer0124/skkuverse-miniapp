@@ -1,0 +1,14 @@
+{
+  "wave-run": {
+    "maxScoreAfterSeconds": [
+      { "seconds": 0, "maxScore": 94 },
+      { "seconds": 60, "maxScore": 850 },
+      { "seconds": 300, "maxScore": 5432 },
+      { "seconds": 600, "maxScore": 11282 }
+    ]
+  },
+  "subway-typing": {
+    "totalKeys": 238,
+    "minRunMs": 9520
+  }
+}

@@ -10,6 +10,7 @@ export default defineConfig([
       index: 'src/index.ts',
       'protocol/index': 'src/protocol/index.ts',
       'game/index': 'src/game/index.ts',
+      'testing/index': 'src/testing/index.ts',
       'react/index': 'src/react/index.ts',
       'react/ui/index': 'src/react/ui/index.ts',
     },

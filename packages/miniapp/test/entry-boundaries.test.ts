@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -13,6 +13,7 @@ const IMPORT = /(?:import|export)\s[^'"]*?from\s+['"]([^'"]+)['"]|import\(\s*['"
 
 function resolveLocal(from: string, spec: string): string {
   const base = resolve(dirname(from), spec);
+  if (existsSync(base) && statSync(base).isFile()) return base;
   for (const candidate of [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`]) {
     if (existsSync(candidate)) return candidate;
   }
@@ -43,6 +44,10 @@ describe('entry boundaries', () => {
 
   it('./game imports nothing', () => {
     expect([...externalImports(`${src}/game/index.ts`)]).toEqual([]);
+  });
+
+  it('./testing imports nothing', () => {
+    expect([...externalImports(`${src}/testing/index.ts`)]).toEqual([]);
   });
 
   it('. imports nothing', () => {
