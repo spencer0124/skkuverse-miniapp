@@ -11,7 +11,14 @@
  *
  * `_headers` rules are additive and a header applied twice is comma-joined, so
  * each header appears under exactly one path pattern.
+ *
+ * A game gets its own headers (spec G4). It loads nothing from anywhere else,
+ * so everything is closed to its own origin, with inline data allowed for
+ * images and media. `connect-src 'self'` is what lets a game fetch its own
+ * hashed sound files. `default-src` also covers styles and fonts, so a game
+ * keeps those in files too: no inline `<style>`, no `style=` attribute.
  */
+import type { Kind } from './config.ts';
 
 export const CONTENT_SECURITY_POLICY = "script-src 'self'; object-src 'none'; base-uri 'self'";
 
@@ -22,7 +29,26 @@ export const HEADERS_FILE = `/*
   Cache-Control: public, max-age=31536000, immutable
 `;
 
+export const GAME_CONTENT_SECURITY_POLICY =
+  "default-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; media-src 'self' data:; object-src 'none'; base-uri 'self'";
+
+export const GAME_HEADERS_FILE = `/*
+  Content-Security-Policy: ${GAME_CONTENT_SECURITY_POLICY}
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+`;
+
 // Pages already falls back to index.html when a project ships no 404.html.
-// Pinning it here keeps the fallback if that default ever changes.
+// Pinning it here keeps the fallback if that default ever changes. A game is
+// one page, so the same fallback serves it.
 export const REDIRECTS_FILE = `/*    /index.html   200
 `;
+
+/** The files `ship` writes into a deploy of each kind, by name. */
+export function platformFiles(kind: Kind): Readonly<Record<'_headers' | '_redirects', string>> {
+  return {
+    _headers: kind === 'app' ? HEADERS_FILE : GAME_HEADERS_FILE,
+    _redirects: REDIRECTS_FILE,
+  };
+}
