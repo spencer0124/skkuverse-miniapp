@@ -2,12 +2,14 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig([
   {
-    // The npm build. `./protocol` stays free of DOM and React, `./react` of
+    // The npm build. `./protocol` stays free of DOM and React, `./game` of any
+    // package (a game page's bundle carries this SDK alone), `./react` of
     // `@skkuverse/ui`: only `./react/ui` imports it, so a page that uses the
     // hooks without the design system installs cleanly.
     entry: {
       index: 'src/index.ts',
       'protocol/index': 'src/protocol/index.ts',
+      'game/index': 'src/game/index.ts',
       'react/index': 'src/react/index.ts',
       'react/ui/index': 'src/react/ui/index.ts',
     },
