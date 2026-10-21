@@ -5,17 +5,21 @@
  *
  * The check reads the source tree and the built `dist/`, so run it after
  * `build`. It never builds, installs or fetches anything.
+ *
+ * Each rule applies to miniapps, games or both (the spec's For column). A rule
+ * for one kind is never checked against the other.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, join, relative } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { parseShellFields } from '@skkuverse/miniapp/protocol';
-import { hostFor, type AppConfig } from './config.ts';
+import { FOLDER, hostFor, type AppConfig, type DeployConfig, type Kind } from './config.ts';
 
 export type RuleId =
   | 'R1' | 'R2' | 'R3' | 'R4'
   | 'S1' | 'S2' | 'S3' | 'S4'
   | 'O1' | 'O2' | 'O3' | 'O4'
-  | 'H1' | 'M1' | 'B1';
+  | 'H1' | 'M1' | 'B1'
+  | 'G1' | 'G2' | 'G3' | 'G4';
 
 export interface Finding {
   rule: RuleId;
@@ -25,8 +29,10 @@ export interface Finding {
 
 export interface CheckTarget {
   id: string;
-  /** The miniapp package directory (`apps/<id>`). */
+  /** The package directory (`apps/<id>` or `games/<id>`). */
   dir: string;
+  /** Which rules apply. A miniapp when left out. */
+  kind?: Kind;
   /**
    * The operator's deploy entry. `null` checks a miniapp nobody has registered
    * yet (a club's submission), which skips R4 and treats B1 as undeclared.
@@ -60,23 +66,45 @@ const SHELL_KEYS = ['bar', 'header', 'statusBar', 'background'] as const;
 const HASHED_ASSET = /-[A-Za-z0-9_-]{8,}\.[A-Za-z0-9]+$/;
 /** `<script type>` values a browser does not execute, which CSP does not govern. */
 const DATA_SCRIPT_TYPES = new Set(['application/json', 'application/ld+json', 'importmap']);
+/** Where a game's page code lives; G2 reads it. */
+const SOURCE_FILE = /\.(?:[cm]?[jt]sx?)$/;
+/** The module a game boots through (G2). */
+export const GAME_CLIENT = '@skkuverse/miniapp/game';
+/**
+ * What only `bootGame` may touch (G2): the native bridge, and the host globals
+ * as properties of the global object, by dot, bracket or `defineProperty`.
+ */
+const HOST_REACH: readonly { pattern: RegExp; what: string }[] = [
+  { pattern: /\bReactNativeWebView\b/, what: 'reaches window.ReactNativeWebView itself' },
+  { pattern: /\b__host\b/, what: 'touches the retired window.__host' },
+  {
+    pattern: /\b(?:window|globalThis|self)\s*(?:\?\.|\.)\s*skkuverse\b|\[\s*['"`]skkuverse['"`]\s*\]|defineProperty\(\s*(?:window|globalThis|self)\s*,\s*['"`]skkuverse['"`]/,
+    what: 'reads, defines or replaces window.skkuverse itself',
+  },
+];
+/** Header files a game might ship next to its build; only `ship` writes headers (G4). */
+const GAME_HEADER_FILES = ['_headers', 'public/_headers'] as const;
 
 export function checkApp(target: CheckTarget): Finding[] {
   const out: Finding[] = [];
   const add = (rule: RuleId, message: string, level: Finding['level'] = 'error') =>
     out.push({ rule, level, message });
   const { id, dir, config } = target;
+  const kind = target.kind ?? 'app';
+  const app = kind === 'app';
 
   // R1
   if (!ID_PATTERN.test(id)) add('R1', `id "${id}" must match ${ID_PATTERN}`);
   if (basename(dir) !== id) add('R1', `directory "${basename(dir)}" must be named after the id "${id}"`);
 
   // S1
-  for (const file of REQUIRED_FILES) {
-    if (!existsSync(join(dir, file))) add('S1', `missing ${file}`);
+  if (app) {
+    for (const file of REQUIRED_FILES) {
+      if (!existsSync(join(dir, file))) add('S1', `missing ${file}`);
+    }
   }
 
-  // S2, S3
+  // S2 (miniapps), S3
   const pkg = readJson(join(dir, 'package.json'));
   if (isRecord(pkg)) {
     const scripts = isRecord(pkg.scripts) ? pkg.scripts : {};
@@ -84,11 +112,15 @@ export function checkApp(target: CheckTarget): Finding[] {
       if (typeof scripts[name] !== 'string') add('S3', `package.json has no "${name}" script`);
     }
     const deps = { ...asRecord(pkg.dependencies), ...asRecord(pkg.devDependencies) };
-    for (const name of REQUIRED_DEPENDENCIES) {
-      if (!(name in deps)) add('S2', `package.json does not depend on ${name}`);
+    if (app) {
+      for (const name of REQUIRED_DEPENDENCIES) {
+        if (!(name in deps)) add('S2', `package.json does not depend on ${name}`);
+      }
     }
   } else if (existsSync(join(dir, 'package.json'))) {
-    add('S1', 'package.json is not a JSON object');
+    add(app ? 'S1' : 'S3', 'package.json is not a JSON object');
+  } else if (!app) {
+    add('S3', 'missing package.json');
   }
 
   // S4: the installed copy, not the declared range. A 0.x caret never crosses
@@ -102,28 +134,65 @@ export function checkApp(target: CheckTarget): Finding[] {
   }
 
   // R2, R3
-  const main = readText(join(dir, 'src', 'main.tsx'));
-  if (main !== null) checkRoot(main, id, add);
+  if (app) {
+    const main = readText(join(dir, 'src', 'main.tsx'));
+    if (main !== null) checkRoot(main, id, add);
+  }
 
   // R4
   if (config !== null) {
-    const host = hostFor(id, config);
+    const host = hostFor(id, config, kind);
     if (config.host !== undefined) {
       if (!config.hostReason) add('R4', `host ${host} is an exception and needs a hostReason`);
       else add('R4', `host ${host} is an exception: ${config.hostReason}`, 'warn');
     }
   }
 
-  // B1
   const hasFunctions = existsSync(join(dir, 'functions'));
-  if (config?.backend === 'functions') {
-    if (!hasFunctions) add('B1', 'declares backend "functions" but has no functions/ directory');
-    if (!existsSync(join(dir, 'wrangler.toml'))) add('B1', 'declares backend "functions" but has no wrangler.toml');
-  } else if (hasFunctions) {
-    add('B1', 'has a functions/ directory but deploy.config.json does not declare backend "functions"');
+  if (app) {
+    // B1
+    if (config?.backend === 'functions') {
+      if (!hasFunctions) add('B1', 'declares backend "functions" but has no functions/ directory');
+      if (!existsSync(join(dir, 'wrangler.toml'))) add('B1', 'declares backend "functions" but has no wrangler.toml');
+    } else if (hasFunctions) {
+      add('B1', 'has a functions/ directory but deploy.config.json does not declare backend "functions"');
+    }
+  } else {
+    // G3
+    if (hasFunctions) add('G3', 'a game has no backend; remove functions/');
+    if (config?.backend !== undefined) add('G3', `a game has no backend; remove "backend" from its deploy.config.json entry`);
+    // G4
+    for (const file of GAME_HEADER_FILES) {
+      if (existsSync(join(dir, file))) add('G4', `${file}: a game ships no headers of its own; ship writes the game headers`);
+    }
+    // G2
+    checkGameSource(dir, add);
   }
 
-  checkDist(join(dir, 'dist'), add);
+  checkDist(join(dir, 'dist'), kind, add);
+  return out;
+}
+
+/**
+ * G1, for a game: the id names no other package. `dir` is the game being
+ * checked, which may sit outside the repository (`check --dir`); a folder at
+ * the same path is the game itself.
+ */
+export function checkIdNamespace(root: string, id: string, dir: string, config: DeployConfig | null): Finding[] {
+  const out: Finding[] = [];
+  const self = resolve(dir);
+  const inRepo = self === resolve(root, FOLDER.game, id);
+  const appDir = join(root, FOLDER.app, id);
+  if (existsSync(appDir)) {
+    const where = inRepo ? `${FOLDER.game}/${id}` : `the game at ${dir}`;
+    out.push({ rule: 'G1', level: 'error', message: `${where} and ${FOLDER.app}/${id} share the id` });
+  }
+  if (!inRepo && existsSync(join(root, FOLDER.game, id))) {
+    out.push({ rule: 'G1', level: 'error', message: `the id is taken by ${FOLDER.game}/${id}` });
+  }
+  if (config !== null && id in config.apps) {
+    out.push({ rule: 'G1', level: 'error', message: `deploy.config.json lists ${id} under "apps"` });
+  }
   return out;
 }
 
@@ -146,18 +215,48 @@ function checkRoot(source: string, id: string, add: Add): void {
   else if (browser !== 'block' && browser !== 'allow') add('R3', `browser="${browser}" is neither "block" nor "allow"`);
 }
 
-function checkDist(dist: string, add: Add): void {
+/**
+ * G2: a game reaches the host only through `bootGame`. Reads every source file
+ * under `src/`, comments aside, for the bridge and the host globals.
+ */
+function checkGameSource(dir: string, add: Add): void {
+  const src = join(dir, 'src');
+  if (!existsSync(src)) return;
+  let boots = false;
+  for (const file of walk(src)) {
+    if (!SOURCE_FILE.test(file)) continue;
+    const text = stripComments(readText(file) ?? '');
+    if (text.includes(`'${GAME_CLIENT}'`) || text.includes(`"${GAME_CLIENT}"`)) boots = true;
+    const lines = text.split('\n');
+    for (const { pattern, what } of HOST_REACH) {
+      const line = lines.findIndex((l) => pattern.test(l));
+      if (line >= 0) add('G2', `${relative(dir, file)}:${line + 1} ${what}; only bootGame from ${GAME_CLIENT} may`);
+    }
+  }
+  // An error once @skkuverse/miniapp ships ./game (0.4.0) and the template boots through it.
+  if (!boots) add('G2', `src/ does not import bootGame from ${GAME_CLIENT} yet`, 'warn');
+}
+
+/** Blanks comments out, keeping every line where it was. */
+function stripComments(source: string): string {
+  const blank = (text: string) => text.replace(/[^\n]/g, ' ');
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, blank)
+    .replace(/(^|[\s;{}(),])(\/\/.*)$/gm, (_, lead: string, comment: string) => lead + blank(comment));
+}
+
+function checkDist(dist: string, kind: Kind, add: Add): void {
   if (!existsSync(dist)) {
     add('O1', 'no dist/ (run the build first)');
     return;
   }
-  for (const file of ['index.html', 'skkuverse.json']) {
+  for (const file of kind === 'app' ? ['index.html', 'skkuverse.json'] : ['index.html']) {
     if (!existsSync(join(dist, file))) add('O1', `dist/ has no ${file}`);
   }
 
   // O2
   for (const name of PLATFORM_FILES) {
-    if (existsSync(join(dist, name))) add('O2', `dist/${name} is platform-owned or server code; remove it from the miniapp`);
+    if (existsSync(join(dist, name))) add('O2', `dist/${name} is platform-owned or server code; remove it from the ${kind === 'app' ? 'miniapp' : 'game'}`);
   }
 
   // O3, O4, and 404.html at any depth (Pages uses the nearest one, which
@@ -175,7 +274,7 @@ function checkDist(dist: string, add: Add): void {
 
   const html = readText(join(dist, 'index.html'));
   if (html !== null) checkHtml(html, add);
-  checkManifest(join(dist, 'skkuverse.json'), add);
+  if (kind === 'app') checkManifest(join(dist, 'skkuverse.json'), add);
 }
 
 function checkHtml(html: string, add: Add): void {
