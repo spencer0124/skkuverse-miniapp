@@ -29,6 +29,16 @@ if (getCapabilities().capabilities.has('map.openPlace')) openMapPlace('event:42'
 - `@skkuverse/miniapp/protocol` is the contract with the app, with no DOM, React or dependencies.
 - `@skkuverse/miniapp/react` holds `MiniappRoot`, which blocks plain browsers unless `browser="allow"`, and the hooks.
 - `@skkuverse/miniapp/react/ui` holds `MapButton`, which needs `@skkuverse/ui`.
+- `@skkuverse/miniapp/game` holds `bootGame`, which a game page boots through, and the page guard.
+- `@skkuverse/miniapp/testing` holds a fake game host and the game contract, for tests.
+- `@skkuverse/miniapp/fixtures/bounds.json` holds the pinned score bounds of the ranked games.
+
+```ts
+import { bootGame } from '@skkuverse/miniapp/game';
+
+const game = bootGame({ onInit: ({ hi, sound }) => showTitle(hi, sound), onPause: pause, onResume: resume });
+stage.addEventListener('pointerdown', () => game.start()); // refused until game.init arrives
+```
 
 Declare the shell the app draws around the page in `public/skkuverse.json`.
 

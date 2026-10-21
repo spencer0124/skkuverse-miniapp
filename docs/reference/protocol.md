@@ -3,13 +3,13 @@ title: Miniapp Bridge Protocol
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-09-26
+last-updated: 2026-10-21
 audience: public
 ---
 
 # Miniapp bridge protocol
 
-> How a miniapp page and the skkuverse app talk, what shell the app draws around a page, and where a page may put its content. For anyone building a miniapp or changing the app's miniapp shell.
+> How a miniapp or game page and the skkuverse app talk, what shell the app draws around a page, and where a page may put its content. For anyone building a miniapp or a game, or changing the app's mini-app shell or game host.
 
 ## Overview
 
@@ -22,7 +22,7 @@ A miniapp is a web page the app opens in a `react-native-webview`. The two sides
 | Viewport | `viewport.ts` | Safe-area insets and the `--sv-*` CSS variables |
 | Host object | `host.ts` | `window.skkuverse`, and the two scripts the app injects |
 
-Pages use the SDK, `@skkuverse/miniapp`, and never touch the channel directly. Every SDK function is safe outside the app: it is a no-op or a browser fallback.
+Pages use the SDK, `@skkuverse/miniapp`, and never touch the channel directly. Every SDK function is safe outside the app: it is a no-op or a browser fallback. A game page is the same kind of page on its own origin, speaking the `game.*` methods through `@skkuverse/miniapp/game` ([Games](#games)).
 
 The app's generic `/webview` screen, which hosts skkuverse-web, speaks the older `@skkuverse/bridge` message set. That is a separate channel and this document does not cover it.
 
@@ -30,7 +30,7 @@ The app's generic `/webview` screen, which hosts skkuverse-web, speaks the older
 
 1. **A notification has no answer.** A page never waits on one and never assumes one was handled.
 2. **Detect features instead of guessing versions.** A page offers a feature only when `getCapabilities()` lists its method. It never reads a user agent or an app version to decide.
-3. **Grants follow the origin.** The app decides per message, from the URL of the document that sent it, against the server's `BRIDGE_ORIGINS`. The app answers a request it does not grant with `denied` or `unsupported`, and drops a notification.
+3. **Grants follow the origin and its kind.** The app decides per message, from the URL of the document that sent it: a miniapp origin against the server's `BRIDGE_ORIGINS`, which grants `NOTIFY_METHODS`, and a game origin against its own list, which grants `GAME_NOTIFY_METHODS`. The two lists share no method. The app answers a request it does not grant with `denied` or `unsupported`, and drops a notification.
 4. **Parse everything.** The app runs `parseMessage` on every message. Anything malformed is dropped without a word.
 
 ## Messages
@@ -47,6 +47,8 @@ Page to app goes through `window.ReactNativeWebView.postMessage(JSON)`. App to p
 Error codes are `unsupported`, `denied`, `cancelled`, `timeout` and `failed`.
 
 ### Methods
+
+These are a miniapp's methods, the ones `NOTIFY_METHODS` lists. A game's are under [Games](#games).
 
 | Method | Kind | Params | SDK |
 | --- | --- | --- | --- |
@@ -147,6 +149,102 @@ The app injects the values itself, as CSS variables on `<html>` and through `get
 Outside the app, `MiniappRoot` sets them to the browser's `env(safe-area-inset-*)` and the content layer to zero, so they are always defined and an allowed page still clears the notch in Safari.
 
 Paint the background edge to edge and keep content inside `--sv-inset-*`. The CSS, the choice between an opaque and an overlay header, and checking the result in a desktop browser are in [lay-out-for-safe-areas](../how-to/lay-out-for-safe-areas.md).
+
+## Games
+
+A game is a page on its own origin, `https://<id>.game.skkuverse.com`, that the app hosts in its game screen rather than the mini-app shell. It shares this envelope, the host object and the viewport, and nothing that grants trust: the app grants a game origin `GAME_NOTIFY_METHODS` and nothing else, and grants a miniapp origin none of them. The app hosts games over this channel only, never the previous one (`window.__host` with `game:*` and `host:*` messages), and drops a message from it.
+
+The page owns gameplay. The host owns everything a run is worth: the best score, revives, sign-in and the leaderboard. So the page reports what happened and the host tells it what to do next. A ranked score is validated by the server, never trusted from `game.over`.
+
+### Game methods
+
+All are notifications from the page.
+
+| Method | Params | `GameClient` |
+| --- | --- | --- |
+| `game.ready` | `{ rect? }`: where the host may anchor its title | sent by `bootGame` |
+| `game.start` | none | `start()` |
+| `game.phase` | `{ phase: 'ready' \| 'running' \| 'paused' \| 'crashed' }` | `phase()` |
+| `game.layout` | `{ rect }`: a rectangle the host draws over moved | `layout()` |
+| `game.haptic` | `{ style }`: one of `GameHapticStyle`'s seven | `haptic()` |
+| `game.over` | `{ score, ticks, hit, revives, revivesLeft, validator?, stats?, telemetry? }` | `over()` |
+
+A rectangle is `{ x, y, width, height }` in CSS pixels, relative to the web view. `game.over` is rebuilt from its declared fields only, since its score is what gets submitted: `score`, `ticks`, `revives` and `revivesLeft` are safe non-negative integers, and `hit` is the game's own word for what ended the run, or `null`. `validator` is the version a ranked page was built for, `<gameId>@<n>`; the server accepts only versions it knows. `stats` are figures the result shows and `telemetry` is evidence for judging a score; neither is submitted. A malformed `rect` on `game.ready`, or a malformed `validator`, `stats` or `telemetry`, is dropped alone and the message kept. The limits are in `messages.ts`, and a test pins the largest `game.over` inside the message limit.
+
+`game.haptic` is a game's one haptic channel. A miniapp's `haptic.impact` keeps its three styles.
+
+### Game events
+
+| Event | Data | Handler |
+| --- | --- | --- |
+| `game.init` | `{ gameProtocol, hi, sound }` | `onInit` |
+| `game.pause`, `game.resume` | none | `onPause`, `onResume` |
+| `game.sound` | `{ on }` | `onSound` |
+| `game.reset` | none: back to the title, with no run started | `onReset` |
+| `game.restart` | none: a new run straight away | `onRestart` |
+| `game.revive` | none: continue the crashed run, sent only after a rewarded ad paid out | `onRevive` |
+
+A page obeys every event. Pause stops the run's clock and its audio, sound off silences all of the page's audio, and reset returns to the title. A page never pauses or mutes itself on a visibility or focus change; it may count them as telemetry.
+
+### Versions
+
+`window.skkuverse.protocol` is the envelope's version, `PROTOCOL_VERSION`, shared with miniapps. The game methods have their own, `GAME_PROTOCOL`, which the host sends in `game.init` as `gameProtocol`. A page built for a newer game protocol than the host's leaves out what the host lacks rather than stopping:
+
+```ts
+bootGame({
+  onInit(init) {
+    useV2Feature = init.gameProtocol >= 2; // off on an older host, never an error
+  },
+});
+```
+
+The server's games registry can also hold a game back from a host that is too old (`minHostProtocol`), for a change a page cannot degrade around.
+
+### Booting a game
+
+```ts
+import { bootGame } from '@skkuverse/miniapp/game';
+
+const game = bootGame({
+  onInit: ({ hi, sound }) => loop.ready(hi, sound),
+  onPause: () => loop.pause(),
+  onResume: () => loop.resume(),
+  onSound: (on) => setSoundOn(on),
+  onReset: () => loop.reset(),
+  onRestart: () => loop.restart(),
+  onRevive: () => loop.revive(),
+  onAudioUnlock: unlockSound,
+  onViewport: (viewport) => loop.fit(viewport),
+});
+
+loop.onRunStart = () => game.start();
+loop.onCrash = (result) => game.over({ ...result, validator: 'wave-run@1' });
+```
+
+`bootGame` is the first thing a game's entry calls. In order, it:
+
+1. Installs the page guard: an input event a script dispatched never reaches the game, the clipboard, drags, the long-press menu and an iOS pinch are blocked, and the clock, the dice, the timers and `requestAnimationFrame` are pinned. `window.skkuverse` needs no pin, because the bootstrap defines it non-writable.
+2. Subscribes to the host's events.
+3. Looks for the host until `window.skkuverse` and `window.ReactNativeWebView` both exist, every `HOST_POLL_MS` for up to `HOST_WAIT_MS` (`packages/miniapp/src/game/boot.ts`). Android can run the before-load bootstrap on a document it then replaces, and the host injects it again when loading ends. A host that never appears, or one that grants no game method, calls `onNoHost`, and the page shows nothing interactive.
+4. Sends `game.ready`, with the rectangle from `rect()` when the page gives one.
+
+Until `game.init` arrives, `start()` refuses and every other event is ignored, so no run starts before the host has spoken. `onAudioUnlock` runs on every press the player made, before the game hears it: iOS opens audio only inside a tap, and later presses wake a context the OS suspended.
+
+A game reads its safe area the way a miniapp does. The host's bootstrap sets `--sv-inset-*` on `<html>` before the page's script runs, and updates them on `viewport.changed`, so CSS needs nothing from `bootGame`:
+
+```css
+#stage { position: fixed; inset: 0; padding: var(--sv-inset-top) var(--sv-inset-right) var(--sv-inset-bottom) var(--sv-inset-left); }
+```
+
+A canvas sized in script takes the same numbers from `onViewport`, once the host is found and then on every change.
+
+### Testing a game
+
+`@skkuverse/miniapp/testing` is for tests, never for a page:
+
+- `createFakeHost()` stands in for the game host. It runs the real `hostBootstrapScript`, records what the page posts, answers `game.ready` with `game.init`, and sends events (`pause()`, `revive()` and the rest). It needs a `window`, from a browser, jsdom or a test's own stub. It runs the bootstrap with `new Function`, so it cannot run under the production game headers.
+- `checkGameContract(host.log)` and `assertGameContract(host.log)` hold a page to the contract and name each rule it broke: `every-message-parses`, `first-message-ready` (`game.ready` comes first), `no-start-before-init`, `start-before-over`, and `one-over-per-run` (one `game.over` per run, and one more after each `game.revive`).
+- `BOUND_FIXTURES` are the pinned bound points of the ranked games, which the games' bound tests and the server's validator tests both assert. They are also published as plain JSON, `@skkuverse/miniapp/fixtures/bounds.json`, for a CommonJS consumer: `require` it, or `import` it `with { type: 'json' }` from an ES module.
 
 ## Outside the app
 

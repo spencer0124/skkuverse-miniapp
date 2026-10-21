@@ -15,6 +15,8 @@ The shared code every skkuverse miniapp imports, published to public npm:
 - `packages/miniapp` → `@skkuverse/miniapp`.
   - `src/protocol/` is **the contract with the app**. It has no DOM, no React and no dependencies. skkuverse-app imports it, and skkuverse-server keeps a tested copy of the manifest parser.
   - `src/sdk/` and `src/transport.ts` are the page-side SDK.
+  - `src/game/` is `./game`: `bootGame` and the page guard, what a game page boots through.
+  - `src/testing/` is `./testing`: the fake game host, the game contract and the bound fixtures (`fixtures/bounds.json`, also published on its own).
   - `src/react/` holds `MiniappRoot` and the hooks. It must never import `@skkuverse/ui`.
   - `src/react/ui/` holds the SDS-styled components.
 
@@ -37,7 +39,7 @@ python3 ../skkuverse/exported/sync_contracts.py check --repo miniapp --root .
 
 - **The protocol is shared with the app.** Adding a method means an entry in `protocol/messages.ts`, a wrapper in `sdk/`, and a handler in skkuverse-app. See `docs/how-to/add-a-bridge-method.md`. Anything that grants value must be verified by a server, never trusted from a message.
 - **Every SDK function is safe outside the app.** Each one is a no-op or a browser fallback, never a throw. The hooks are the exception: they throw outside `MiniappRoot`, on purpose.
-- **Entry boundaries are tested.** `./protocol` and `.` import no package, and `./react` never reaches `@skkuverse/ui`. `test/entry-boundaries.test.ts` walks each entry's import graph, so a stray import fails CI.
+- **Entry boundaries are tested.** `./protocol`, `./game`, `./testing` and `.` import no package, and `./react` never reaches `@skkuverse/ui`. `test/entry-boundaries.test.ts` walks each entry's import graph, so a stray import fails CI.
 - **Releases go through Changesets.** Every user-visible change carries a `.changeset/*.md`. CI only opens the Version Packages PR. Publishing is a human running `node scripts/publish.mjs` locally, because npm trusted publishing rejects this repository's OIDC tokens (npm/cli#9969). An agent cannot publish: npm needs an interactive two-factor login. See `docs/how-to/release-packages.md`.
 - **Ship order across repositories.** An SDK change ships before the app handles it. The app's OTA with a new shell ships before miniapps that depend on it are merged to production, or the installed app shows them the browser gate.
 - **Branches.** Work on `dev`; `main` is merge-only, through a PR. Never put a Claude session link or `Claude-Session:` trailer in commits or PRs.

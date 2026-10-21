@@ -3,7 +3,7 @@ title: Add A Bridge Method
 type: how-to
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-09-26
+last-updated: 2026-10-21
 audience: internal
 ---
 
@@ -26,7 +26,7 @@ A method is one entry in the protocol, one SDK wrapper, and one handler in the a
 ## Steps
 
 1. **Declare it.** In `packages/miniapp/src/protocol/messages.ts`:
-   - For a notification, add an entry to `NotifyMethods`, a validator to `PARAMS`, and the name to `NOTIFY_METHODS`.
+   - For a notification, add an entry to `MiniappNotifyMethods`, a validator to `PARAMS`, and the name to `NOTIFY_METHODS`. A game method goes in `GameNotifyMethods` and `GAME_NOTIFY_METHODS` instead, is wrapped in `src/game/` rather than `sdk/`, and bumps `GAME_PROTOCOL`.
    - For a request, add an entry to `RequestMethods` as `{ params; result }`. `parseMessage` passes requests through whatever their method, so the app can answer `unsupported` to one it does not know.
 2. **Wrap it.** Add a typed function in `packages/miniapp/src/sdk/` and export it from `src/index.ts`.
    - Check `isGranted(method)` first, and give a browser fallback or a clear `unsupported` path.
