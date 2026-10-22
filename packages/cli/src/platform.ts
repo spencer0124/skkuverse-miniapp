@@ -16,7 +16,10 @@
  * so everything is closed to its own origin, with inline data allowed for
  * images and media. `connect-src 'self'` is what lets a game fetch its own
  * hashed sound files. `default-src` also covers styles and fonts, so a game
- * keeps those in files too: no inline `<style>`, no `style=` attribute.
+ * keeps those in files too: no inline `<style>`, no `style=` attribute, and no
+ * font inlined as data. `frame-src 'none'` closes frames outright rather than
+ * leaving them to `default-src`: a game embeds no other page. `check` holds
+ * the built output to all of this (spec G5).
  */
 import type { Kind } from './config.ts';
 
@@ -30,7 +33,7 @@ export const HEADERS_FILE = `/*
 `;
 
 export const GAME_CONTENT_SECURITY_POLICY =
-  "default-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; media-src 'self' data:; object-src 'none'; base-uri 'self'";
+  "default-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; media-src 'self' data:; frame-src 'none'; object-src 'none'; base-uri 'self'";
 
 export const GAME_HEADERS_FILE = `/*
   Content-Security-Policy: ${GAME_CONTENT_SECURITY_POLICY}

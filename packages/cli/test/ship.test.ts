@@ -3,7 +3,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
-import { GAME_HEADERS_FILE, HEADERS_FILE, REDIRECTS_FILE, platformFiles } from '../src/platform.ts';
+import {
+  CONTENT_SECURITY_POLICY,
+  GAME_CONTENT_SECURITY_POLICY,
+  GAME_HEADERS_FILE,
+  HEADERS_FILE,
+  REDIRECTS_FILE,
+  platformFiles,
+} from '../src/platform.ts';
 import { planDeploy, stageSite } from '../src/ship.ts';
 
 const scratch = mkdtempSync(join(tmpdir(), 'miniapp-cli-ship-test-'));
@@ -33,7 +40,7 @@ describe('ship', () => {
   Cache-Control: public, max-age=31536000, immutable
 `;
   const GAME_HEADERS = `/*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; media-src 'self' data:; object-src 'none'; base-uri 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; media-src 'self' data:; frame-src 'none'; object-src 'none'; base-uri 'self'
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
@@ -46,6 +53,11 @@ describe('ship', () => {
     assert.equal(REDIRECTS_FILE, REDIRECTS);
     assert.deepEqual(platformFiles('app'), { _headers: APP_HEADERS, _redirects: REDIRECTS });
     assert.deepEqual(platformFiles('game'), { _headers: GAME_HEADERS, _redirects: REDIRECTS });
+  });
+
+  it('closes frames for a game only', () => {
+    assert.match(GAME_CONTENT_SECURITY_POLICY, /(?:^|; )frame-src 'none'(?:;|$)/);
+    assert.doesNotMatch(CONTENT_SECURITY_POLICY, /frame-src/);
   });
 
   it('plans a miniapp as before', () => {
