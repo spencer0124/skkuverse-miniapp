@@ -19,7 +19,7 @@ export type RuleId =
   | 'S1' | 'S2' | 'S3' | 'S4'
   | 'O1' | 'O2' | 'O3' | 'O4'
   | 'H1' | 'M1' | 'B1'
-  | 'G1' | 'G2' | 'G3' | 'G4';
+  | 'G1' | 'G2' | 'G3' | 'G4' | 'G5';
 
 export interface Finding {
   rule: RuleId;
@@ -84,6 +84,24 @@ const HOST_REACH: readonly { pattern: RegExp; what: string }[] = [
 ];
 /** Header files a game might ship next to its build; only `ship` writes headers (G4). */
 const GAME_HEADER_FILES = ['_headers', 'public/_headers'] as const;
+/**
+ * What the game headers let a URL in the built page load (G5), by the element
+ * that names it. `data` is true where the policy allows inline data: images
+ * (`img-src 'self' data:`) and media (`media-src 'self' data:`). Fonts, styles
+ * and links fall to `default-src 'self'`, and frames and plugins are closed.
+ * A `<script src>` is H1's, for both kinds.
+ */
+const GAME_URL_ATTRIBUTES: Readonly<Record<string, readonly { attr: string; data: boolean; list?: boolean }[]>> = {
+  img: [{ attr: 'src', data: true }, { attr: 'srcset', data: true, list: true }],
+  input: [{ attr: 'src', data: true }],
+  audio: [{ attr: 'src', data: true }],
+  video: [{ attr: 'src', data: true }, { attr: 'poster', data: true }],
+  source: [{ attr: 'src', data: true }, { attr: 'srcset', data: true, list: true }],
+  track: [{ attr: 'src', data: true }],
+  link: [{ attr: 'href', data: false }],
+};
+/** Elements the game headers never load: `frame-src 'none'`, `object-src 'none'`. */
+const GAME_CLOSED_ELEMENTS = new Set(['iframe', 'frame', 'object', 'embed']);
 
 export function checkApp(target: CheckTarget): Finding[] {
   const out: Finding[] = [];
@@ -274,6 +292,110 @@ function checkDist(dist: string, kind: Kind, add: Add): void {
   const html = readText(join(dist, 'index.html'));
   if (html !== null) checkHtml(html, add);
   if (kind === 'app') checkManifest(join(dist, 'skkuverse.json'), add);
+  else checkGameOutput(dist, files, add);
+}
+
+/**
+ * G5: what the build loads stays inside the game headers (G4). A page that
+ * breaks them still deploys, and fails only in the web view, so the check
+ * reads the output the way the policy will: HTML, CSS and the sound a script
+ * would fetch.
+ */
+function checkGameOutput(dist: string, files: readonly string[], add: Add): void {
+  const scripts: { rel: string; text: string }[] = [];
+  for (const file of files) {
+    const rel = `dist/${relative(dist, file)}`;
+    if (file.endsWith('.html')) checkGameHtml(rel, readText(file) ?? '', add);
+    else if (file.endsWith('.css')) checkGameCss(rel, readText(file) ?? '', add);
+    else if (/\.[cm]?js$/.test(file)) scripts.push({ rel, text: readText(file) ?? '' });
+  }
+  // Web Audio decodes bytes a fetch returned, and `connect-src 'self'` blocks
+  // fetching a data: URI. Played through <audio> instead, inline audio is
+  // allowed (media-src data:), so only a page that decodes is held to files.
+  if (scripts.some((s) => s.text.includes('decodeAudioData'))) {
+    for (const { rel, text } of scripts) {
+      if (/data:audio\//i.test(text)) {
+        add('G5', `${rel} inlines a data:audio URI, and the page decodes sound through fetch, which connect-src 'self' blocks for data: URIs; keep the sound a file (assetsInlineLimit)`);
+      }
+    }
+  }
+}
+
+function checkGameHtml(rel: string, source: string, add: Add): void {
+  const html = source.replace(/<!--[\s\S]*?-->/g, '');
+  if (/<style\b/i.test(html)) add('G5', `${rel}: an inline <style> is blocked by the game headers (default-src 'self'); move it to a .css file`);
+  for (const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*)>/gi)) {
+    const name = (match[1] ?? '').toLowerCase();
+    const attrs = match[2] ?? '';
+    if (attribute(attrs, 'style') !== undefined) {
+      add('G5', `${rel}: a style= attribute on <${name}> is blocked by the game headers; style it from a .css file`);
+    }
+    if (GAME_CLOSED_ELEMENTS.has(name)) {
+      add('G5', `${rel}: <${name}> is blocked by the game headers (frame-src and object-src 'none')`);
+      continue;
+    }
+    for (const { attr, data, list } of GAME_URL_ATTRIBUTES[name] ?? []) {
+      const value = attribute(attrs, attr);
+      if (value === undefined) continue;
+      // An icon is an image to the policy (img-src data:); any other link is not.
+      const allowData = data || (name === 'link' && /\bicon\b/i.test(attribute(attrs, 'rel') ?? ''));
+      for (const url of list ? srcsetUrls(value) : [value]) {
+        const where = originOf(url);
+        if (where === 'other' || (where === 'data' && !allowData)) {
+          add('G5', `${rel}: <${name} ${attr}="${shorten(url)}"> is blocked by the game headers; load it from the game's own origin${data ? ' or inline it as data' : ''}`);
+        }
+      }
+    }
+  }
+}
+
+function checkGameCss(rel: string, source: string, add: Add): void {
+  const css = source.replace(/\/\*[\s\S]*?\*\//g, '');
+  // Fonts fall to default-src 'self': a file on the game's own origin, never
+  // inline data. Vite inlines a font under its size limit, so a small one does.
+  for (const face of css.matchAll(/@font-face\s*\{[^}]*\}/gi)) {
+    for (const url of cssUrls(face[0])) {
+      const where = originOf(url);
+      if (where === 'data') add('G5', `${rel}: an @font-face src of url(${shorten(url)}) is blocked by the game headers (default-src 'self'); emit the font as a file`);
+      else if (where === 'other') add('G5', `${rel}: an @font-face src of url(${shorten(url)}) is off the game's origin and blocked by the game headers`);
+    }
+  }
+  const rest = css.replace(/@font-face\s*\{[^}]*\}/gi, '');
+  for (const imp of rest.matchAll(/@import\s+(?:url\(\s*)?["']?([^"')\s;]+)/gi)) {
+    if (originOf(imp[1] ?? '') !== 'self') add('G5', `${rel}: @import of ${shorten(imp[1] ?? '')} is blocked by the game headers; bundle the stylesheet`);
+  }
+  // Everything else a stylesheet loads is an image (img-src 'self' data:).
+  for (const url of cssUrls(rest.replace(/@import[^;]*;?/gi, ''))) {
+    if (originOf(url) === 'other') add('G5', `${rel}: url(${shorten(url)}) is off the game's origin and blocked by the game headers`);
+  }
+}
+
+/** Where a URL in the page points, as the game headers see it. */
+function originOf(url: string): 'self' | 'data' | 'other' {
+  const u = url.trim();
+  if (/^data:/i.test(u)) return 'data';
+  // Protocol-relative, including the backslash forms a browser reads as `//`.
+  if (/^[\\/]{2}/.test(u)) return 'other';
+  return /^[a-z][a-z0-9+.-]*:/i.test(u) ? 'other' : 'self';
+}
+
+/** An attribute's value, quoted or bare; `undefined` when the tag has none. */
+function attribute(attrs: string, name: string): string | undefined {
+  const match = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'i').exec(attrs);
+  return match ? (match[1] ?? match[2] ?? match[3] ?? '') : undefined;
+}
+
+/** The URLs of a `srcset`. A data: URL holds a comma, so a candidate runs to whitespace. */
+function srcsetUrls(value: string): string[] {
+  return [...value.matchAll(/(?:^|,)\s*([^\s,][^\s]*)/g)].map((m) => (m[1] ?? '').replace(/,$/, ''));
+}
+
+function cssUrls(css: string): string[] {
+  return [...css.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)/gi)].map((m) => m[1] ?? m[2] ?? m[3] ?? '');
+}
+
+function shorten(url: string): string {
+  return url.length > 60 ? `${url.slice(0, 57)}...` : url;
 }
 
 function checkHtml(html: string, add: Add): void {
