@@ -12,9 +12,12 @@
  *   rather than vitest's happy-dom environment. The page guard pins the
  *   clock and the timers on `window` for good, and in that environment
  *   `window` is the runner's own global, which vitest reassigns between
- *   suites. Bare `setTimeout`, `performance` and `Date` stay the runner's,
- *   faked by vitest before the page boots; `requestAnimationFrame` is a
- *   60 Hz frame on that fake clock. A two-minute round plays in seconds.
+ *   suites. Bare `setTimeout`, `setImmediate`, `performance` and `Date` stay
+ *   the runner's, faked by vitest before the page boots; `requestAnimationFrame`
+ *   is a 60 Hz frame on that fake clock. A two-minute round plays in seconds.
+ *   `setImmediate` is there for React: its scheduler takes it in node, and
+ *   left real, a render a host event caused (subway-typing going back to its
+ *   title on `game.restart`) was not on the page by the runner's next press.
  * - Canvas drawing is a no-op 2D context: the contract is about messages, not
  *   pixels. Layout is happy-dom's, so every box measures zero.
  * - A press is a `pointerdown`, `pointerup` and `click` marked trusted. The
@@ -103,7 +106,7 @@ const STEP_MS = 500;
 /** More revives than any game offers a run: a page still offering one after these never stops. */
 const MAX_REVIVES_PLAYED = 8;
 /** The clock and timers the page sees, faked before the page boots. */
-const FAKED = ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'Date'] as const;
+const FAKED = ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'clearImmediate', 'performance', 'Date'] as const;
 /** A display's frame. */
 const FRAME_MS = 1000 / 60;
 /** The DOM the page and the host's bootstrap reach by bare name, taken from the page's window over node's own. */
