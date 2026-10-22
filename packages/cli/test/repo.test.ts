@@ -36,7 +36,7 @@ function installAndBuild(dir: string): void {
     .replace('<script type="module" src="/src/main.ts"></script>', '')
     .replace('</head>', '  <script type="module" crossorigin src="/assets/index-B2x9QfLm.js"></script>\n    <link rel="stylesheet" crossorigin href="/assets/index-Cq1pZ0aA.css">\n  </head>');
   write(dir, {
-    'node_modules/@skkuverse/miniapp/package.json': JSON.stringify({ version: '0.3.0' }),
+    'node_modules/@skkuverse/miniapp/package.json': JSON.stringify({ version: '0.4.0' }),
     'dist/index.html': html,
     'dist/assets/index-B2x9QfLm.js': '',
     'dist/assets/index-Cq1pZ0aA.css': '',
@@ -79,9 +79,7 @@ describe('new', () => {
     installAndBuild(dir);
     const [report] = checkRepo(root);
     assert.equal(report?.id, 'ginkgo-catch');
-    assert.deepEqual(report.findings.filter((f) => f.level === 'error'), []);
-    // The placeholder entry, until @skkuverse/miniapp 0.4.0 (task 3.4).
-    assert.deepEqual(report.findings.map((f) => [f.rule, f.level]), [['G2', 'warn']]);
+    assert.deepEqual(report.findings, []);
   });
 });
 

@@ -24,7 +24,7 @@ function fixture(id: string, files: Record<string, string | null> = {}): string 
   const base: Record<string, string> = {
     'package.json': JSON.stringify({
       scripts: { dev: 'vite', build: 'vite build', typecheck: 'tsc --noEmit' },
-      dependencies: { '@skkuverse/miniapp': '^0.3.0', react: '^19', 'react-dom': '^19' },
+      dependencies: { '@skkuverse/miniapp': '^0.4.0', react: '^19', 'react-dom': '^19' },
       devDependencies: { vite: '^6', typescript: '^5' },
     }),
     'index.html': GOOD_HTML,
@@ -33,7 +33,7 @@ function fixture(id: string, files: Record<string, string | null> = {}): string 
     'public/skkuverse.json': JSON.stringify(GOOD_MANIFEST),
     'src/main.tsx': `<MiniappRoot id="${id}" browser="block" dev={import.meta.env.DEV}>`,
     'README.md': '# app',
-    'node_modules/@skkuverse/miniapp/package.json': JSON.stringify({ version: '0.3.0' }),
+    'node_modules/@skkuverse/miniapp/package.json': JSON.stringify({ version: '0.4.0' }),
     'dist/index.html': GOOD_HTML,
     'dist/skkuverse.json': JSON.stringify(GOOD_MANIFEST),
     'dist/assets/index-AbCd1234.js': '',
@@ -85,7 +85,7 @@ describe('checkApp', () => {
   it('S3: required scripts', () => {
     const pkg = JSON.stringify({
       scripts: { dev: 'vite', build: 'vite build' },
-      dependencies: { '@skkuverse/miniapp': '^0.3.0', react: '^19', 'react-dom': '^19' },
+      dependencies: { '@skkuverse/miniapp': '^0.4.0', react: '^19', 'react-dom': '^19' },
       devDependencies: { vite: '^6', typescript: '^5' },
     });
     assert.deepEqual(rules(target('a', { 'package.json': pkg })), ['S3']);

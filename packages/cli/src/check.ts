@@ -42,7 +42,7 @@ export interface CheckTarget {
 
 export const ID_PATTERN = /^[a-z0-9-]+$/;
 /** The lowest `@skkuverse/miniapp` a miniapp may ship with (S4). */
-export const SDK_FLOOR = '0.3.0';
+export const SDK_FLOOR = '0.4.0';
 export const REQUIRED_FILES = [
   'package.json',
   'index.html',
@@ -233,8 +233,7 @@ function checkGameSource(dir: string, add: Add): void {
       if (line >= 0) add('G2', `${relative(dir, file)}:${line + 1} ${what}; only bootGame from ${GAME_CLIENT} may`);
     }
   }
-  // An error once @skkuverse/miniapp ships ./game (0.4.0) and the template boots through it.
-  if (!boots) add('G2', `src/ does not import bootGame from ${GAME_CLIENT} yet`, 'warn');
+  if (!boots) add('G2', `src/ does not import bootGame from ${GAME_CLIENT}`);
 }
 
 /** Blanks comments out, keeping every line where it was. */

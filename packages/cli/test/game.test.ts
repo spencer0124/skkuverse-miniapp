@@ -116,9 +116,9 @@ describe('checkApp for a game', () => {
     assert.deepEqual(checkApp(game('a', { 'src/main.ts': page })), []);
   });
 
-  it('G2: a page that does not boot through bootGame yet is a warning', () => {
+  it('G2: a page that does not boot through bootGame fails', () => {
     const findings = checkApp(game('a', { 'src/main.ts': "import './style.css';\n" }));
-    assert.deepEqual(findings.map((f) => [f.rule, f.level]), [['G2', 'warn']]);
+    assert.deepEqual(findings.map((f) => [f.rule, f.level]), [['G2', 'error']]);
   });
 
   it('G3: a game has no backend', () => {
