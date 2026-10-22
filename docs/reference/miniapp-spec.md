@@ -117,6 +117,7 @@ A game gets the game headers instead, from the same file:
 | Rule | Kind | For | Requirement |
 | --- | --- | --- | --- |
 | G4 | checked | game | A game is served only with the game headers `ship` writes: scripts, connections and media from the game's own origin alone, images and media also as inline data, no frames at all (`frame-src 'none'`), and an immutable cache rule for `/assets/*`. The game ships no headers of its own (O2) |
+| G5 | checked | game | The built `dist/` loads only what the game headers allow. Its HTML has no inline `<style>`, no `style=` attribute and no `<iframe>`, `<object>` or `<embed>`. Every `<link>`, `<img>`, `<audio>`, `<video>` and `<source>` URL is on the game's own origin, or inline data where the headers allow it: images, media and an icon `<link>`. Its CSS loads fonts only as files on its own origin, never as inline data, and imports and images from its own origin, with images also as inline data. A page that decodes sound through `fetch` inlines no `data:audio`, because `connect-src 'self'` blocks fetching a `data:` URI. Scripts are H1's |
 
 A game's CSP is defence in depth, not the boundary against whoever can deploy its Pages project. The boundary is what the app grants a game origin, plus the server's check of every ranked result. Its game host also passes the game's origin to `hostBootstrapScript`, so the host object is defined only in the top window of that origin, never in a subframe or a document the web view reached by navigating ([protocol](protocol.md#the-host-object)).
 
