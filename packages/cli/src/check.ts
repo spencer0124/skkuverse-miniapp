@@ -41,7 +41,11 @@ export interface CheckTarget {
 }
 
 export const ID_PATTERN = /^[a-z0-9-]+$/;
-/** The lowest `@skkuverse/miniapp` a miniapp may ship with (S4). */
+/**
+ * The lowest `@skkuverse/miniapp` a miniapp or a game may ship with (S4). One
+ * floor for both kinds, so it moves only for what both need: a game's own
+ * behaviour, such as coming back from a late host, is held by `pnpm contract`.
+ */
 export const SDK_FLOOR = '0.4.0';
 export const REQUIRED_FILES = [
   'package.json',
