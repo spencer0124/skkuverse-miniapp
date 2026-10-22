@@ -1,5 +1,12 @@
 # @skkuverse/miniapp
 
+## 0.4.1
+
+### Patch Changes
+
+- 7c9a598: `bootGame` no longer leaves the page dead when the host is later than `HOST_WAIT_MS`. It still calls `onNoHost` once at that mark, then keeps looking every `HOST_SLOW_POLL_MS` (new, 1 s, also `slowPollMs` in the options) and on `load` and `pageshow`, and sends `game.ready` when the host appears, after which `onInit` arrives as usual. A host that grants no game method still ends the search, and `onNoHost` is never called twice.
+- 3094667: `hostBootstrapScript` takes an optional `origin`. With it, the script installs nothing unless it runs in the top window of a document on exactly that origin, so a re-injection into a document the web view navigated to, or into an Android subframe, defines no host. A game host must pass it. Without it the script behaves as before, which keeps the mini-app shell's calls working. `HostBootstrapOptions` is exported from `./protocol`.
+
 ## 0.4.0
 
 ### Minor Changes
