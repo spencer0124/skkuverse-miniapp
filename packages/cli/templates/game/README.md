@@ -5,6 +5,7 @@ What this game is, in one or two sentences.
 ```sh
 pnpm --filter ./games/__ID__ dev       # → http://localhost:5173
 pnpm check __ID__                      # after a build
+pnpm contract __ID__                   # after a build: the game protocol contract
 pnpm ship __ID__ --preview
 ```
 
