@@ -3,12 +3,13 @@
  * to the protocol contract. Run it after the games are built.
  *
  *   pnpm contract [<id>...]                           every game under games/, or the ones named
- *   pnpm contract --entry <module> --html <index.html>  any page, by its entry module (source or built)
+ *   pnpm contract --entry <module> --html <index.html> [--player <module>]  any page, by its entry module (source or built)
  *
- * A game is played from its build: the module `dist/index.html` loads. Each
- * page runs in a vitest process of its own (see `src/harness.ts` for why not
- * a browser). Exits non-zero when any page breaks the contract, naming the
- * rule it broke.
+ * A game is played from its build: the module `dist/index.html` loads. A game
+ * whose runs need playing to end ships `contract.player.ts` beside its page,
+ * which plays them (`ContractPlayer` in `src/harness.ts`). Each page runs in a
+ * vitest process of its own (see `src/harness.ts` for why not a browser).
+ * Exits non-zero when any page breaks the contract, naming the rule it broke.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -22,7 +23,12 @@ interface Page {
   name: string;
   entry: string;
   html: string;
+  /** The game's `contract.player.ts`, when it has one. */
+  player?: string;
 }
+
+/** Where a game keeps its player, beside its page. */
+const PLAYER_FILE = 'contract.player.ts';
 
 /** The module a built game's `index.html` loads, as a path under `dist/`. */
 function builtEntry(dist: string): string {
@@ -37,7 +43,8 @@ function gamePage(id: string): Page {
   if (!existsSync(join(dist, 'index.html'))) {
     throw new Error(`games/${id} is not built: pnpm --filter ./games/${id} build`);
   }
-  return { name: id, entry: builtEntry(dist), html: join(dist, 'index.html') };
+  const player = join(root, 'games', id, PLAYER_FILE);
+  return { name: id, entry: builtEntry(dist), html: join(dist, 'index.html'), ...(existsSync(player) ? { player } : {}) };
 }
 
 function listGames(): string[] {
@@ -57,7 +64,13 @@ function play(page: Page): boolean {
     {
       cwd: tool,
       stdio: 'inherit',
-      env: { ...process.env, CONTRACT_ENTRY: page.entry, CONTRACT_HTML: page.html, CONTRACT_NAME: page.name },
+      env: {
+        ...process.env,
+        CONTRACT_ENTRY: page.entry,
+        CONTRACT_HTML: page.html,
+        CONTRACT_NAME: page.name,
+        ...(page.player ? { CONTRACT_PLAYER: page.player } : {}),
+      },
     },
   );
   return result.status === 0;
@@ -67,13 +80,20 @@ function main(argv: string[]): number {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
-    options: { entry: { type: 'string' }, html: { type: 'string' }, name: { type: 'string' } },
+    options: { entry: { type: 'string' }, html: { type: 'string' }, name: { type: 'string' }, player: { type: 'string' } },
   });
   let pages: Page[];
   if (values.entry !== undefined) {
     if (values.html === undefined) throw new Error('--entry needs --html');
     const entry = resolve(values.entry);
-    pages = [{ name: values.name ?? values.entry, entry, html: resolve(values.html) }];
+    pages = [
+      {
+        name: values.name ?? values.entry,
+        entry,
+        html: resolve(values.html),
+        ...(values.player !== undefined ? { player: resolve(values.player) } : {}),
+      },
+    ];
   } else {
     const ids = positionals.length > 0 ? positionals : listGames();
     if (ids.length === 0) {

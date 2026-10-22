@@ -1,19 +1,33 @@
 /**
  * The contract run of one page, which `src/cli.ts` names through the
  * environment: `CONTRACT_ENTRY` (the module to import), `CONTRACT_HTML` (its
- * index.html) and `CONTRACT_NAME`. One vitest process a page, because a page
- * pins the clock and the timers on its window for good.
+ * index.html), `CONTRACT_NAME`, and `CONTRACT_PLAYER` (the game's player
+ * module, when it has one). One vitest process a page, because a page pins
+ * the clock and the timers on its window for good.
  */
 import { readFileSync } from 'node:fs';
 import { test } from 'vitest';
-import { assertContract, runContract } from './harness';
+import { assertContract, runContract, type ContractPlayer } from './harness';
 
 const entry = process.env.CONTRACT_ENTRY;
 const htmlFile = process.env.CONTRACT_HTML;
 const name = process.env.CONTRACT_NAME ?? entry;
+const playerModule = process.env.CONTRACT_PLAYER;
 if (!entry || !htmlFile) throw new Error('run through `pnpm contract`, which sets CONTRACT_ENTRY and CONTRACT_HTML');
 
 test(`${name} keeps the game contract`, async () => {
   const html = readFileSync(htmlFile, 'utf8');
-  assertContract(await runContract({ html, load: () => import(/* @vite-ignore */ entry) }));
+  const player = playerModule
+    ? ((await import(/* @vite-ignore */ playerModule)) as { default: ContractPlayer }).default
+    : undefined;
+  const result = await runContract({ html, load: () => import(/* @vite-ignore */ entry), ...(player ? { player } : {}) });
+  // What the session came to, for the log: each run's end as the page reported it.
+  for (const m of result.host.messages) {
+    if (m?.method !== 'game.over' || !('params' in m)) continue;
+    const { score, hit, revives, revivesLeft, validator } = m.params as Record<string, unknown>;
+    const line = `game.over score=${String(score)} hit=${String(hit)} revives=${String(revives)} revivesLeft=${String(revivesLeft)}`;
+    // Not console.log, which vitest keeps to itself for a passing test.
+    process.stdout.write(`${line}${validator ? ` validator=${String(validator)}` : ''}\n`);
+  }
+  assertContract(result);
 });

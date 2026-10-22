@@ -17,9 +17,14 @@
  *   60 Hz frame on that fake clock. A two-minute round plays in seconds.
  * - Canvas drawing is a no-op 2D context: the contract is about messages, not
  *   pixels. Layout is happy-dom's, so every box measures zero.
- * - A press is a `pointerdown` and `pointerup` marked trusted. The page guard
- *   drops untrusted input, and in happy-dom every event is untrusted, so the
- *   mark stands in for a real finger. Nothing else is trusted.
+ * - A press is a `pointerdown`, `pointerup` and `click` marked trusted. The
+ *   page guard drops untrusted input, and in happy-dom every event is
+ *   untrusted, so the mark stands in for a real finger. Nothing else is
+ *   trusted, except what a game's player dispatches through `PlayerInput`.
+ * - A game whose runs do not end on their own (a pile that must be filled, a
+ *   route that must be typed) ships a player next to its page,
+ *   `games/<id>/contract.player.ts`, whose default export is a
+ *   `ContractPlayer`: it keeps playing while a run plays out.
  *
  * A browser (Playwright) would add pixels and real layout, not protocol
  * coverage, and costs a browser download in CI; the visual check stays manual.
@@ -38,6 +43,34 @@ export interface ContractPage {
   html: string;
   /** Imports the page's entry module, which boots the game. */
   load(): Promise<unknown>;
+  /** How the game is played, when presses on the title alone would not play it. */
+  player?: ContractPlayer;
+}
+
+/** What a player may do to the page: the same trusted input the runner uses. */
+export interface PlayerInput {
+  readonly document: Document;
+  /** A trusted tap (`pointerdown`, `pointerup`, `click`) on `target`, by default where the runner presses. */
+  press(target?: Element | null, at?: { x: number; y: number }): void;
+  /** Dispatches `event` on `target` marked trusted, as a real finger or keyboard would have sent it. */
+  dispatch(target: EventTarget, event: Event): void;
+}
+
+/**
+ * A game's player, for a game whose runs need playing to end. Each part is
+ * optional; the runner presses where it always does for what is left out.
+ */
+export interface ContractPlayer {
+  /** Begin a run from the title. Defaults to a press. */
+  start?(input: PlayerInput): void;
+  /** Called every step while a run plays out, until it sends `game.over`: tap, type, aim. */
+  play?(input: PlayerInput): void;
+  /**
+   * `game.restart` takes this game back to its title rather than into a run,
+   * as a keyboard game's must (iOS raises the keyboard only inside a tap on
+   * the page); the runner then starts run 2 from the title with `start`.
+   */
+  restartToTitle?: boolean;
 }
 
 export interface ContractOptions {
@@ -47,8 +80,11 @@ export interface ContractOptions {
   hostDelayMs?: number;
 }
 
-/** What the runner itself checks beyond the contract: that the script could play. */
-export type RunnerRule = 'host-found' | 'run-starts' | 'run-ends';
+/**
+ * What the runner itself checks beyond the contract: that the script could
+ * play, and that a page takes no revive past the ones it said were left.
+ */
+export type RunnerRule = 'host-found' | 'run-starts' | 'run-ends' | 'revive-capped';
 
 export interface RunnerProblem {
   rule: RunnerRule;
@@ -64,6 +100,8 @@ export interface ContractResult {
 }
 
 const STEP_MS = 500;
+/** More revives than any game offers a run: a page still offering one after these never stops. */
+const MAX_REVIVES_PLAYED = 8;
 /** The clock and timers the page sees, faked before the page boots. */
 const FAKED = ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'Date'] as const;
 /** A display's frame. */
@@ -80,7 +118,12 @@ const DOM_GLOBALS = ['Event', 'CustomEvent', 'EventTarget'] as const;
  *    turns the sound off; the run plays out to its end.
  * 4. Run 2 starts on `game.restart` and plays out.
  * 5. `game.reset` back to the title; run 3 starts on a press and plays out.
- * 6. If the last `game.over` left revives, `game.revive` and play out again.
+ * 6. While the last `game.over` leaves revives, `game.revive` and play out
+ *    again, to the final loss; then one `game.revive` more, which the page
+ *    must refuse: it may not run again.
+ *
+ * A game's player (`ContractPage.player`) starts the runs it presses for, plays
+ * each run while it plays out, and may send run 2 through the title.
  */
 export async function runContract(page: ContractPage, options: ContractOptions = {}): Promise<ContractResult> {
   const runCapMs = options.runCapMs ?? 5 * 60_000;
@@ -88,6 +131,9 @@ export async function runContract(page: ContractPage, options: ContractOptions =
 
   vi.useFakeTimers({ toFake: [...FAKED] });
   mount(page.html);
+  const player = page.player ?? {};
+  const input: PlayerInput = { document, press, dispatch: trusted };
+  const startRun = () => (player.start ? player.start(input) : press());
   const host = createFakeHost({ init: false });
   const count = (method: string) => host.methods().filter((m) => m === method).length;
   const advance = async (ms: number) => {
@@ -105,7 +151,7 @@ export async function runContract(page: ContractPage, options: ContractOptions =
   }
 
   // A press before game.init: a page that starts here breaks no-start-before-init.
-  press();
+  startRun();
   await advance(1_000);
   host.init();
   await advance(1_000);
@@ -117,6 +163,7 @@ export async function runContract(page: ContractPage, options: ContractOptions =
         problems.push({ rule: 'run-ends', detail: `${run} sent no game.over within ${runCapMs} ms` });
         return false;
       }
+      player.play?.(input);
       await advance(STEP_MS);
     }
     return true;
@@ -130,7 +177,7 @@ export async function runContract(page: ContractPage, options: ContractOptions =
     return false;
   };
 
-  if (!(await begin('run 1 (a press on the title)', press))) return finish();
+  if (!(await begin('run 1 (a press on the title)', startRun))) return finish();
   await advance(1_000);
   host.pause();
   await advance(5_000);
@@ -140,20 +187,42 @@ export async function runContract(page: ContractPage, options: ContractOptions =
   if (!(await playOut('run 1'))) return finish();
   host.sound(true);
 
-  if (!(await begin('run 2 (game.restart)', () => host.restart()))) return finish();
+  if (player.restartToTitle) {
+    host.restart();
+    await advance(1_000);
+    if (!(await begin('run 2 (a press after game.restart took it to the title)', startRun))) return finish();
+  } else if (!(await begin('run 2 (game.restart)', () => host.restart()))) return finish();
   if (!(await playOut('run 2'))) return finish();
 
   host.reset();
   await advance(1_000);
-  if (!(await begin('run 3 (a press after game.reset)', press))) return finish();
+  if (!(await begin('run 3 (a press after game.reset)', startRun))) return finish();
   if (!(await playOut('run 3'))) return finish();
 
-  const last = [...host.messages].reverse().find((m) => m?.method === 'game.over');
-  const params = last && 'params' in last ? (last.params as { revivesLeft?: unknown }) : {};
-  if (typeof params.revivesLeft === 'number' && params.revivesLeft > 0) {
+  const revivesLeft = () => {
+    const last = [...host.messages].reverse().find((m) => m?.method === 'game.over');
+    const params = last && 'params' in last ? (last.params as { revivesLeft?: unknown }) : {};
+    return typeof params.revivesLeft === 'number' ? params.revivesLeft : 0;
+  };
+  let revives = 0;
+  while (revivesLeft() > 0) {
+    if (revives === MAX_REVIVES_PLAYED) {
+      problems.push({ rule: 'revive-capped', detail: `still offering a revive after ${MAX_REVIVES_PLAYED}` });
+      return finish();
+    }
+    revives += 1;
     host.revive();
     await advance(1_000);
-    await playOut('run 3 after game.revive');
+    if (!(await playOut(`run 3 after game.revive ${revives}`))) return finish();
+  }
+  if (revives > 0) {
+    // The final loss: none left, so another game.revive must change nothing.
+    const sent = host.messages.length;
+    host.revive();
+    await advance(1_000);
+    const after = host.messages.slice(sent);
+    const ran = after.some((m) => m?.method === 'game.start' || m?.method === 'game.over' || (m?.method === 'game.phase' && 'params' in m && (m.params as { phase?: unknown }).phase === 'running'));
+    if (ran) problems.push({ rule: 'revive-capped', detail: `a game.revive after the final loss ran the game again: ${after.map((m) => m?.method ?? '?').join(', ')}` });
   }
   return finish();
 
@@ -190,14 +259,23 @@ function mount(html: string): void {
   } as never;
 }
 
-/** A press where the player would make one: on the first canvas, else the body's first element. */
-function press(): void {
-  const target = document.querySelector('canvas') ?? document.body.firstElementChild ?? document.body;
+/**
+ * A press where the player would make one: on `target`, by default the first
+ * canvas, else the body's first element; at `at` in client px when given.
+ */
+function press(target?: Element | null, at?: { x: number; y: number }): void {
+  const on = target ?? document.querySelector('canvas') ?? document.body.firstElementChild ?? document.body;
+  const where = at ? { clientX: at.x, clientY: at.y } : {};
   for (const type of ['pointerdown', 'pointerup'] as const) {
-    const event = new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 1, button: 0, isPrimary: true });
-    Object.defineProperty(event, 'isTrusted', { value: true });
-    target.dispatchEvent(event);
+    trusted(on, new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, pointerId: 1, button: 0, isPrimary: true, ...where }));
   }
+  trusted(on, new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, button: 0, ...where }));
+}
+
+/** Dispatches `event` marked trusted: the page guard lets it through. */
+function trusted(target: EventTarget, event: Event): void {
+  Object.defineProperty(event, 'isTrusted', { value: true });
+  target.dispatchEvent(event);
 }
 
 const CONTEXT_METHODS = [
