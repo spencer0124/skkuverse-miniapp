@@ -14,8 +14,10 @@ import { installPageGuard } from './guard';
 
 /** How often `bootGame` looks for the host while it is not there yet. */
 export const HOST_POLL_MS = 50;
-/** How long `bootGame` looks for the host before it gives up. */
+/** How long `bootGame` looks every `HOST_POLL_MS` before it calls `onNoHost`. */
 export const HOST_WAIT_MS = 10_000;
+/** How often `bootGame` keeps looking for the host after `HOST_WAIT_MS`. */
+export const HOST_SLOW_POLL_MS = 1_000;
 
 /**
  * What a game page does when the host speaks. Every handler but `onInit` is
@@ -53,8 +55,11 @@ export interface GameHandlers {
    */
   onViewport?(viewport: Viewport): void;
   /**
-   * The host never appeared within the wait, or it does not host games (a
-   * browser, or the mini-app shell). Show nothing interactive.
+   * Called at most once: the host had not appeared after `waitMs`, or it does
+   * not host games (a browser, or the mini-app shell). Show nothing
+   * interactive. A host that is merely late can still appear: `bootGame` keeps
+   * looking, sends `game.ready` when it does, and `onInit` follows, so a page
+   * leaves this state there.
    */
   onNoHost?(): void;
   /** Where the host may anchor its title, sent with `game.ready`. */
@@ -66,6 +71,8 @@ export interface BootOptions {
   pollMs?: number;
   /** Defaults to `HOST_WAIT_MS`. */
   waitMs?: number;
+  /** Defaults to `HOST_SLOW_POLL_MS`. */
+  slowPollMs?: number;
 }
 
 /** What a page reports through. Every call is a no-op outside a game host. */
@@ -88,10 +95,13 @@ export interface GameClient {
  * Boot a game page. Call it first in the page's entry.
  *
  * In order: installs the page guard, subscribes to the host's events, then
- * looks for the host every `pollMs` for up to `waitMs` (Android can run the
- * host's first bootstrap on a document it then replaces, and the host injects
- * it again once loading ends) and sends `game.ready` once it is there. A run
- * may start only after `game.init`.
+ * looks for the host and sends `game.ready` once it is there. It looks every
+ * `pollMs` for `waitMs`, then calls `onNoHost`, then keeps looking every
+ * `slowPollMs` and on `load` and `pageshow` until the host appears: Android
+ * can run the host's first bootstrap on a document it then replaces, and the
+ * host injects it again once loading ends, which on a slow network can be
+ * well after `waitMs`. A host that grants no game method ends the search. A
+ * run may start only after `game.init`.
  *
  * It installs no visibility or focus handler: pausing is the host's call. A
  * page that wants to know how often it was hidden counts it for telemetry.
@@ -99,6 +109,7 @@ export interface GameClient {
 export function bootGame(handlers: GameHandlers, options: BootOptions = {}): GameClient {
   installPageGuard();
   const pollMs = options.pollMs ?? HOST_POLL_MS;
+  const slowPollMs = options.slowPollMs ?? HOST_SLOW_POLL_MS;
   const attempts = Math.max(0, Math.ceil((options.waitMs ?? HOST_WAIT_MS) / pollMs));
   let init: GameInit | null = null;
   let disposed = false;
@@ -157,29 +168,66 @@ export function bootGame(handlers: GameHandlers, options: BootOptions = {}): Gam
     }
   }
 
-  let left = attempts;
-  const lookForHost = () => {
-    timer = undefined;
-    if (disposed) return;
-    const found = host();
-    if (found) {
-      if (!found.capabilities.includes('game.ready')) {
-        handlers.onNoHost?.();
-        return;
-      }
-      handlers.onViewport?.(found.getViewport());
-      const rect = handlers.rect?.();
-      notify('game.ready', rect ? { rect } : {});
-      return;
-    }
-    if (left <= 0 || !hasWindow) {
-      handlers.onNoHost?.();
-      return;
-    }
-    left -= 1;
-    timer = setTimeout(lookForHost, pollMs);
+  let searching = true;
+  let saidNoHost = false;
+  const noHost = () => {
+    if (saidNoHost) return;
+    saidNoHost = true;
+    handlers.onNoHost?.();
   };
-  lookForHost();
+
+  const stopSearching = () => {
+    searching = false;
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+    if (!hasWindow) return;
+    window.removeEventListener('load', onPageEvent);
+    window.removeEventListener('pageshow', onPageEvent);
+  };
+
+  /** Whether the search is over: the host is there, game host or not. */
+  const check = (): boolean => {
+    const found = host();
+    if (!found) return false;
+    stopSearching();
+    if (!found.capabilities.includes('game.ready')) {
+      noHost();
+      return true;
+    }
+    handlers.onViewport?.(found.getViewport());
+    const rect = handlers.rect?.();
+    notify('game.ready', rect ? { rect } : {});
+    return true;
+  };
+
+  // A load or a page restored from the back-forward cache is when a late
+  // bootstrap lands; it checks without spending a timed attempt.
+  function onPageEvent() {
+    if (searching && !disposed) check();
+  }
+
+  let left = attempts;
+  const poll = () => {
+    timer = undefined;
+    if (disposed || !searching || check()) return;
+    if (!hasWindow) {
+      stopSearching();
+      noHost();
+      return;
+    }
+    if (left > 0) {
+      left -= 1;
+      timer = setTimeout(poll, pollMs);
+      return;
+    }
+    noHost();
+    timer = setTimeout(poll, slowPollMs);
+  };
+  if (hasWindow) {
+    window.addEventListener('load', onPageEvent);
+    window.addEventListener('pageshow', onPageEvent);
+  }
+  poll();
 
   return {
     get init() {
@@ -204,7 +252,7 @@ export function bootGame(handlers: GameHandlers, options: BootOptions = {}): Gam
     },
     dispose() {
       disposed = true;
-      if (timer !== undefined) clearTimeout(timer);
+      stopSearching();
       if (!hasWindow) return;
       window.removeEventListener(MESSAGE_EVENT, onMessage);
       window.removeEventListener('pointerdown', onPress, { capture: true });

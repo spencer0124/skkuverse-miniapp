@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { bootGame, HOST_WAIT_MS, type GameClient, type GameHandlers } from '../src/game';
+import { bootGame, HOST_SLOW_POLL_MS, HOST_WAIT_MS, type GameClient, type GameHandlers } from '../src/game';
 import {
   GAME_NOTIFY_METHODS,
   hostBootstrapScript,
@@ -90,20 +90,60 @@ describe('the handshake', () => {
     expect(handlers.onInit).not.toHaveBeenCalled();
   });
 
-  it('gives up after the bounded wait and says so', () => {
+  it('says so once after the bounded wait, then still connects to a host that arrives at 15 s', () => {
+    const onNoHost = vi.fn();
+    const onViewport = vi.fn();
+    const { client, handlers } = boot({ onNoHost, onViewport });
+    vi.advanceTimersByTime(HOST_WAIT_MS - 100);
+    expect(onNoHost).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(200);
+    expect(onNoHost).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(15_000 - HOST_WAIT_MS - 100);
+    expect(sent).toEqual([]);
+
+    hostArrives();
+    vi.advanceTimersByTime(HOST_SLOW_POLL_MS);
+    expect(methods()).toEqual(['game.ready']);
+    expect(onViewport).toHaveBeenCalledWith(VIEWPORT);
+    send('game.init', { gameProtocol: 1, hi: 7, sound: true });
+    expect(handlers.onInit).toHaveBeenCalledWith({ gameProtocol: 1, hi: 7, sound: true });
+    expect(client.start()).toBe(true);
+
+    // Found: no more looking, and onNoHost never again.
+    vi.advanceTimersByTime(60_000);
+    expect(methods()).toEqual(['game.ready', 'game.start']);
+    expect(onNoHost).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps looking slowly, not every poll, after the bounded wait', () => {
     const onNoHost = vi.fn();
     boot({ onNoHost });
     vi.advanceTimersByTime(HOST_WAIT_MS + 100);
+    const lookups = vi.fn();
+    Object.defineProperty(win, 'skkuverse', { get: lookups, configurable: true });
+    vi.advanceTimersByTime(HOST_SLOW_POLL_MS * 5);
+    expect(lookups).toHaveBeenCalledTimes(5);
     expect(onNoHost).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks again on load and pageshow, between slow polls', () => {
+    boot();
+    vi.advanceTimersByTime(HOST_WAIT_MS + 100);
     hostArrives();
-    vi.advanceTimersByTime(1_000);
-    expect(sent).toEqual([]);
+    win.dispatchEvent(new Event('load'));
+    expect(methods()).toEqual(['game.ready']);
+    win.dispatchEvent(new Event('pageshow'));
+    vi.advanceTimersByTime(HOST_SLOW_POLL_MS * 3);
+    expect(methods()).toEqual(['game.ready']);
   });
 
   it('treats a host that grants no game method as none, as in the mini-app shell', () => {
     hostArrives(NOTIFY_METHODS);
     const onNoHost = vi.fn();
     boot({ onNoHost });
+    expect(onNoHost).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(HOST_WAIT_MS * 2);
+    win.dispatchEvent(new Event('load'));
     expect(onNoHost).toHaveBeenCalledTimes(1);
     expect(sent).toEqual([]);
   });
@@ -273,6 +313,16 @@ describe('the page guard and audio', () => {
 });
 
 describe('dispose', () => {
+  it('stops the slow search too', () => {
+    const { client } = boot();
+    vi.advanceTimersByTime(HOST_WAIT_MS + 100);
+    client.dispose();
+    hostArrives();
+    vi.advanceTimersByTime(HOST_SLOW_POLL_MS * 2);
+    win.dispatchEvent(new Event('load'));
+    expect(sent).toEqual([]);
+  });
+
   it('stops looking for the host and listening to it', () => {
     const onPause = vi.fn();
     const { client } = boot({ onPause });
