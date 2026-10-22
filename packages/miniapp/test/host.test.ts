@@ -10,10 +10,11 @@ const VIEWPORT: Viewport = {
 };
 
 /** A browser-ish global scope for running the injected scripts. */
-function environment(origin = 'https://mukja.mini.skkuverse.com') {
+function environment(origin = 'https://mukja.mini.skkuverse.com', frame: 'top' | 'sub' = 'top') {
   const props = new Map<string, string>();
   const attrs = new Map<string, string>();
   const win = new EventTarget() as EventTarget & Record<string, unknown>;
+  win.top = frame === 'top' ? win : new EventTarget();
   vi.stubGlobal('window', win);
   vi.stubGlobal('location', { origin });
   vi.stubGlobal('document', {
@@ -63,6 +64,49 @@ describe('hostBootstrapScript', () => {
     win.addEventListener(MESSAGE_EVENT, (e) => seen.push((e as CustomEvent).detail));
     run(hostDeliverScript('https://mukja.mini.skkuverse.com', { id: 'r1', ok: true, result: 'secret' }));
     expect(seen).toEqual([]);
+  });
+
+  describe('with an origin, as a game host calls it', () => {
+    const GAME = 'https://wave-run.game.skkuverse.com';
+
+    it('installs in the top window of that origin', () => {
+      const { win, props, run } = environment(GAME);
+      run(hostBootstrapScript({ capabilities: ['game.ready'], viewport: VIEWPORT, origin: GAME }));
+      expect((win.skkuverse as { capabilities: string[] }).capabilities).toEqual(['game.ready']);
+      expect(props.get('--sv-inset-top')).toBe('91px');
+    });
+
+    it('installs nothing in a document on another origin', () => {
+      const { win, props, attrs, run } = environment('https://evil.example');
+      run(hostBootstrapScript({ capabilities: ['game.ready'], viewport: VIEWPORT, origin: GAME }));
+      expect(win.skkuverse).toBeUndefined();
+      expect(props.size).toBe(0);
+      expect(attrs.size).toBe(0);
+    });
+
+    it('installs nothing in a subframe, even one on that origin', () => {
+      const { win, props, run } = environment(GAME, 'sub');
+      run(hostBootstrapScript({ capabilities: ['game.ready'], viewport: VIEWPORT, origin: GAME }));
+      expect(win.skkuverse).toBeUndefined();
+      expect(props.size).toBe(0);
+    });
+
+    it('is the same script as before when no origin is given', () => {
+      const options = { capabilities: ['haptic.impact'], viewport: VIEWPORT };
+      const script = hostBootstrapScript(options);
+      expect(script).not.toContain('location.origin');
+      expect(script).not.toContain('window.top');
+      // Unchanged behaviour: any origin, any frame.
+      for (const [origin, frame] of [
+        ['https://evil.example', 'top'],
+        [GAME, 'sub'],
+      ] as const) {
+        const { win, run } = environment(origin, frame);
+        run(script);
+        expect((win.skkuverse as { capabilities: string[] }).capabilities).toEqual(['haptic.impact']);
+        vi.unstubAllGlobals();
+      }
+    });
   });
 
   it('escapes line separators in delivered JSON', () => {

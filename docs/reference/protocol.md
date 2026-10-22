@@ -3,7 +3,7 @@ title: Miniapp Bridge Protocol
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-10-21
+last-updated: 2026-10-22
 audience: public
 ---
 
@@ -77,7 +77,7 @@ Adding a method means one entry here, one SDK wrapper and one handler in the app
 
 ## The host object
 
-Before the page's own script runs, the app injects `hostBootstrapScript({ capabilities, viewport })`. It defines:
+Before the page's own script runs, the app injects `hostBootstrapScript({ capabilities, viewport, origin? })`. It defines:
 
 ```ts
 window.skkuverse = Object.freeze({
@@ -89,6 +89,8 @@ window.skkuverse = Object.freeze({
 ```
 
 `receive` belongs to the app, not the SDK. On `viewport.changed` it updates its state and the CSS variables. Then it dispatches `skkuverse:message` on `window` with the message as `detail`, and the SDK listens for that event. Because the object is frozen, a page script cannot replace it.
+
+With `origin`, the script installs nothing unless it runs in the top window of a document on exactly that origin. **A game host must pass it.** The app injects the bootstrap again from `onLoadEnd` into whatever document is loaded by then, and on Android a subframe can receive it too, so without the gate a document the web view reached some other way would get a host object that names game methods. Without `origin` the script installs in any document, which is how the mini-app shell calls it, and the per-message origin check stays the gate.
 
 The app delivers each message with `hostDeliverScript(origin, message)`. That script first checks `location.origin` against the page the request came from, so a response never reaches a page that has since navigated elsewhere.
 
@@ -225,8 +227,8 @@ loop.onCrash = (result) => game.over({ ...result, validator: 'wave-run@1' });
 
 1. Installs the page guard: an input event a script dispatched never reaches the game, the clipboard, drags, the long-press menu and an iOS pinch are blocked, and the clock, the dice, the timers and `requestAnimationFrame` are pinned. `window.skkuverse` needs no pin, because the bootstrap defines it non-writable.
 2. Subscribes to the host's events.
-3. Looks for the host until `window.skkuverse` and `window.ReactNativeWebView` both exist, every `HOST_POLL_MS` for up to `HOST_WAIT_MS` (`packages/miniapp/src/game/boot.ts`). Android can run the before-load bootstrap on a document it then replaces, and the host injects it again when loading ends. A host that never appears, or one that grants no game method, calls `onNoHost`, and the page shows nothing interactive.
-4. Sends `game.ready`, with the rectangle from `rect()` when the page gives one.
+3. Looks for the host until `window.skkuverse` and `window.ReactNativeWebView` both exist: every `HOST_POLL_MS` for `HOST_WAIT_MS`, then every `HOST_SLOW_POLL_MS` and on each `load` and `pageshow` for as long as the page is open (`packages/miniapp/src/game/boot.ts`). Android can run the before-load bootstrap on a document it then replaces, and the host injects it again when loading ends, which on a slow network can come after `HOST_WAIT_MS`. When `HOST_WAIT_MS` passes with no host, `bootGame` calls `onNoHost` and the page shows nothing interactive, but it keeps looking. A host that grants no game method ends the search with `onNoHost`. Either way `onNoHost` is called at most once.
+4. Sends `game.ready`, with the rectangle from `rect()` when the page gives one. A host found after `onNoHost` gets it too, and `onInit` follows as usual, so a page must be able to leave its no-host state.
 
 Until `game.init` arrives, `start()` refuses and every other event is ignored, so no run starts before the host has spoken. `onAudioUnlock` runs on every press the player made, before the game hears it: iOS opens audio only inside a tap, and later presses wake a context the OS suspended.
 

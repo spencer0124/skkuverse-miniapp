@@ -3,7 +3,7 @@ title: Miniapp Spec
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-10-21
+last-updated: 2026-10-22
 audience: public
 ---
 
@@ -116,9 +116,9 @@ A game gets the game headers instead, from the same file:
 
 | Rule | Kind | For | Requirement |
 | --- | --- | --- | --- |
-| G4 | checked | game | A game is served only with the game headers `ship` writes: scripts, connections and media from the game's own origin alone, images and media also as inline data, and an immutable cache rule for `/assets/*`. The game ships no headers of its own (O2) |
+| G4 | checked | game | A game is served only with the game headers `ship` writes: scripts, connections and media from the game's own origin alone, images and media also as inline data, no frames at all (`frame-src 'none'`), and an immutable cache rule for `/assets/*`. The game ships no headers of its own (O2) |
 
-A game's CSP is defence in depth, not the boundary against whoever can deploy its Pages project. The boundary is what the app grants a game origin, plus the server's check of every ranked result.
+A game's CSP is defence in depth, not the boundary against whoever can deploy its Pages project. The boundary is what the app grants a game origin, plus the server's check of every ranked result. Its game host also passes the game's origin to `hostBootstrapScript`, so the host object is defined only in the top window of that origin, never in a subframe or a document the web view reached by navigating ([protocol](protocol.md#the-host-object)).
 
 ## Exceptions
 

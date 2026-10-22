@@ -10,6 +10,7 @@
 export {
   bootGame,
   HOST_POLL_MS,
+  HOST_SLOW_POLL_MS,
   HOST_WAIT_MS,
   type BootOptions,
   type GameClient,
