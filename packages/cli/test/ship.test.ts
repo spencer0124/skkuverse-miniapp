@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
 import {
   CONTENT_SECURITY_POLICY,
@@ -11,7 +12,7 @@ import {
   REDIRECTS_FILE,
   platformFiles,
 } from '../src/platform.ts';
-import { planDeploy, stageSite } from '../src/ship.ts';
+import { planDeploy, ship, stageSite } from '../src/ship.ts';
 
 const scratch = mkdtempSync(join(tmpdir(), 'miniapp-cli-ship-test-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -102,5 +103,56 @@ describe('ship', () => {
       assert.equal(readFileSync(join(site, 'assets', 'index-AbCd1234.js'), 'utf8'), 'x');
       assert.ok(!existsSync(join(dist, '_headers')));
     }
+  });
+
+  describe('the production guard', () => {
+    /**
+     * A git repository on `main` holding one registered miniapp, with stand-ins
+     * for pnpm and wrangler that only leave a mark: a refusal must come before
+     * either runs, so nothing builds and nothing reaches Cloudflare.
+     */
+    function shipRepo(branch = 'main'): { root: string; marks: string } {
+      const root = repo({ apps: { mukja: { project: 'miniapp-mukja' } } });
+      const marks = join(root, '.marks');
+      const stub = `#!/bin/sh\necho "$0 $*" >> "${marks}"\n`;
+      write(root, { '.gitignore': 'node_modules/\n.bin/\n.marks\n', 'node_modules/.bin/wrangler': stub, '.bin/pnpm': stub });
+      chmodSync(join(root, 'node_modules', '.bin', 'wrangler'), 0o755);
+      chmodSync(join(root, '.bin', 'pnpm'), 0o755);
+      const git = (...args: string[]) => {
+        const result = spawnSync('git', ['-c', 'user.name=test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', ...args], { cwd: root, encoding: 'utf8' });
+        assert.equal(result.status, 0, result.stderr);
+      };
+      git('init', '--quiet', '--initial-branch', branch);
+      git('add', '.');
+      git('commit', '--quiet', '-m', 'init');
+      return { root, marks };
+    }
+
+    function withStubPath<T>(root: string, fn: () => T): T {
+      const path = process.env.PATH;
+      process.env.PATH = `${join(root, '.bin')}${delimiter}${path ?? ''}`;
+      try {
+        return fn();
+      } finally {
+        process.env.PATH = path;
+      }
+    }
+
+    it('refuses a production deploy from a dirty tree, before building or calling Cloudflare', () => {
+      const { root, marks } = shipRepo();
+      write(root, { 'apps/mukja/src/main.tsx': 'uncommitted' });
+      withStubPath(root, () => {
+        assert.throws(() => ship(root, 'mukja', { preview: false }), /production deploys from a clean tree/);
+      });
+      assert.ok(!existsSync(marks), existsSync(marks) ? readFileSync(marks, 'utf8') : '');
+    });
+
+    it('refuses a production deploy from a branch other than main, before anything runs', () => {
+      const { root, marks } = shipRepo('dev');
+      withStubPath(root, () => {
+        assert.throws(() => ship(root, 'mukja', { preview: false }), /production deploys from main; this is dev/);
+      });
+      assert.ok(!existsSync(marks));
+    });
   });
 });
