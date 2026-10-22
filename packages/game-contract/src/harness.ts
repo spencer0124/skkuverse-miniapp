@@ -34,6 +34,7 @@
  */
 import { Window } from 'happy-dom';
 import { vi } from 'vitest';
+import { HOST_SLOW_POLL_MS, HOST_WAIT_MS } from '@skkuverse/miniapp/game';
 import {
   checkGameContract,
   createFakeHost,
@@ -79,7 +80,11 @@ export interface ContractPlayer {
 export interface ContractOptions {
   /** How long a run may take to end on its own before the runner gives up. Defaults to 5 minutes. */
   runCapMs?: number;
-  /** How late the host appears after the page boots, to exercise `bootGame`'s wait. Defaults to 300 ms. */
+  /**
+   * How late the host appears after the page boots, to exercise `bootGame`'s
+   * wait. Defaults to 300 ms; `LATE_HOST_MS` is a host that comes after the page
+   * has heard `onNoHost`.
+   */
   hostDelayMs?: number;
 }
 
@@ -103,6 +108,15 @@ export interface ContractResult {
 }
 
 const STEP_MS = 500;
+/**
+ * A host that appears after `bootGame` stopped its fast search and called
+ * `onNoHost`: Android can inject the host's bootstrap again once a slow load
+ * ends. The page must leave its no-host state when `game.init` comes after
+ * all, and play as it would have.
+ */
+export const LATE_HOST_MS = HOST_WAIT_MS + 5_000;
+/** How long the page may take to send `game.ready` once the host is there: one slow poll, and a second. */
+const HOST_FOUND_MS = HOST_SLOW_POLL_MS + 1_000;
 /** More revives than any game offers a run: a page still offering one after these never stops. */
 const MAX_REVIVES_PLAYED = 8;
 /** The clock and timers the page sees, faked before the page boots. */
@@ -115,7 +129,8 @@ const DOM_GLOBALS = ['Event', 'CustomEvent', 'EventTarget'] as const;
 /**
  * The scripted session:
  *
- * 1. The page boots with no host; the host appears `hostDelayMs` later.
+ * 1. The page boots with no host; the host appears `hostDelayMs` later, which
+ *    with `LATE_HOST_MS` is after the page has heard `onNoHost`.
  * 2. Before `game.init`, a press: the page must not start a run.
  * 3. Run 1 starts on a press; mid-run the host pauses, waits, resumes and
  *    turns the sound off; the run plays out to its end.
@@ -147,9 +162,9 @@ export async function runContract(page: ContractPage, options: ContractOptions =
   await page.load();
   await advance(options.hostDelayMs ?? 300);
   host.install();
-  await advance(1_000);
+  await advance(HOST_FOUND_MS);
   if (count('game.ready') === 0) {
-    problems.push({ rule: 'host-found', detail: 'no game.ready within a second of the host appearing' });
+    problems.push({ rule: 'host-found', detail: `no game.ready within ${HOST_FOUND_MS} ms of the host appearing` });
     return { host, violations: checkGameContract(host.log), problems };
   }
 

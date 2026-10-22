@@ -7,8 +7,10 @@
  *
  * A game is played from its build: the module `dist/index.html` loads. A game
  * whose runs need playing to end ships `contract.player.ts` beside its page,
- * which plays them (`ContractPlayer` in `src/harness.ts`). Each page runs in a
- * vitest process of its own (see `src/harness.ts` for why not a browser).
+ * which plays them (`ContractPlayer` in `src/harness.ts`). Each page is played
+ * twice, each time in a vitest process of its own (see `src/harness.ts` for why
+ * not a browser): once with the host there almost at once, and once with a
+ * host that appears only after `bootGame` called `onNoHost` (`LATE_HOST_MS`).
  * Exits non-zero when any page breaks the contract, naming the rule it broke.
  */
 import { spawnSync } from 'node:child_process';
@@ -56,8 +58,14 @@ function listGames(): string[] {
     .sort();
 }
 
-function play(page: Page): boolean {
-  console.log(`\n▶ ${page.name}`);
+/** The two hosts a page is played against; `page.contract.ts` reads `CONTRACT_HOST`. */
+const SESSIONS = [
+  { label: '', host: undefined },
+  { label: ', host after onNoHost', host: 'late' },
+] as const;
+
+function play(page: Page, session: (typeof SESSIONS)[number]): boolean {
+  console.log(`\n▶ ${page.name}${session.label}`);
   const result = spawnSync(
     process.execPath,
     [join(tool, 'node_modules', 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.contract.config.ts'],
@@ -70,6 +78,7 @@ function play(page: Page): boolean {
         CONTRACT_HTML: page.html,
         CONTRACT_NAME: page.name,
         ...(page.player ? { CONTRACT_PLAYER: page.player } : {}),
+        ...(session.host ? { CONTRACT_HOST: session.host } : {}),
       },
     },
   );
@@ -102,8 +111,10 @@ function main(argv: string[]): number {
     }
     pages = ids.map(gamePage);
   }
-  const failed = pages.filter((page) => !play(page)).map((page) => page.name);
-  console.log(failed.length === 0 ? `\n✓ ${pages.length} page(s) keep the game contract` : `\n✗ broke the game contract: ${failed.join(', ')}`);
+  const failed = pages.flatMap((page) =>
+    SESSIONS.filter((session) => !play(page, session)).map((session) => `${page.name}${session.label}`),
+  );
+  console.log(failed.length === 0 ? `\n✓ ${pages.length} page(s) keep the game contract` : `\n✗ broke the game contract: ${failed.join('; ')}`);
   return failed.length === 0 ? 0 : 1;
 }
 
