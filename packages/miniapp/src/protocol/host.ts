@@ -32,6 +32,18 @@ function embed(value: unknown): string {
   return JSON.stringify(value).split(LINE_SEPARATOR).join('\\u2028').split(PARAGRAPH_SEPARATOR).join('\\u2029');
 }
 
+export interface HostBootstrapOptions {
+  /** Method names this app grants the page. */
+  capabilities: readonly string[];
+  viewport: Viewport;
+  /**
+   * The origin the page must be on, such as `https://wave-run.game.skkuverse.com`.
+   * When given, the script installs nothing in another origin's document or
+   * in any frame but the top one. Required for a game host.
+   */
+  origin?: string;
+}
+
 /**
  * The script the app injects before content loads
  * (`injectedJavaScriptBeforeContentLoaded`). It defines `window.skkuverse` and
@@ -40,10 +52,22 @@ function embed(value: unknown): string {
  *
  * Built here rather than in the app so that what `receive` does, and which CSS
  * variables exist, is defined in exactly one place next to the types.
+ *
+ * With `origin`, the script does nothing unless it runs in the top window of
+ * a document on exactly that origin. The app injects it again from
+ * `onLoadEnd` into whatever document is loaded by then, and on Android a
+ * subframe can receive it too, so without the gate a page the WebView reached
+ * some other way would get a host that grants it methods. A game host must
+ * pass it. Without it the script installs in any document, as the mini-app
+ * shell has always called it, and the per-message origin check is the gate.
  */
-export function hostBootstrapScript(options: { capabilities: readonly string[]; viewport: Viewport }): string {
+export function hostBootstrapScript(options: HostBootstrapOptions): string {
   const varNames = Object.keys(viewportCssVars(options.viewport));
-  return `(function () {
+  const gate =
+    options.origin === undefined
+      ? ''
+      : `\n  if (location.origin !== ${embed(options.origin)} || window.top !== window) return;`;
+  return `(function () {${gate}
   if (window.skkuverse) return;
   var caps = Object.freeze(${embed(options.capabilities)});
   var vp = ${embed(options.viewport)};

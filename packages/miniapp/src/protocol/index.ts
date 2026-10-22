@@ -69,4 +69,4 @@ export {
   type Chrome,
   type Viewport,
 } from './viewport';
-export { hostBootstrapScript, hostDeliverScript, type HostGlobal } from './host';
+export { hostBootstrapScript, hostDeliverScript, type HostBootstrapOptions, type HostGlobal } from './host';
