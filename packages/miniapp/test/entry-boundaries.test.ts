@@ -1,18 +1,19 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// Each published entry promises what it does not pull in: `./protocol` has no
-// dependencies at all, and `./react` must work without `@skkuverse/ui`
-// installed. Both are checked on the source import graph, which is what the
-// bundler follows.
+// Each published entry promises what it does not pull in: `./protocol` and
+// `./game` have no dependencies at all, and `./react` must work without
+// `@skkuverse/ui` installed. Each is checked on the source import graph, which
+// is what the bundler follows.
 
 const src = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
 const IMPORT = /(?:import|export)\s[^'"]*?from\s+['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g;
 
 function resolveLocal(from: string, spec: string): string {
   const base = resolve(dirname(from), spec);
+  if (existsSync(base) && statSync(base).isFile()) return base;
   for (const candidate of [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`]) {
     if (existsSync(candidate)) return candidate;
   }
@@ -39,6 +40,14 @@ function externalImports(entry: string): Set<string> {
 describe('entry boundaries', () => {
   it('./protocol imports nothing', () => {
     expect([...externalImports(`${src}/protocol/index.ts`)]).toEqual([]);
+  });
+
+  it('./game imports nothing', () => {
+    expect([...externalImports(`${src}/game/index.ts`)]).toEqual([]);
+  });
+
+  it('./testing imports nothing', () => {
+    expect([...externalImports(`${src}/testing/index.ts`)]).toEqual([]);
   });
 
   it('. imports nothing', () => {
