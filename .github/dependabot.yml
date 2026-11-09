@@ -1,0 +1,26 @@
+# Two lanes. github-actions: one grouped version-update pull request a month
+# into dev, each pin rewritten with its new version comment. npm: security
+# updates only, which GitHub opens against the default branch (main) whatever
+# `target-branch` says, so that entry sets none; version updates stay off
+# because dependencies are bumped by hand, with a changeset when a published
+# package changes.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: monthly
+    # WHY: a release younger than 5 days is not proposed, so a compromised one has time to be caught and pulled.
+    # This repository sets no install-time release age of its own (no .npmrc min-release-age).
+    cooldown:
+      default-days: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
