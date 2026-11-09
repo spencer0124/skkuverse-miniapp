@@ -3,7 +3,7 @@ title: Miniapp Spec
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-10-22
+last-updated: 2026-11-10
 audience: public
 ---
 
@@ -17,7 +17,7 @@ skkuverse hosts every miniapp and every game itself. Each hands over a package, 
 
 Each rule has an ID, a kind and the packages it applies to. The kind says who enforces it:
 
-- **checked**: `check` enforces it. The implementation is `tools/miniapp-cli/src/check.ts` in [spencer0124/skkuverse-mini](https://github.com/spencer0124/skkuverse-mini), and each failure prints the rule ID.
+- **checked**: `check` enforces it. The implementation is `tools/miniapp-cli/src/check.ts` in skkuverse-mini, and each failure prints the rule ID.
 - **review**: the operator reads the code for it before a first release and when a release touches it.
 
 The **For** column says which packages a rule applies to: `app` for a miniapp, `game` for a game, `both` for either. A rule for one is never checked against the other.
@@ -134,5 +134,4 @@ A new rule lands here and in `check.ts` together, and the existing miniapps are 
 ## Related
 
 - [protocol.md](protocol.md): the messages, the host object, the shell manifest and the viewport
-- [create-a-miniapp.md](../how-to/create-a-miniapp.md): from an empty folder to a tile in the app
 - [lay-out-for-safe-areas.md](../how-to/lay-out-for-safe-areas.md): padding with `--sv-inset-*`

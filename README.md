@@ -20,7 +20,7 @@ Documentation is indexed in [docs/README.md](docs/README.md). Start with:
 
 - [explanation/architecture.md](docs/explanation/architecture.md), for how the packages, the app and the server fit
 - [reference/protocol.md](docs/reference/protocol.md), for the contract with the app
-- [how-to/create-a-miniapp.md](docs/how-to/create-a-miniapp.md), for building a new miniapp
+- [reference/miniapp-spec.md](docs/reference/miniapp-spec.md), for what a miniapp or a game must be before skkuverse hosts it
 
 ## Developing
 

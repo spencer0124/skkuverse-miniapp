@@ -3,7 +3,7 @@ title: Docs Index & Conventions
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-10-21
+last-updated: 2026-11-10
 audience: public
 ---
 
@@ -33,7 +33,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 - **Language.** Everything under `docs/`, plus `README.md` and `CLAUDE.md`, is English. Korean that is product copy carries a `<!-- conventions:allow-korean: reason -->` marker on its line.
 - **Names.** Use kebab-case file names.
 - **No copied values.** Point at the file that owns a value rather than copying it. For example, point at `packages/miniapp/src/protocol/messages.ts` rather than restating a limit.
-- **Checks.** `pnpm lint:md` runs markdownlint with the fleet's rules. CI also runs the umbrella's `lint_conventions.py` (frontmatter, language, folder names).
+- **Checks.** `pnpm lint:md` runs markdownlint with the fleet's rules, locally and in CI. The umbrella's `lint_conventions.py` (frontmatter, language, folder names) runs locally, from a sibling checkout of the umbrella; the command is in `CLAUDE.md`.
 - **Vendored files.** `_template.md` and `../.markdownlint.jsonc` are vendored from the umbrella by the `conventions.docs-template` and `conventions.markdownlint` contracts. Edit them upstream, never here.
 
 ## Index
@@ -42,7 +42,6 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 
 | Document | Summary |
 | --- | --- |
-| [create-a-miniapp.md](how-to/create-a-miniapp.md) | From an empty folder to a tile in the app: scaffold in skkuverse-mini, Pages, ship, domain, server registry |
 | [lay-out-for-safe-areas.md](how-to/lay-out-for-safe-areas.md) | Padding with `--sv-inset-*` so content clears the device and the app's UI |
 | [add-a-bridge-method.md](how-to/add-a-bridge-method.md) | Adding a feature a page asks the app for, and the release order |
 | [release-packages.md](how-to/release-packages.md) | Changesets, the local publish, and bumping the miniapps |
@@ -71,4 +70,4 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 
 - skkuverse-app: the mini-app shell (`docs/explanation/miniapp-shell.md`) and ADR 0006
 - skkuverse-server: the registry API (`docs/reference/miniapps-api.md`) and registering a mini app (`docs/how-to/register-a-miniapp.md`)
-- The umbrella, [spencer0124/skkuverse](https://github.com/spencer0124/skkuverse): fleet-wide conventions and the contracts manifest
+- The umbrella: fleet-wide conventions and the contracts manifest
