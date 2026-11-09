@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 // Publish every package whose version is not on npm yet, in dependency order.
 //
-// Changesets would run `pnpm publish`, but npm trusted publishing is an npm CLI
-// feature: the CLI trades the workflow's OIDC token for a one-time publish
-// credential. So each package is packed by pnpm, which rewrites `workspace:`
-// ranges to real versions, and the tarball is published by npm. Provenance is
-// attached automatically under trusted publishing.
-//
-// The "New tag:" lines are what changesets/action reads to know what shipped.
+// Changesets would run `pnpm publish`, but npm trusted publishing, which CI
+// publishing would use once npm accepts this repository's OIDC tokens
+// (npm/cli#9969), is an npm CLI feature. So each package is packed by pnpm, which
+// rewrites `workspace:` ranges to real versions, and the tarball is published by
+// npm.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -55,7 +53,7 @@ for (const { dir, json } of ordered) {
   try {
     execFileSync('pnpm', ['pack', '--pack-destination', out], { cwd: dir, stdio: 'inherit' });
     const tarball = join(out, `${name.replace('@', '').replace('/', '-')}-${version}.tgz`);
-    // verbose: when trusted publishing is refused, npm says why only at this level.
+    // verbose: when npm refuses a publish, it says why only at this level.
     execFileSync('npm', ['publish', tarball, '--access', 'public', '--loglevel', 'verbose'], { stdio: 'inherit' });
     console.log(`New tag: ${name}@${version}`);
   } catch (error) {

@@ -16,7 +16,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/spencer0124/skkuverse-miniapp.git",
+    "url": "git+https://github.com/skkuverse/skkuverse-miniapp.git",
     "directory": "packages/ui"
   },
   "publishConfig": {

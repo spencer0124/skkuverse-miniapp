@@ -1,22 +1,37 @@
 name: CI
 
+# WHY: a push to dev runs too, because work lands on dev directly and would otherwise meet CI only on the release.
+# The repository is public: the token is read-only and no job passes a secret, so a fork's pull request runs the
+# same checks as the maintainers' own.
 on:
   pull_request:
     branches: [main, dev]
   push:
-    branches: [main, dev]
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # WHY: no step pushes, so the token is not left in .git/config for the code under check.
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      # WHY: no version input, so the pnpm version comes from packageManager in package.json alone.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
-      # node-version-file rather than a literal, so .nvmrc stays the one place
-      # the version is decided.
-      - uses: actions/setup-node@v4
+      # WHY: node-version-file rather than a literal, so .nvmrc stays the one place the version is decided.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -25,38 +40,16 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
-      # publint and are-the-types-wrong, per package: what a consumer's install
-      # and type resolution will actually see, checked before npm does.
+      # WHY: publint and are-the-types-wrong, per package: what a consumer's install and type resolution will
+      # actually see, checked before npm does.
       - run: pnpm lint
       - run: pnpm lint:md
 
-  conventions:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # The umbrella's checks are stdlib-only Python and are cloned rather than
-      # vendored. No setup-python: ubuntu-latest ships python3.
-      - name: Fetch shared tooling
-        # The umbrella repo is private; clone it with its read-only deploy key
-        # and GitHub's pinned host key.
-        env:
-          UMBRELLA_DEPLOY_KEY: ${{ secrets.UMBRELLA_DEPLOY_KEY }}
-        run: |
-          key="$RUNNER_TEMP/umbrella_key"
-          printf '%s\n' "$UMBRELLA_DEPLOY_KEY" > "$key"
-          chmod 600 "$key"
-          echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$RUNNER_TEMP/known_hosts"
-          GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts" \
-            git clone --depth 1 git@github.com:spencer0124/skkuverse.git "$RUNNER_TEMP/sv"
-          rm -f "$key"
-
-      - name: Conventions
-        run: python3 "$RUNNER_TEMP/sv/exported/lint_conventions.py" --root .
-
-      # packages/tokens/src/{colors,typography,spacing,radius}.ts are byte copies
-      # owned by skkuverse-app. This compares them against this repo's own
-      # .contracts.lock.json, so it is offline and cannot go red because someone
-      # edited the upstream. Editing a copy here is what this catches.
-      - name: Contract integrity
-        run: python3 "$RUNNER_TEMP/sv/exported/sync_contracts.py" check --repo miniapp --root .
+  # WHY: the shared workflow's node toolchain runs `npm ci`, which a pnpm workspace cannot, so the pnpm checks stay in
+  # `build`. This job adds the workflow linters, dependency review and the `ci / gate` check a ruleset requires.
+  ci:
+    uses: skkuverse/.github/.github/workflows/checks.yml@285b8226d57b25c620521056c52cc0d7c685a917 # v1.0.1
+    with:
+      toolchain: none
+      check-cmd: "true"
+      public: true
