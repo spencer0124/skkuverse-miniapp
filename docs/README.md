@@ -44,7 +44,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 | --- | --- |
 | [lay-out-for-safe-areas.md](how-to/lay-out-for-safe-areas.md) | Padding with `--sv-inset-*` so content clears the device and the app's UI |
 | [add-a-bridge-method.md](how-to/add-a-bridge-method.md) | Adding a feature a page asks the app for, and the release order |
-| [release-packages.md](how-to/release-packages.md) | Changesets, the local publish, and bumping the miniapps |
+| [release-packages.md](how-to/release-packages.md) | Changesets, the local version and publish, and bumping the miniapps |
 
 ### reference
 
@@ -63,7 +63,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 
 | Document | Status |
 | --- | --- |
-| [0001-sdk-distribution.md](decisions/0001-sdk-distribution.md) | accepted (amended 2026-09-26: local publishing) |
+| [0001-sdk-distribution.md](decisions/0001-sdk-distribution.md) | accepted (amended 2026-09-26: local publishing; 2026-11-10: local versioning) |
 | [0002-miniapp-protocol-shell-viewport.md](decisions/0002-miniapp-protocol-shell-viewport.md) | accepted |
 
 ## Elsewhere

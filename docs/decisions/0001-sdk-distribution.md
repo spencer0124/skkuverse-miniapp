@@ -3,7 +3,7 @@ title: Distribute The Miniapp SDK And SDS As Public npm Packages
 type: adr
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-09-26
+last-updated: 2026-11-10
 audience: public
 ---
 
@@ -33,7 +33,7 @@ the build must install without credentials.
 
 ## Decision
 
-**One repository, `spencer0124/skkuverse-miniapp`, publishes three packages to public npm:**
+**One repository, `skkuverse/skkuverse-miniapp`, publishes three packages to public npm:**
 
 | Package | Holds |
 | --- | --- |
@@ -53,7 +53,8 @@ the build must install without credentials.
   Cloudflare Pages install with no token, which matches the umbrella's no-credentials
   principle from its ADR 0002.
 - **Released by Changesets.** Merging to `main` opens a "Version Packages" PR. Merging that
-  publishes through npm trusted publishing, so no npm token is stored anywhere.
+  publishes through npm trusted publishing, so no npm token is stored anywhere. Both steps
+  are local now; see the amendments below.
 
 ### Relation to the hosted SDK in the app's ADR 0006
 
@@ -93,6 +94,10 @@ repository.
 Trusted publishing from CI does not work for this repository. GitHub gives repositories created after 2026-07-15 an immutable OIDC `sub` claim (`repo:owner@id/repo@id`). npm's token exchange does not match that claim yet and answers `package not found` ([npm/cli#9969](https://github.com/npm/cli/issues/9969)). The repository cannot opt out of the immutable claim.
 
 Until npm fixes it, `release.yml` only opens the Version Packages PR. A maintainer then publishes from a local checkout with `scripts/publish.mjs`, which uses npm's web two-factor login. The trusted publishers stay configured, so restoring CI publishing is one line in the workflow. See [release-packages](../how-to/release-packages.md).
+
+## Amendment 2026-11-10: versioning is local too
+
+`release.yml` is removed. `main` requires status checks, and a PR that a workflow opens with its own `GITHUB_TOKEN` starts no workflows, so the Version Packages PR could never merge. A branch ruleset also keeps workflows from creating `changeset-release/main`. A maintainer now runs `pnpm changeset version` on `dev`, commits it, merges `dev → main` through a PR and publishes from `main` with `scripts/publish.mjs`. Restoring CI publishing, once npm fixes the claim, means a new workflow that does not open PRs. See [release-packages](../how-to/release-packages.md).
 
 ## Related
 
