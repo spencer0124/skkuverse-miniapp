@@ -18,6 +18,8 @@ export function report(id: string, findings: Finding[]): boolean {
 export interface JsonFinding {
   /** The package the finding is about. */
   id: string;
+  /** Whether it is the miniapp under apps/ or the game under games/, which can share an id (G1). */
+  kind: PackageReport['kind'];
   rule: RuleId;
   level: Finding['level'];
   message: string;
@@ -25,8 +27,8 @@ export interface JsonFinding {
   spec: string;
 }
 
-export function toJson(id: string, findings: Finding[]): JsonFinding[] {
-  return findings.map(({ rule, level, message }) => ({ id, rule, level, message, spec: `${SPEC_FILE}#${RULE_SECTIONS[rule]}` }));
+export function toJson({ id, kind, findings }: PackageReport): JsonFinding[] {
+  return findings.map(({ rule, level, message }) => ({ id, kind, rule, level, message, spec: `${SPEC_FILE}#${RULE_SECTIONS[rule]}` }));
 }
 
 /**
@@ -34,7 +36,7 @@ export function toJson(id: string, findings: Finding[]): JsonFinding[] {
  * finding to a line. True when nothing is an error.
  */
 export function reportJson(reports: PackageReport[]): boolean {
-  const found = reports.flatMap(({ id, findings }) => toJson(id, findings));
+  const found = reports.flatMap(toJson);
   console.log(found.length === 0 ? '[]' : `[\n${found.map((f) => `  ${JSON.stringify(f)}`).join(',\n')}\n]`);
   return reports.every(({ findings }) => findings.every((f) => f.level !== 'error'));
 }

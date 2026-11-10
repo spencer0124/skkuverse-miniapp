@@ -120,7 +120,7 @@ describe('checkRepo', () => {
     const root = repo({ apps: { ghost: { project: 'miniapp-ghost' } }, games: { apple: { project: 'game-apple' } } });
     scaffold(root, 'apple', 'game');
     installAndBuild(join(root, 'games', 'apple'));
-    assert.deepEqual(checkRepo(root, { ids: ['apple'] }), [{ id: 'apple', findings: [] }]);
+    assert.deepEqual(checkRepo(root, { ids: ['apple'] }), [{ id: 'apple', kind: 'game', findings: [] }]);
     assert.deepEqual(checkRepo(root).map((r) => r.id), ['apple', 'ghost']);
   });
 

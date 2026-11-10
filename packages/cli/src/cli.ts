@@ -58,7 +58,7 @@ function main(argv: string[]): number {
         const k = kind ?? 'app';
         const findings = checkApp({ id: values.id, dir, kind: k, config: null });
         if (k === 'game') findings.push(...checkIdNamespace(root(), values.id, dir, loadConfig(root())));
-        reports.push({ id: values.id, findings });
+        reports.push({ id: values.id, kind: k, findings });
       } else {
         const ids = positionals.length > 0 ? positionals : undefined;
         reports.push(...checkRepo(root(), { ids, kind }));

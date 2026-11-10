@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { after, describe, it } from 'node:test';
@@ -71,7 +71,7 @@ describe('miniapp-cli check --dir', () => {
 });
 
 describe('miniapp-cli check --json', () => {
-  const FIELDS = ['id', 'level', 'message', 'rule', 'spec'];
+  const FIELDS = ['id', 'kind', 'level', 'message', 'rule', 'spec'];
 
   /** A repository with the scaffolded miniapp `club` registered, and `react` dropped from its package.json (S2). */
   function repoBreakingS2(): string {
@@ -94,7 +94,7 @@ describe('miniapp-cli check --json', () => {
     assert.equal(result.stderr, '');
   });
 
-  it('prints each finding with its package, rule, level, message and spec heading, and exits 1', () => {
+  it('prints each finding with its package, kind, rule, level, message and spec heading, and exits 1', () => {
     const result = run(repoBreakingS2(), 'check', 'club', '--json');
     assert.equal(result.status, 1);
     assert.equal(result.stderr, '');
@@ -107,6 +107,7 @@ describe('miniapp-cli check --json', () => {
       [
         {
           id: 'club',
+          kind: 'app',
           rule: 'S2',
           level: 'error',
           message: 'package.json does not depend on react',
@@ -127,15 +128,35 @@ describe('miniapp-cli check --json', () => {
     assert.deepEqual(json.map((f) => `${f.id} ${f.rule} ${f.message}`), text);
   });
 
-  it('prints the findings of a package outside the repository under its id', () => {
+  it('prints the findings of a package outside the repository under its id and kind', () => {
     const outside = folder('json-outside-');
     const dir = join(outside, 'club');
     mkdirSync(dir);
-    const result = run(outside, 'check', '--dir', dir, '--id', 'club', '--json');
-    assert.equal(result.status, 1);
-    const findings: { id: string }[] = JSON.parse(result.stdout);
-    assert.ok(findings.length > 0);
-    assert.ok(findings.every((finding) => finding.id === 'club'));
+    const repo = folder('json-repo-');
+    writeFileSync(join(repo, 'deploy.config.json'), '{"apps":{},"games":{}}');
+    const kinds = [
+      { flags: [], kind: 'app' },
+      { flags: ['--kind', 'game', '--root', repo], kind: 'game' },
+    ];
+    for (const { flags, kind } of kinds) {
+      const result = run(outside, 'check', '--dir', dir, '--id', 'club', ...flags, '--json');
+      assert.equal(result.status, 1, result.stderr);
+      const findings: { id: string; kind: string }[] = JSON.parse(result.stdout);
+      assert.ok(findings.length > 0);
+      assert.ok(findings.every((finding) => finding.id === 'club' && finding.kind === kind), kind);
+    }
+  });
+
+  it('tells the findings of an app and a game that share an id apart', () => {
+    const root = folder('json-shared-');
+    writeFileSync(join(root, 'deploy.config.json'), JSON.stringify({ apps: { dup: { project: 'miniapp-dup' } }, games: { dup: { project: 'game-dup' } } }));
+    assert.equal(run(root, 'new', 'dup').status, 0);
+    // `new` refuses a game with the id of a miniapp, so the clash is made by renaming the folder.
+    assert.equal(run(root, 'new', '--kind', 'game', 'other').status, 0);
+    renameSync(join(root, 'games', 'other'), join(root, 'games', 'dup'));
+    const findings: { id: string; kind: string; rule: string }[] = JSON.parse(run(root, 'check', 'dup', '--json').stdout);
+    // Neither package is installed, so each reports S4 under the same id and the same message.
+    assert.deepEqual(findings.filter((f) => f.rule === 'S4').map((f) => f.kind).sort(), ['app', 'game']);
   });
 
   it('prints an error to stderr and nothing to stdout when a package does not exist', () => {

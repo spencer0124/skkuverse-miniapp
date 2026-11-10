@@ -10,6 +10,8 @@ import { entriesOf, entryOf, FOLDER, KINDS, loadConfig, type Kind } from './conf
 
 export interface PackageReport {
   id: string;
+  /** Which folder the package is in, since an app and a game can share an id (G1). */
+  kind: Kind;
   findings: Finding[];
 }
 
@@ -45,13 +47,13 @@ export function checkRepo(root: string, { ids, kind }: RepoCheckOptions = {}): P
     if (!entry) {
       findings.push({ rule: 'R4', level: 'error', message: k === 'app' ? 'not in deploy.config.json' : 'not in deploy.config.json "games"' });
     }
-    out.push({ id, findings });
+    out.push({ id, kind: k, findings });
   }
 
   for (const k of kinds) {
     for (const id of Object.keys(entriesOf(config, k)).filter(selected)) {
       if (!existsSync(join(root, FOLDER[k], id))) {
-        out.push({ id, findings: [{ rule: 'R4', level: 'error', message: `deploy.config.json lists it but ${FOLDER[k]}/${id} does not exist` }] });
+        out.push({ id, kind: k, findings: [{ rule: 'R4', level: 'error', message: `deploy.config.json lists it but ${FOLDER[k]}/${id} does not exist` }] });
       }
     }
   }

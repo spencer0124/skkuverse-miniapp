@@ -26,20 +26,25 @@ disagree about which rules are checked, or when a checked rule has no test.
 
 ## Read the findings as JSON
 
-`miniapp-cli check --json` prints one JSON array on stdout, a finding to a line, and nothing
+`--json` makes `check` print one JSON array on stdout, a finding to a line, and nothing
 else. The array is `[]` when nothing is wrong. The exit code is the one `check` gives without
 the flag, 1 when any finding has the level `error`. An error such as an unknown package goes
 to stderr, leaves stdout empty and exits 1. `new` and `ship` refuse `--json`.
 
+```sh
+pnpm exec miniapp-cli check club --json
+```
+
 ```json
 [
-  {"id":"club","rule":"S2","level":"error","message":"package.json does not depend on react","spec":"docs/reference/miniapp-spec.md#package"}
+  {"id":"club","kind":"app","rule":"S2","level":"error","message":"package.json does not depend on react","spec":"docs/reference/miniapp-spec.md#package"}
 ]
 ```
 
 | Field | Value |
 | --- | --- |
 | `id` | The package the finding is about. |
+| `kind` | `app` for a miniapp under `apps/`, `game` for a game under `games/`. The two can share an id until G1 reports it, so `id` alone does not name a folder. |
 | `rule` | The rule ID, such as `S2`. |
 | `level` | `error` fails the check. `warn` is an exception the spec allows, such as a host exception with a reason (R4). |
 | `message` | What is wrong, as the check prints it without `--json`. |

@@ -203,15 +203,16 @@ describe('compareVersions', () => {
 });
 
 describe('toJson', () => {
-  it('names the package, the rule, the level, the message and the spec heading of a finding', () => {
+  it('names the package, its kind, the rule, the level, the message and the spec heading of a finding', () => {
     const dropReact = JSON.stringify({
       scripts: { dev: 'vite', build: 'vite build', typecheck: 'tsc --noEmit' },
       dependencies: { '@skkuverse/miniapp': '^0.4.0', 'react-dom': '^19' },
       devDependencies: { vite: '^6', typescript: '^5' },
     });
-    assert.deepEqual(toJson('club', checkApp(target('club', { 'package.json': dropReact }))), [
+    assert.deepEqual(toJson({ id: 'club', kind: 'app', findings: checkApp(target('club', { 'package.json': dropReact })) }), [
       {
         id: 'club',
+        kind: 'app',
         rule: 'S2',
         level: 'error',
         message: 'package.json does not depend on react',
@@ -223,12 +224,12 @@ describe('toJson', () => {
   it('keeps a warning a warning, so a host exception reads as allowed', () => {
     const findings = checkApp(target('a', {}, { project: 'p', host: 'x.example', hostReason: 'legacy' }));
     assert.deepEqual(
-      toJson('a', findings).map((f) => [f.rule, f.level, f.spec]),
+      toJson({ id: 'a', kind: 'app', findings }).map((f) => [f.rule, f.level, f.spec]),
       [['R4', 'warn', 'docs/reference/miniapp-spec.md#identity']],
     );
   });
 
   it('is empty for a package that passes', () => {
-    assert.deepEqual(toJson('good', checkApp(target('good'))), []);
+    assert.deepEqual(toJson({ id: 'good', kind: 'app', findings: checkApp(target('good')) }), []);
   });
 });
