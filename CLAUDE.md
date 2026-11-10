@@ -33,6 +33,7 @@ pnpm typecheck
 pnpm test           # vitest in miniapp and game-contract, node --test in cli; game-contract also installs its packed tarball with pnpm and npm, so it needs the registry
 pnpm lint           # publint per package, and are-the-types-wrong for the libraries
 pnpm lint:md        # markdownlint
+pnpm knip           # files nothing imports, dependencies nothing uses, imports of packages no manifest lists
 python3 ../skkuverse/exported/lint_conventions.py --root .
 python3 ../skkuverse/exported/sync_contracts.py check --repo miniapp --root .
 ```
