@@ -68,14 +68,34 @@ const SESSIONS = [
   { label: ', host after onNoHost', host: 'late' },
 ] as const;
 
-function play(page: Page, session: (typeof SESSIONS)[number]): Outcome {
-  console.log(`\n▶ ${page.name}${session.label}`);
+/**
+ * How long one session may run before it is killed: the page contract's
+ * two-minute test timeout and a minute for vitest to start and stop. A page
+ * stuck in a synchronous loop never lets that test timeout fire.
+ */
+const SESSION_TIMEOUT_MS = 180_000;
+
+function sessionTimeoutMs(): number {
+  const value = process.env.GAME_CONTRACT_SESSION_TIMEOUT_MS;
+  if (value === undefined) return SESSION_TIMEOUT_MS;
+  const ms = Number(value);
+  if (!Number.isInteger(ms) || ms <= 0) {
+    throw new Error(`GAME_CONTRACT_SESSION_TIMEOUT_MS must be a whole number of milliseconds above 0, not ${value}`);
+  }
+  return ms;
+}
+
+function play(page: Page, session: (typeof SESSIONS)[number], timeout: number): Outcome {
+  const name = `${page.name}${session.label}`;
+  console.log(`\n▶ ${name}`);
   const result = spawnSync(
     process.execPath,
     [join(tool, 'dist', 'session.js')],
     {
       cwd: tool,
       stdio: 'inherit',
+      timeout,
+      killSignal: 'SIGKILL',
       env: {
         ...process.env,
         CONTRACT_ENTRY: page.entry,
@@ -86,6 +106,9 @@ function play(page: Page, session: (typeof SESSIONS)[number]): Outcome {
       },
     },
   );
+  if ((result.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT') {
+    console.log(`\n✗ ${name} did not finish within ${timeout / 1000} s, so its session was killed`);
+  }
   return outcomeOf(result.status);
 }
 
@@ -118,8 +141,9 @@ function main(argv: string[]): number {
     }
     pages = ids.map(gamePage);
   }
+  const timeout = sessionTimeoutMs();
   const played = pages.flatMap((page) =>
-    SESSIONS.map((session) => ({ name: `${page.name}${session.label}`, outcome: play(page, session) })),
+    SESSIONS.map((session) => ({ name: `${page.name}${session.label}`, outcome: play(page, session, timeout) })),
   );
   const named = (outcome: Outcome) => played.filter((p) => p.outcome === outcome).map((p) => p.name);
   const broken = named('broken');

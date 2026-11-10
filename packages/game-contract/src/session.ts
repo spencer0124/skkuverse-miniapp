@@ -45,6 +45,9 @@ try {
       include: ['dist/page.contract.js'],
       run: true,
       cache: false,
+      // The page runs in a thread of this process, so the kill at the session's
+      // time limit (`src/cli.ts`) ends it too. A child process would outlive it.
+      pool: 'threads',
       // vitest adds github-actions by itself only when no reporter is named.
       reporters: ['default', ...(process.env.GITHUB_ACTIONS === 'true' ? ['github-actions' as const] : []), verdict],
       // Under node_modules vitest would hand the page contract to node, and node
