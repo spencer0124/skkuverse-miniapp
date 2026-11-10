@@ -3,7 +3,7 @@ title: Miniapp Spec
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-10
+last-updated: 2026-11-11
 audience: public
 ---
 
@@ -17,7 +17,7 @@ skkuverse hosts every miniapp and every game itself. Each hands over a package, 
 
 Each rule has an ID, a kind and the packages it applies to. The kind says who enforces it:
 
-- **checked**: `check` enforces it. The implementation is `packages/cli/src/check.ts` in this repository, and each failure prints the rule ID.
+- **checked**: `check` enforces it. The implementation is `packages/cli/src/check.ts` in this repository. Each failure prints the rule ID, and `check --json` adds the heading of this document that defines the rule.
 - **review**: the operator reads the code for it before a first release and when a release touches it.
 
 The **For** column says which packages a rule applies to: `app` for a miniapp, `game` for a game, `both` for either. A rule for one is never checked against the other.
@@ -130,6 +130,8 @@ A game's CSP is defence in depth, not the boundary against whoever can deploy it
 ## Changing the spec
 
 A new rule lands here and in `check.ts` together, and the existing miniapps are brought into line in the same change. A rule only a reviewer can judge is marked review rather than left out.
+
+`packages/cli/test/spec-coverage.test.ts` fails when this document and the checker disagree. Every checked rule has to be raised by the checker, asserted by a test, and listed in `RULE_SECTIONS` in `check.ts` under the heading its table sits in. A rule marked review is not in the checker, and a rule in the checker is marked checked here. Renaming a heading that holds a rule means updating `RULE_SECTIONS`, because `check --json` links to the heading.
 
 ## Related
 
