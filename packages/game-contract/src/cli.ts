@@ -13,12 +13,14 @@
  * twice, each time in a vitest process of its own (see `src/harness.ts` for why
  * not a browser): once with the host there almost at once, and once with a
  * host that appears only after `bootGame` called `onNoHost` (`LATE_HOST_MS`).
- * Exits non-zero when any page breaks the contract, naming the rule it broke.
+ * Exits 1 when a page breaks the contract, naming the rule it broke, and 2 when
+ * a session ended without a verdict (`Outcome` in `src/outcome.ts`).
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { outcomeOf, type Outcome } from './outcome.ts';
 
 const tool = resolve(import.meta.dirname, '..');
 const root = process.cwd();
@@ -66,7 +68,7 @@ const SESSIONS = [
   { label: ', host after onNoHost', host: 'late' },
 ] as const;
 
-function play(page: Page, session: (typeof SESSIONS)[number]): boolean {
+function play(page: Page, session: (typeof SESSIONS)[number]): Outcome {
   console.log(`\n▶ ${page.name}${session.label}`);
   const result = spawnSync(
     process.execPath,
@@ -84,7 +86,7 @@ function play(page: Page, session: (typeof SESSIONS)[number]): boolean {
       },
     },
   );
-  return result.status === 0;
+  return outcomeOf(result.status);
 }
 
 function main(argv: string[]): number {
@@ -116,11 +118,19 @@ function main(argv: string[]): number {
     }
     pages = ids.map(gamePage);
   }
-  const failed = pages.flatMap((page) =>
-    SESSIONS.filter((session) => !play(page, session)).map((session) => `${page.name}${session.label}`),
+  const played = pages.flatMap((page) =>
+    SESSIONS.map((session) => ({ name: `${page.name}${session.label}`, outcome: play(page, session) })),
   );
-  console.log(failed.length === 0 ? `\n✓ ${pages.length} page(s) keep the game contract` : `\n✗ broke the game contract: ${failed.join('; ')}`);
-  return failed.length === 0 ? 0 : 1;
+  const named = (outcome: Outcome) => played.filter((p) => p.outcome === outcome).map((p) => p.name);
+  const broken = named('broken');
+  const errors = named('error');
+  if (broken.length === 0 && errors.length === 0) {
+    console.log(`\n✓ ${pages.length} page(s) keep the game contract`);
+    return 0;
+  }
+  if (broken.length > 0) console.log(`\n✗ broke the game contract: ${broken.join('; ')}`);
+  if (errors.length > 0) console.log(`\n✗ runner error, contract not checked: ${errors.join('; ')}`);
+  return errors.length > 0 ? 2 : 1;
 }
 
 try {

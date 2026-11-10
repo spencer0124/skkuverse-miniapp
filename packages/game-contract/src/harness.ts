@@ -41,6 +41,7 @@ import {
   type ContractViolation,
   type FakeHost,
 } from '@skkuverse/miniapp/testing';
+import { CONTRACT_BROKEN } from './outcome.ts';
 
 export interface ContractPage {
   /** A page's `index.html`. Its `<body>` markup, scripts aside, is mounted before `load`. */
@@ -321,6 +322,11 @@ function stubContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   return context as unknown as CanvasRenderingContext2D;
 }
 
+/** What `assertContract` throws: the verdict that a page broke the contract, as against any other failure. */
+class ContractBroken extends Error {
+  override name = CONTRACT_BROKEN;
+}
+
 /** Throws naming every contract rule the page broke and every place the script could not go on. */
 export function assertContract(result: ContractResult): void {
   const lines = [
@@ -329,5 +335,5 @@ export function assertContract(result: ContractResult): void {
   ];
   if (lines.length === 0) return;
   const sent = result.host.methods().join(', ');
-  throw new Error(`game contract broken:\n${lines.join('\n')}\npage sent: ${sent}`);
+  throw new ContractBroken(`game contract broken:\n${lines.join('\n')}\npage sent: ${sent}`);
 }
