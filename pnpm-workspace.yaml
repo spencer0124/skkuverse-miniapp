@@ -20,7 +20,9 @@ catalog:
   # The runner of the game contract takes vitest 4, while @skkuverse/miniapp keeps vitest 3.
   # Held at 4.0: npm before 11.6, which every Node 22 bundles, fails installing any vitest
   # 4.1 with "Cannot read properties of null (reading 'edgesOut')". The runner depends on
-  # vitest, so this range is what `npm i -D @skkuverse/game-contract` resolves.
+  # vitest, so this range is what `npm i -D @skkuverse/game-contract` resolves. Lift the pin
+  # once the oldest supported Node bundles npm 11.6 or later, or vitest drops the required
+  # vite peer.
   vitest: ~4.0.18
   happy-dom: ^20.14.6
   # Not imported here. The templates under packages/cli/templates name them as
