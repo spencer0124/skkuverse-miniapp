@@ -41,8 +41,10 @@ catalog:
   # Not imported here. The templates under packages/cli/templates name them as
   # `catalog:`, so a repository that scaffolds from them needs the same names.
   # The templates are not workspaces, so knip sees no reference to these two and
-  # knip.json skips its unused-entry check for this file.
-  vite: ^6.3.0
+  # knip.json skips its unused-entry check for this file. The floor is 6.4.0 because
+  # the game contract's vitest 5 takes vite as a peer in `^6.4.0 || ^7 || ^8`, and a
+  # repository that scaffolds from these templates installs the game contract.
+  vite: ^6.4.0
   "@vitejs/plugin-react": ^4.4.1
 
 # esbuild 0.28.2's darwin-arm64 binary hangs on `--version` (its own install
