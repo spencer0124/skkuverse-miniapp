@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { expect, test } from 'vitest';
 import { assertContract, runContract } from '../src/harness';
 
-const template = (path: string) => resolve(import.meta.dirname, '../../../templates/game', path);
+const template = (path: string) => resolve(import.meta.dirname, '../../cli/templates/game', path);
 
 test('templates/game keeps the game contract', async () => {
   const result = await runContract({

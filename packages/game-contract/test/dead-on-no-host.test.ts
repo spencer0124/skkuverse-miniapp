@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 import { expect, test } from 'vitest';
 import { assertContract, LATE_HOST_MS, runContract } from '../src/harness';
 
-const html = readFileSync(resolve(import.meta.dirname, '../../../templates/game/index.html'), 'utf8');
+const html = readFileSync(resolve(import.meta.dirname, '../../cli/templates/game/index.html'), 'utf8');
 
 test('a page that gives up on onNoHost breaks run-starts when the host comes late', async () => {
   const result = await runContract({ html, load: () => import('./fixtures/dead-on-no-host') }, { hostDelayMs: LATE_HOST_MS });

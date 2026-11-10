@@ -1,5 +1,5 @@
 import { cpSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { ID_PATTERN } from './check.ts';
 import { FOLDER, KINDS, type Kind } from './config.ts';
 
@@ -9,8 +9,11 @@ const PLACEHOLDER = /__ID__/g;
 /** The template each kind is scaffolded from. */
 export const TEMPLATE: Record<Kind, string> = { app: 'miniapp', game: 'game' };
 
+/** The templates the package ships: `templates/` beside `src/` and `dist/`. */
+export const TEMPLATES_DIR = resolve(import.meta.dirname, '..', 'templates');
+
 /**
- * Copies `templates/miniapp` to `apps/<id>`, or `templates/game` to
+ * Copies the miniapp template to `apps/<id>`, or the game template to
  * `games/<id>`, with the id filled in. An id either kind already uses is
  * refused: the two share one namespace (spec G1).
  */
@@ -23,7 +26,7 @@ export function scaffold(root: string, id: string, kind: Kind = 'app'): string {
       throw new Error(`${FOLDER[other]}/${id} already uses the id (G1)`);
     }
   }
-  cpSync(join(root, 'templates', TEMPLATE[kind]), dir, { recursive: true });
+  cpSync(join(TEMPLATES_DIR, TEMPLATE[kind]), dir, { recursive: true });
   fill(dir, id);
   return dir;
 }

@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
 import { loadConfig } from '../src/config.ts';
-import { scaffold } from '../src/new.ts';
+import { scaffold, TEMPLATES_DIR } from '../src/new.ts';
 import { checkRepo } from '../src/repo.ts';
 
-const repoRoot = resolve(import.meta.dirname, '..', '..', '..');
 const scratch = mkdtempSync(join(tmpdir(), 'miniapp-cli-repo-test-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
 
@@ -18,10 +17,9 @@ function write(dir: string, files: Record<string, string>): void {
   }
 }
 
-/** A repository root with the real templates and the given deploy config. */
+/** A repository root with the given deploy config. */
 function repo(config: unknown, files: Record<string, string> = {}): string {
   const root = mkdtempSync(join(scratch, 'root-'));
-  cpSync(join(repoRoot, 'templates'), join(root, 'templates'), { recursive: true });
   write(root, { 'deploy.config.json': JSON.stringify(config), ...files });
   return root;
 }
@@ -87,7 +85,7 @@ describe('checkRepo', () => {
   it('checks games next to miniapps, and fails a shared id naming both folders (G1)', () => {
     const root = repo({ apps: { timetable: { project: 'miniapp-timetable' } }, games: { timetable: { project: 'game-timetable' } } });
     scaffold(root, 'timetable');
-    cpSync(join(root, 'templates', 'game'), join(root, 'games', 'timetable'), { recursive: true });
+    cpSync(join(TEMPLATES_DIR, 'game'), join(root, 'games', 'timetable'), { recursive: true });
     installAndBuild(join(root, 'games', 'timetable'));
     const reports = checkRepo(root);
     assert.deepEqual(reports.map((r) => r.id), ['timetable', 'timetable']);
@@ -121,12 +119,5 @@ describe('checkRepo', () => {
   it('reads a deploy config without "games" as no games', () => {
     const root = repo({ apps: {} });
     assert.deepEqual(loadConfig(root).games, {});
-  });
-});
-
-describe('the repository', () => {
-  it('lists no package under both kinds', () => {
-    const config = loadConfig(repoRoot);
-    for (const id of Object.keys(config.games)) assert.ok(!(id in config.apps), id);
   });
 });

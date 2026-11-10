@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 import { expect, test } from 'vitest';
 import { assertContract, runContract } from '../src/harness';
 
-const html = readFileSync(resolve(import.meta.dirname, '../../../templates/game/index.html'), 'utf8');
+const html = readFileSync(resolve(import.meta.dirname, '../../cli/templates/game/index.html'), 'utf8');
 
 test('a page that sends game.over twice in a run breaks one-over-per-run', async () => {
   const result = await runContract({ html, load: () => import('./fixtures/double-over') });
