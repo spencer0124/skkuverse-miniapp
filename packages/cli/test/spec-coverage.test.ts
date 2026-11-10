@@ -4,6 +4,11 @@
  * under which heading each is defined. The checker raises them, `RULE_SECTIONS`
  * links each to its heading, and a test asserts each. When one side gains,
  * loses or moves a rule without the others, this file fails and names the rule.
+ *
+ * The checks read names, not behavior. A rule is raised when its ID is a string
+ * literal in `src`, and asserted when its ID is a literal in a positive
+ * `assert` call in `test`. Whether the assertion can fail is for the case
+ * itself, and the spec's For column is parsed and compared with nothing.
  */
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
