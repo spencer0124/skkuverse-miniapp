@@ -28,6 +28,16 @@ function play(fixture: string, env: Record<string, string> = {}, timeout = 60_00
   return { status: result.status, out: `${result.stdout}${result.stderr}`.replace(/\x1b\[[0-9;]*m/g, '') };
 }
 
+describe('game-contract --help', () => {
+  it.each(['--help', '-h'])('%s prints the usage on stdout and exits 0, from any folder', (flag) => {
+    const result = run(mkdtempSync(join(scratch, 'help-')), flag);
+    expect(result.stdout).toMatch(/^usage: game-contract \[<id>\.\.\.\]/);
+    expect(result.stdout).toContain('--entry <module> --html <index.html>');
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+  });
+});
+
 describe('game-contract run from a folder', () => {
   it('fails when the folder holds no deploy.config.json, so a wrong working directory cannot pass', () => {
     const result = run(mkdtempSync(join(scratch, 'empty-')));
