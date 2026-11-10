@@ -67,23 +67,42 @@ function parseSpec(markdown: string): { rules: SpecRule[]; anchors: string[] } {
   return { rules, anchors };
 }
 
-/** Every string literal in the source, apart from the ones that only name a type. Comments hold none. */
-function stringLiterals(source: string): Set<string> {
+/** The method of an `assert` call, '' for `assert(...)` itself, or undefined when the callee is not `assert`. */
+function assertMethod(callee: ts.Expression): string | undefined {
+  if (ts.isIdentifier(callee) && callee.text === 'assert') return '';
+  if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === 'assert') return callee.name.text;
+  return undefined;
+}
+
+/**
+ * Every string literal in the source, apart from the ones that only name a
+ * type. Comments hold none. With `inAssertion`, only those inside a call of
+ * `assert` or one of its methods, and not under a `!` or inside `notEqual`,
+ * `doesNotMatch` and the like, because a test that a rule is absent does not
+ * show that it fires.
+ */
+function stringLiterals(source: string, inAssertion = false): Set<string> {
   const found = new Set<string>();
-  const visit = (node: ts.Node): void => {
-    if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && !ts.isLiteralTypeNode(node.parent)) {
+  const visit = (node: ts.Node, asserting: boolean, negated: boolean): void => {
+    const method = ts.isCallExpression(node) ? assertMethod(node.expression) : undefined;
+    const within = asserting || method !== undefined;
+    const not =
+      negated ||
+      (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) ||
+      (method !== undefined && /^(?:not|doesNot)/.test(method));
+    if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && !ts.isLiteralTypeNode(node.parent) && (!inAssertion || (within && !not))) {
       found.add(node.text);
     }
-    ts.forEachChild(node, visit);
+    ts.forEachChild(node, (child) => visit(child, within, not));
   };
-  visit(ts.createSourceFile('source.ts', source, ts.ScriptTarget.Latest, true));
+  visit(ts.createSourceFile('source.ts', source, ts.ScriptTarget.Latest, true), false, false);
   return found;
 }
 
-function literalsIn(dir: string, keep: (name: string) => boolean): Set<string> {
+function literalsIn(dir: string, keep: (name: string) => boolean, inAssertion = false): Set<string> {
   const found = new Set<string>();
   for (const name of readdirSync(dir).filter(keep)) {
-    for (const literal of stringLiterals(readFileSync(join(dir, name), 'utf8'))) found.add(literal);
+    for (const literal of stringLiterals(readFileSync(join(dir, name), 'utf8'), inAssertion)) found.add(literal);
   }
   return found;
 }
@@ -103,7 +122,7 @@ const specText = readFileSync(SPEC_FILE, 'utf8');
 const { rules: specRules, anchors } = parseSpec(specText);
 const checked = specRules.filter((rule) => rule.kind === 'checked');
 const raised = literalsIn(join(CLI_DIR, 'src'), (name) => name.endsWith('.ts'));
-const asserted = literalsIn(join(CLI_DIR, 'test'), (name) => name.endsWith('.test.ts') && name !== 'spec-coverage.test.ts');
+const asserted = literalsIn(join(CLI_DIR, 'test'), (name) => name.endsWith('.test.ts') && name !== 'spec-coverage.test.ts', true);
 
 describe('spec coverage', () => {
   it('the rules the spec marks checked are the rules the checker defines', () => {
@@ -154,14 +173,18 @@ describe('spec coverage', () => {
       assert.throws(() => parseSpec(small + table('| R1 | checked | both | Again |')), /R1 twice/);
     });
 
-    it('an assertion that was deleted, or that only a comment or a type mentions', () => {
+    it('an assertion that was deleted, or that only a comment, a type, a bare list or a negation mentions', () => {
       const source = [
         "import assert from 'node:assert/strict';",
         "// 'O3' is not asserted here",
         "type Wanted = 'O2';",
+        "const documented = ['G4'];",
+        "assert.ok(!rules(target).includes('G3'));",
+        "assert.notEqual(rules(target).length, 'G5');",
         "assert.deepEqual(rules(target), ['O1']);",
       ].join('\n');
-      assert.deepEqual([...stringLiterals(source)].sort(), ['O1', 'node:assert/strict']);
+      assert.deepEqual([...stringLiterals(source)].sort(), ['G3', 'G4', 'G5', 'O1', 'node:assert/strict']);
+      assert.deepEqual([...stringLiterals(source, true)], ['O1']);
     });
   });
 });
