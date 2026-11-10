@@ -19,4 +19,5 @@ of its own: `ship` writes the game headers (G4).
 
 `pnpm ship __ID__` from a clean `main`. The Pages project (`game-__ID__`) and
 the host (`__ID__.game.skkuverse.com`) are in the root `deploy.config.json`
-under `games`; the registry entry is in skkuverse-server's games dataset.
+under `games`. To list the game in the app, ask the platform maintainers to
+register it.

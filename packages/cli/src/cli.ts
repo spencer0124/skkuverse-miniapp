@@ -74,8 +74,8 @@ function main(argv: string[]): number {
       console.log(`created ${dir}`);
       console.log(
         k === 'app'
-          ? `next: add "${id}" to deploy.config.json, pnpm install, then register it in skkuverse-server`
-          : `next: add "${id}" to deploy.config.json "games" (project game-${id}), pnpm install, then list it in skkuverse-server's games dataset`,
+          ? `next: add "${id}" to deploy.config.json, pnpm install, then ask the platform maintainers to register it`
+          : `next: add "${id}" to deploy.config.json "games" (project game-${id}), pnpm install, then ask the platform maintainers to register it`,
       );
       return 0;
     }
