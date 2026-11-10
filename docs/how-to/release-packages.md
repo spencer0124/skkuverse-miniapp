@@ -38,7 +38,6 @@ change + changeset ──▶ dev
    - `patch` is for fixes.
    - `minor` is for anything new, and for breaking changes while the packages are 0.x.
    - A protocol change is at least a `minor` of `@skkuverse/miniapp`.
-   - A `minor` of `@skkuverse/miniapp` also needs a changeset for `@skkuverse/miniapp-cli`. The CLI depends on the SDK with a `0.x` caret, which never crosses a minor, so the CLI keeps the old copy until it is released.
 2. **Version on `dev`.** When the pending changesets should ship, run this on an up-to-date `dev`:
 
    ```sh
@@ -61,7 +60,7 @@ change + changeset ──▶ dev
    curl -s https://registry.npmjs.org/@skkuverse%2Fminiapp | grep -o '"latest":"[^"]*"'
    ```
 
-6. **Bump the miniapps.** In skkuverse-mini, raise the range in the catalog (`pnpm-workspace.yaml`) once for every miniapp, raise `@skkuverse/miniapp-cli` and `@skkuverse/game-contract` in its `package.json`, run `pnpm install`, then `pnpm typecheck && pnpm test && pnpm build && pnpm check`, and push `dev`. The workspace excludes `@skkuverse/*` from pnpm's release-age delay, so the new version installs at once. A new minor needs the catalog bump: a `0.x` caret never crosses one. Ship each miniapp that should pick it up.
+6. **Bump the miniapps.** In skkuverse-mini, raise the range in the catalog (`pnpm-workspace.yaml`) once for every miniapp, run `pnpm install`, then `pnpm typecheck && pnpm test && pnpm build && pnpm check`, and push `dev`. The workspace excludes `@skkuverse/*` from pnpm's release-age delay, so the new version installs at once. A new minor needs the catalog bump: a `0.x` caret never crosses one. Ship each miniapp that should pick it up.
 
 ## Troubleshooting
 
