@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
-import { checkApp, compareVersions, type CheckTarget, type RuleId } from '../src/check.ts';
+import { checkApp, compareVersions, MAX_FILE_BYTES, MAX_FILES, type CheckTarget, type RuleId } from '../src/check.ts';
 
 const scratch = mkdtempSync(join(tmpdir(), 'miniapp-cli-test-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -124,6 +124,36 @@ describe('checkApp', () => {
 
   it('O3: unhashed assets', () => {
     assert.deepEqual(rules(target('a', { 'dist/assets/logo.png': '' })), ['O3']);
+  });
+
+  describe('O4: the build stays within the Pages limits', () => {
+    /** A conforming miniapp whose dist/data/ the callback fills. */
+    const withData = (fill: (data: string) => void) => {
+      const t = target('a');
+      const data = join(t.dir, 'dist', 'data');
+      mkdirSync(data);
+      fill(data);
+      return t;
+    };
+
+    it('fails a file over the size limit, and passes one at it', () => {
+      const sized = (bytes: number) =>
+        withData((data) => {
+          writeFileSync(join(data, 'big.bin'), '');
+          truncateSync(join(data, 'big.bin'), bytes);
+        });
+      assert.deepEqual(rules(sized(MAX_FILE_BYTES)), []);
+      const over = checkApp(sized(MAX_FILE_BYTES + 1));
+      assert.deepEqual(over.map((f) => f.rule), ['O4']);
+      assert.match(over[0]!.message, /dist\/data\/big\.bin/);
+    });
+
+    it('fails a build with more files than the limit', () => {
+      const crowded = withData((data) => {
+        for (let n = 0; n <= MAX_FILES; n++) writeFileSync(join(data, String(n)), '');
+      });
+      assert.deepEqual(rules(crowded), ['O4']);
+    });
   });
 
   it('H1: viewport-fit, lang, scripts and handlers', () => {
