@@ -4,12 +4,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-const cli = resolve(import.meta.dirname, '../src/cli.ts');
+const cli = resolve(import.meta.dirname, '../dist/cli.js');
 const scratch = mkdtempSync(join(tmpdir(), 'game-contract-cli-test-'));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
 function run(cwd: string) {
-  return spawnSync(process.execPath, ['--experimental-strip-types', cli], { cwd, encoding: 'utf8' });
+  return spawnSync(process.execPath, [cli], { cwd, encoding: 'utf8' });
 }
 
 describe('game-contract run from a folder', () => {

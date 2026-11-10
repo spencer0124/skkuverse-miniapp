@@ -10,7 +10,6 @@ import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   cpSync,
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -90,7 +89,6 @@ let tarballs: { runner: string; sdk: string; tokens: string };
 const built = join(scratch, 'built');
 
 beforeAll(async () => {
-  if (!existsSync(join(import.meta.dirname, '../dist/cli.js'))) throw new Error('build the package first: pnpm build');
   tarballs = {
     runner: pack('packages/game-contract'),
     sdk: pack('packages/miniapp'),
