@@ -117,6 +117,7 @@ function install(layout: string, project: string): void {
     type: 'module',
     devDependencies: { '@skkuverse/game-contract': `file:${tarballs.runner}` },
   };
+  console.log(`installing with ${layout} ${run(layout, ['--version'], repo).trim()}`);
   if (layout === 'pnpm') {
     const { packageManager } = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')) as { packageManager: string };
     writeFileSync(join(project, 'package.json'), JSON.stringify({ ...manifest, packageManager }));
