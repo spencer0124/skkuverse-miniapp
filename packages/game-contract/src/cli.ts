@@ -1,11 +1,7 @@
 #!/usr/bin/env node
 /**
  * `game-contract`: plays every built game against the fake host and holds it
- * to the protocol contract. Run it from the repository root after the games
- * are built.
- *
- *   game-contract [<id>...]                           every game under games/, or the ones named
- *   game-contract --entry <module> --html <index.html> [--player <module>]  any page, by its entry module (source or built)
+ * to the protocol contract. `USAGE` says how to run it.
  *
  * A game is played from its build: the module `dist/index.html` loads. A game
  * whose runs need playing to end ships `contract.player.ts` beside its page,
@@ -14,13 +10,27 @@
  * not a browser): once with the host there almost at once, and once with a
  * host that appears only after `bootGame` called `onNoHost` (`LATE_HOST_MS`).
  * Exits 1 when a page breaks the contract, naming the rule it broke, and 2 when
- * a session ended without a verdict (`Outcome` in `src/outcome.ts`).
+ * a session ended without a verdict (`Outcome` in `src/outcome.ts`). A usage
+ * error, found before any session starts, also exits 1.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { outcomeOf, type Outcome } from './outcome.ts';
+
+const USAGE = `usage: game-contract [<id>...]
+       game-contract --entry <module> --html <index.html> [--player <module>] [--name <name>]
+
+  <id>...            play every built game under games/, or the ones named
+  --entry <module>   play one page by its entry module, source or built
+  --html <file>      the page's index.html, which --entry needs
+  --player <module>  the module that plays the page's runs
+  --name <name>      the name the report gives the page
+
+Run it from the folder that holds deploy.config.json, after the games are built.
+Exits 0 when every page keeps the game contract, 1 when a page breaks it or on a
+usage error, and 2 when a session ends without a verdict.`;
 
 const tool = resolve(import.meta.dirname, '..');
 const root = process.cwd();
@@ -116,8 +126,18 @@ function main(argv: string[]): number {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
-    options: { entry: { type: 'string' }, html: { type: 'string' }, name: { type: 'string' }, player: { type: 'string' } },
+    options: {
+      entry: { type: 'string' },
+      html: { type: 'string' },
+      name: { type: 'string' },
+      player: { type: 'string' },
+      help: { type: 'boolean', short: 'h' },
+    },
   });
+  if (values.help) {
+    console.log(USAGE);
+    return 0;
+  }
   let pages: Page[];
   if (values.entry !== undefined) {
     if (values.html === undefined) throw new Error('--entry needs --html');
