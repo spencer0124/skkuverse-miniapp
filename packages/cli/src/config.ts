@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 
 /**
  * The two kinds of package the platform hosts. The folder is the kind: a
@@ -42,6 +42,14 @@ export function hostFor(id: string, entry: AppConfig | undefined, kind: Kind = '
 export function parseKind(value: string): Kind {
   if ((KINDS as readonly string[]).includes(value)) return value as Kind;
   throw new Error(`--kind must be one of ${KINDS.join(', ')}; got "${value}"`);
+}
+
+/** The repository a command runs in: the nearest folder at or above `start` that holds `deploy.config.json`. */
+export function findRoot(start: string): string {
+  for (let dir = resolve(start); ; dir = dirname(dir)) {
+    if (existsSync(join(dir, CONFIG_FILE))) return dir;
+    if (dirname(dir) === dir) throw new Error(`no ${CONFIG_FILE} in ${resolve(start)} or above; run inside the repository or pass --root`);
+  }
 }
 
 export function loadConfig(root: string): DeployConfig {
