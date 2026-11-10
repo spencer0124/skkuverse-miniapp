@@ -29,6 +29,8 @@ const USAGE = `usage: game-contract [<id>...]
   --name <name>      the name the report gives the page
 
 Run it from the folder that holds deploy.config.json, after the games are built.
+GAME_CONTRACT_SESSION_TIMEOUT_MS sets, in milliseconds, how long a session may run
+before it is killed.
 Exits 0 when every page keeps the game contract, 1 when a page breaks it or on a
 usage error, and 2 when a session ends without a verdict.`;
 
