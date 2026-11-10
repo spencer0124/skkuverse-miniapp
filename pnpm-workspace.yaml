@@ -35,6 +35,8 @@ catalog:
   happy-dom: ^20.14.6
   # Not imported here. The templates under packages/cli/templates name them as
   # `catalog:`, so a repository that scaffolds from them needs the same names.
+  # The templates are not workspaces, so knip sees no reference to these two and
+  # knip.json skips its unused-entry check for this file.
   vite: ^6.3.0
   "@vitejs/plugin-react": ^4.4.1
 

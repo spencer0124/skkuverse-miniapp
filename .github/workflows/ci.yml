@@ -44,6 +44,10 @@ jobs:
       # actually see, checked before npm does.
       - run: pnpm lint
       - run: pnpm lint:md
+      # WHY: a file nothing imports, or a dependency nothing uses or declares, fails here instead of piling up. The
+      # export, type and duplicate rules are off: each ui component is exported by name and as the default, and the
+      # token files are hash-locked copies.
+      - run: pnpm knip
 
   # WHY: the shared workflow's node toolchain runs `npm ci`, which a pnpm workspace cannot, so the pnpm checks stay in
   # `build`. This job adds the workflow linters, dependency review and the `ci / gate` check a ruleset requires.
