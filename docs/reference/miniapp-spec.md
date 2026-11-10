@@ -57,7 +57,7 @@ apps/<id>/
 
 | Rule | Kind | For | Requirement |
 | --- | --- | --- | --- |
-| S1 | checked | app | Every file in the tree above exists (`REQUIRED_FILES`) |
+| S1 | checked | app | Every file in the tree above exists (`REQUIRED_FILES`), and `package.json` is a JSON object |
 | S2 | checked | app | The stack is Vite, React and TypeScript: the package depends on `REQUIRED_DEPENDENCIES`. The templates take versions from the workspace catalog (`pnpm-workspace.yaml`) of the repository they are scaffolded into, rather than per package |
 | S3 | checked | both | `package.json` defines `REQUIRED_SCRIPTS` |
 | S4 | checked | both | The **installed** `@skkuverse/miniapp` is at least `SDK_FLOOR`. The check reads the installed copy rather than the declared range, because a `0.x` caret never crosses a minor and `^0.2.1` silently stays below `0.3.0` |
