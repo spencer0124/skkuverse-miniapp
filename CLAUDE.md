@@ -30,7 +30,7 @@ Read `docs/explanation/architecture.md` for how these meet the app's mini-app sh
 pnpm install
 pnpm build          # tsup, every package (turbo)
 pnpm typecheck
-pnpm test           # vitest 3 in miniapp, node --test in cli, vitest 4 in game-contract
+pnpm test           # vitest 3 in miniapp, node --test in cli, vitest 4 in game-contract; game-contract also installs its packed tarball with pnpm and npm, so it needs the registry
 pnpm lint           # publint per package, and are-the-types-wrong for the libraries
 pnpm lint:md        # markdownlint
 python3 ../skkuverse/exported/lint_conventions.py --root .
