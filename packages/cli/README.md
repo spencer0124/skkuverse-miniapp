@@ -43,8 +43,8 @@ pnpm exec miniapp-cli check club --json
 
 | Field | Value |
 | --- | --- |
-| `id` | The package the finding is about. |
-| `kind` | `app` for a miniapp under `apps/`, `game` for a game under `games/`. The two can share an id until G1 reports it, so `id` alone does not name a folder. |
+| `id` | The package the finding is about. With `--dir`, the `--id` you gave. |
+| `kind` | `app` for a miniapp under `apps/`, `game` for a game under `games/`. The two can share an id until G1 reports it, so `id` alone does not name a folder. With `--dir`, the kind the package was checked as, and the folder is the one `--dir` names. |
 | `rule` | The rule ID, such as `S2`. |
 | `level` | `error` fails the check. `warn` is an exception the spec allows, such as a host exception with a reason (R4). |
 | `message` | What is wrong, as the check prints it without `--json`. |

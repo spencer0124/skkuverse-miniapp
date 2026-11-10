@@ -117,6 +117,18 @@ describe('miniapp-cli check --json', () => {
     );
   });
 
+  it('keeps a finding on one line when a file name holds a line separator', () => {
+    const root = repoBreakingS2();
+    const assets = join(root, 'apps', 'club', 'dist', 'assets');
+    mkdirSync(assets, { recursive: true });
+    writeFileSync(join(assets, 'logo\u2028v2.png'), '');
+    const result = run(root, 'check', 'club', '--json');
+    const findings: { message: string }[] = JSON.parse(result.stdout);
+    assert.ok(findings.some((finding) => finding.message.includes('\u2028')), 'the file name reaches a message');
+    // U+0085, U+2028 and U+2029 end a line for a reader that splits on Unicode line breaks.
+    assert.equal(result.stdout.trimEnd().split(/[\n\u0085\u2028\u2029]/).length, findings.length + 2);
+  });
+
   it('lists the findings of the text output, in its order', () => {
     const root = repoBreakingS2();
     const text = run(root, 'check', 'club')

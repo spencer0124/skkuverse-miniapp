@@ -32,11 +32,19 @@ export function toJson({ id, kind, findings }: PackageReport): JsonFinding[] {
 }
 
 /**
+ * JSON on one line. `JSON.stringify` leaves U+0085, U+2028 and U+2029 as they
+ * are, and a file name can hold them, so a reader that splits on Unicode line
+ * breaks would cut a finding in two.
+ */
+const oneLine = (value: unknown) =>
+  JSON.stringify(value).replace(/[\u0085\u2028\u2029]/g, (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`);
+
+/**
  * Prints the findings of every package as one JSON array and nothing else, a
  * finding to a line. True when nothing is an error.
  */
 export function reportJson(reports: PackageReport[]): boolean {
   const found = reports.flatMap(toJson);
-  console.log(found.length === 0 ? '[]' : `[\n${found.map((f) => `  ${JSON.stringify(f)}`).join(',\n')}\n]`);
+  console.log(found.length === 0 ? '[]' : `[\n${found.map((f) => `  ${oneLine(f)}`).join(',\n')}\n]`);
   return reports.every(({ findings }) => findings.every((f) => f.level !== 'error'));
 }
