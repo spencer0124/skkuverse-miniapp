@@ -50,11 +50,11 @@ jobs:
       # token files are hash-locked copies.
       - run: pnpm knip
 
-  # WHY: `build` runs the Node in .nvmrc, which resolves to the newest 22. The packages promise `engines.node` of
-  # >=22.13.0, so this job runs the tests on exactly that release, with the npm it bundles (10.9.2): the setup of a user
-  # on the oldest supported Node. The game contract's installed-package test installs with that npm. It is a job of its
-  # own rather than a matrix on `build`, because the ruleset requires the check named `build`. Keep the version equal
-  # to `engines.node` in the packages.
+  # WHY: `build` runs the Node in .nvmrc, which resolves to the newest 22. The lowest Node that any package's
+  # `engines.node` admits is 22.13.0, so this job runs the tests on exactly that release, with the npm it bundles
+  # (10.9.2): the setup of a user on the oldest supported Node. The game contract's installed-package test installs with
+  # that npm. It is a job of its own rather than a matrix on `build`, because the ruleset requires the check named
+  # `build`. Keep the version equal to that lowest Node.
   node-floor:
     name: test (node 22.13.0)
     runs-on: ubuntu-latest

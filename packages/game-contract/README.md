@@ -1,7 +1,9 @@
 # @skkuverse/game-contract
 
 Plays a built skkuverse game against the fake host from `@skkuverse/miniapp/testing` and
-fails when the page breaks a rule of the game protocol contract. It needs Node 22.13 or later.
+fails when the page breaks a rule of the game protocol contract. It needs Node 22.13 or later
+in the 22 line, Node 24, or Node 26 or later. It does not support Node 23 or 25, because
+vitest, which runs the pages, does not.
 
 Run it from the repository root, the folder that holds `deploy.config.json`, after the games are built:
 

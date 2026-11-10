@@ -26,7 +26,7 @@ catalog:
   "@types/react-dom": ^19.1.0
   "@types/node": ^22.20.5
   # The game contract depends on vitest, so this range is what `npm i -D
-  # @skkuverse/game-contract` resolves. Every Node 22 bundles npm 10.9.
+  # @skkuverse/game-contract` resolves. Every Node 22 from 22.13.0 bundles npm 10.9.
   # - vitest 4.1 names vite as both a dependency and a peer, and npm before 11.6 fails
   #   installing it with "Cannot read properties of null (reading 'edgesOut')".
   # - vitest 3 installs, but every vitest 3 release brings tinypool 1.x, which has two
