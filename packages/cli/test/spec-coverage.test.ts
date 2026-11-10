@@ -27,8 +27,10 @@ interface SpecRule {
   anchor: string;
 }
 
-const RULES_HEADER = '| Rule | Kind | For | Requirement |';
-const RULE_ROW = /^\| (?<id>[A-Z]\d+) \| (?<kind>checked|review) \| (?:app|game|both) \|/;
+const RULES_COLUMNS = ['Rule', 'Kind', 'For', 'Requirement'];
+const RULES_HEADER = `| ${RULES_COLUMNS.join(' | ')} |`;
+const RULE_ROW = /^\|\s*(?<id>[A-Z]\d+)\s*\|\s*(?<kind>checked|review)\s*\|\s*(?:app|game|both)\s*\|/;
+const cellsOf = (line: string) => line.replace(/^\||\|\s*$/g, '').split('|').map((cell) => cell.trim());
 
 /** GitHub's anchor for a heading: lowercase, anything but letters, digits, `_`, `-` and spaces dropped, spaces to hyphens. */
 function anchorOf(heading: string): string {
@@ -36,9 +38,10 @@ function anchorOf(heading: string): string {
 }
 
 /**
- * Every row of every `| Rule | Kind | For | Requirement |` table, with the
- * anchor of the heading above it, and the anchor of every heading. A row that
- * does not read as a rule is an error, never skipped.
+ * Every row of every `| Rule | Kind | For | Requirement |` table, whether or
+ * not a formatter aligned its columns, with the anchor of the heading above it,
+ * and the anchor of every heading. A table headed Rule with other columns, and
+ * a row that does not read as a rule, are errors, never skipped.
  */
 function parseSpec(markdown: string): { rules: SpecRule[]; anchors: string[] } {
   const rules: SpecRule[] = [];
@@ -57,12 +60,13 @@ function parseSpec(markdown: string): { rules: SpecRule[]; anchors: string[] } {
       anchor = anchorOf(heading[1]!);
       anchors.push(anchor);
     }
-    if (line === RULES_HEADER) {
+    if (line.startsWith('|') && cellsOf(line)[0] === 'Rule') {
+      if (cellsOf(line).join(' | ') !== RULES_COLUMNS.join(' | ')) throw new Error(`a table headed Rule has columns other than ${RULES_HEADER}: ${line}`);
       inTable = true;
       continue;
     }
     if (!line.startsWith('|')) inTable = false;
-    if (!inTable || line.startsWith('| ---')) continue;
+    if (!inTable || /^\|[\s:|-]+$/.test(line)) continue;
     const row = RULE_ROW.exec(line);
     if (row === null) throw new Error(`a rules table row does not match ${RULE_ROW}: ${line}`);
     const { id, kind } = row.groups as { id: string; kind: SpecRule['kind'] };
@@ -79,16 +83,27 @@ function assertMethod(callee: ts.Expression): string | undefined {
   return undefined;
 }
 
+/** `it.skip(...)`, `describe.todo(...)` and the like, whose body the runner does not run. */
+function isSkipped(callee: ts.Expression): boolean {
+  return (
+    ts.isPropertyAccessExpression(callee) &&
+    ts.isIdentifier(callee.expression) &&
+    ['it', 'test', 'describe', 'suite'].includes(callee.expression.text) &&
+    ['skip', 'todo'].includes(callee.name.text)
+  );
+}
+
 /**
  * Every string literal in the source, apart from the ones that only name a
  * type. Comments hold none. With `inAssertion`, only those inside a call of
  * `assert` or one of its methods, and not under a `!` or inside `notEqual`,
  * `doesNotMatch` and the like, because a test that a rule is absent does not
- * show that it fires.
+ * show that it fires, and not inside a skipped or todo case.
  */
 function stringLiterals(source: string, inAssertion = false): Set<string> {
   const found = new Set<string>();
   const visit = (node: ts.Node, asserting: boolean, negated: boolean): void => {
+    if (inAssertion && ts.isCallExpression(node) && isSkipped(node.expression)) return;
     const method = ts.isCallExpression(node) ? assertMethod(node.expression) : undefined;
     const within = asserting || method !== undefined;
     const not =
@@ -173,6 +188,23 @@ describe('spec coverage', () => {
       assert.equal(anchorOfB1(small.replace('## Backend', '## Servers')), 'servers');
     });
 
+    it('a rule in a table that a formatter aligned', () => {
+      const aligned = [
+        '## Storage',
+        '',
+        '| Rule | Kind    | For  | Requirement                                   |',
+        '| ---- | ------- | ---- | --------------------------------------------- |',
+        '| T1   | checked | both | A package keeps no more than 5 MiB in storage |',
+        '',
+      ].join('\n');
+      assert.deepEqual(parseSpec(aligned).rules, [{ id: 'T1', kind: 'checked', anchor: 'storage' }]);
+    });
+
+    it('a rules table whose columns are not the four the test reads', () => {
+      const renamed = small.replace('| Rule | Kind | For | Requirement |', '| Rule | Kind | Applies | Requirement |');
+      assert.throws(() => parseSpec(renamed), /Rule \| Kind \| Applies/);
+    });
+
     it('a row that is not a rule, and a rule defined twice', () => {
       assert.throws(() => parseSpec(small.replace('| B1 | checked | app |', '| B1 | checked | apps |')), /B1/);
       assert.throws(() => parseSpec(small + table('| R1 | checked | both | Again |')), /R1 twice/);
@@ -190,6 +222,15 @@ describe('spec coverage', () => {
       ].join('\n');
       assert.deepEqual([...stringLiterals(source)].sort(), ['G3', 'G4', 'G5', 'O1', 'node:assert/strict']);
       assert.deepEqual([...stringLiterals(source, true)], ['O1']);
+    });
+
+    it('an assertion in a case that is skipped or marked todo', () => {
+      const source = [
+        "it.skip('G1: x', () => { assert.deepEqual(rules(a), ['G1']); });",
+        "describe.todo('G2: x', () => { assert.deepEqual(rules(a), ['G2']); });",
+        "it('G3: x', () => { assert.deepEqual(rules(a), ['G3']); });",
+      ].join('\n');
+      assert.deepEqual([...stringLiterals(source, true)], ['G3']);
     });
   });
 });
