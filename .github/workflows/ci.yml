@@ -40,8 +40,9 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
-      # WHY: publint and are-the-types-wrong, per package: what a consumer's install and type resolution will
-      # actually see, checked before npm does.
+      # WHY: publint on every package, and are-the-types-wrong on the three that ship types (miniapp, tokens, ui):
+      # what a consumer's install and type resolution will actually see, checked before npm does. The two bin-only
+      # packages (miniapp-cli, game-contract) have no types to resolve, so publint alone covers them.
       - run: pnpm lint
       - run: pnpm lint:md
       # WHY: a file nothing imports, or a dependency nothing uses or declares, fails here instead of piling up. The
