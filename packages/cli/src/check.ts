@@ -14,12 +14,24 @@ import { basename, join, relative, resolve } from 'node:path';
 import { parseShellFields } from '@skkuverse/miniapp/protocol';
 import { entryOf, FOLDER, hostFor, type AppConfig, type DeployConfig, type Kind } from './config.ts';
 
-export type RuleId =
-  | 'R1' | 'R2' | 'R3' | 'R4'
-  | 'S1' | 'S2' | 'S3' | 'S4'
-  | 'O1' | 'O2' | 'O3' | 'O4'
-  | 'H1' | 'M1' | 'B1'
-  | 'G1' | 'G2' | 'G3' | 'G4' | 'G5';
+/**
+ * Every rule `check` raises, with the anchor of the spec heading that defines
+ * it (`docs/reference/miniapp-spec.md`). `spec-coverage.test.ts` holds this
+ * table, the spec's tables and the tests to one set of rules and one set of
+ * headings, so a rule added to the spec or to the checker fails the build until
+ * the other side has it.
+ */
+export const RULE_SECTIONS = {
+  R1: 'identity', R2: 'identity', R3: 'identity', R4: 'identity', G1: 'identity',
+  S1: 'package', S2: 'package', S3: 'package', S4: 'package',
+  O1: 'build-output', O2: 'build-output', O3: 'build-output', O4: 'build-output',
+  H1: 'page', G2: 'page',
+  M1: 'manifest',
+  B1: 'backend', G3: 'backend',
+  G4: 'what-the-platform-writes', G5: 'what-the-platform-writes',
+} as const;
+
+export type RuleId = keyof typeof RULE_SECTIONS;
 
 export interface Finding {
   rule: RuleId;
