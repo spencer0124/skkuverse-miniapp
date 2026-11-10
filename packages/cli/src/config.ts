@@ -52,6 +52,13 @@ export function findRoot(start: string): string {
   }
 }
 
+/** The repository `--root` names, which must hold `deploy.config.json` as one `findRoot` finds does. */
+export function namedRoot(path: string): string {
+  const dir = resolve(path);
+  if (!existsSync(join(dir, CONFIG_FILE))) throw new Error(`no ${CONFIG_FILE} in ${dir}; --root must name the folder that holds it`);
+  return dir;
+}
+
 export function loadConfig(root: string): DeployConfig {
   const raw: unknown = JSON.parse(readFileSync(join(root, CONFIG_FILE), 'utf8'));
   if (typeof raw !== 'object' || raw === null || !('apps' in raw)) {

@@ -2,26 +2,35 @@
 /**
  * The miniapp CLI. It works on a repository of miniapps and games: the nearest
  * folder at or above the working directory that holds `deploy.config.json`, or
- * the one `--root` names. A `check --dir` of a miniapp needs neither.
- *
- *   miniapp-cli check [<id>...] [--kind app|game]          every package, or the ones named
- *   miniapp-cli check --dir <path> --id <id> [--kind game]  a package outside apps/ and games/ (a club's submission)
- *   miniapp-cli ship <id> [--preview]                      build, check and deploy (the kind comes from deploy.config.json)
- *   miniapp-cli new [--kind game] <id>                     scaffold apps/<id> from the miniapp template, or games/<id> from the game template
- *
- * Every command takes `--root <path>` to name the repository.
+ * the one `--root` names. A `check --dir` of a miniapp needs neither. `USAGE`
+ * lists the commands. `check --dir` is for a package outside apps/ and games/,
+ * such as a club's submission, and `ship` takes the kind from deploy.config.json.
  */
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { checkApp, checkIdNamespace } from './check.ts';
-import { findRoot, loadConfig, parseKind } from './config.ts';
+import { findRoot, loadConfig, namedRoot, parseKind } from './config.ts';
 import { scaffold } from './new.ts';
 import { report } from './report.ts';
 import { checkRepo } from './repo.ts';
 import { ship } from './ship.ts';
 
+const USAGE = `usage: miniapp-cli <command> [--root <path>]
+
+  check [<id>...] [--kind app|game]           check every package, or the ones named
+  check --dir <path> --id <id> [--kind game]  check a package outside apps/ and games/
+  new [--kind game] <id>                      scaffold apps/<id>, or games/<id> for a game
+  ship <id> [--preview]                       build, check and deploy
+
+The repository is the nearest folder at or above the working directory that
+holds deploy.config.json, or the folder --root names.`;
+
 function main(argv: string[]): number {
   const [command, ...rest] = argv;
+  if (command === 'help' || argv.includes('--help') || argv.includes('-h')) {
+    console.log(USAGE);
+    return 0;
+  }
   const { values, positionals } = parseArgs({
     args: rest,
     allowPositionals: true,
@@ -33,7 +42,7 @@ function main(argv: string[]): number {
       root: { type: 'string' },
     },
   });
-  const root = () => (values.root === undefined ? findRoot(process.cwd()) : resolve(values.root));
+  const root = () => (values.root === undefined ? findRoot(process.cwd()) : namedRoot(values.root));
   const kind = values.kind === undefined ? undefined : parseKind(values.kind);
 
   switch (command) {
@@ -71,9 +80,7 @@ function main(argv: string[]): number {
       return 0;
     }
     default:
-      throw new Error(
-        `usage: check [<id>...] [--kind app|game] | check --dir <path> --id <id> [--kind game] | ship <id> [--preview] | new [--kind game] <id>; every command takes --root <path>`,
-      );
+      throw new Error(USAGE);
   }
 }
 
