@@ -90,12 +90,12 @@ function literalsIn(dir: string, keep: (name: string) => boolean): Set<string> {
 
 const defined = Object.keys(RULE_SECTIONS);
 
-/** The rules on one side of the spec and the checker and not the other. */
-function disagreements(spec: string) {
+/** The rules the spec marks checked and the checker does not define, and the reverse. */
+function disagreements(spec: string, definedRules: readonly string[]) {
   const markedChecked = parseSpec(spec).rules.filter((rule) => rule.kind === 'checked').map((rule) => rule.id);
   return {
-    markedCheckedButNotDefined: markedChecked.filter((id) => !defined.includes(id)).sort(),
-    definedButNotMarkedChecked: defined.filter((id) => !markedChecked.includes(id)).sort(),
+    markedCheckedButNotDefined: markedChecked.filter((id) => !definedRules.includes(id)).sort(),
+    definedButNotMarkedChecked: definedRules.filter((id) => !markedChecked.includes(id)).sort(),
   };
 }
 
@@ -107,7 +107,7 @@ const asserted = literalsIn(join(CLI_DIR, 'test'), (name) => name.endsWith('.tes
 
 describe('spec coverage', () => {
   it('the rules the spec marks checked are the rules the checker defines', () => {
-    assert.deepEqual(disagreements(specText), { markedCheckedButNotDefined: [], definedButNotMarkedChecked: [] });
+    assert.deepEqual(disagreements(specText, defined), { markedCheckedButNotDefined: [], definedButNotMarkedChecked: [] });
   });
 
   it('no two headings of the spec share an anchor', () => {
@@ -124,21 +124,34 @@ describe('spec coverage', () => {
     }
   });
 
-  describe('the checks above catch', () => {
+  describe('the checks above catch, in a small spec of their own', () => {
+    const table = (...rows: string[]) => ['', RULES_HEADER, '| --- | --- | --- | --- |', ...rows, ''].join('\n');
+    const small = ['## Identity', table('| R1 | checked | both | The id matches |', '| N1 | review | app | A page leaves only through the SDK |'), '## Backend', table('| B1 | checked | app | First-party only |')].join('\n');
+    const healthy = { markedCheckedButNotDefined: [], definedButNotMarkedChecked: [] };
+
+    it('a spec that agrees with the checker', () => {
+      assert.deepEqual(disagreements(small, ['R1', 'B1']), healthy);
+    });
+
     it('a rule row the spec lost', () => {
-      const without = specText.split('\n').filter((line) => !line.startsWith('| O4 |')).join('\n');
-      assert.deepEqual(disagreements(without), { markedCheckedButNotDefined: [], definedButNotMarkedChecked: ['O4'] });
+      const without = small.replace('| B1 | checked | app | First-party only |\n', '');
+      assert.deepEqual(disagreements(without, ['R1', 'B1']), { ...healthy, definedButNotMarkedChecked: ['B1'] });
     });
 
     it('a review rule the spec marked checked', () => {
-      const promoted = specText.replace('| N1 | review |', '| N1 | checked |');
-      assert.deepEqual(disagreements(promoted), { markedCheckedButNotDefined: ['N1'], definedButNotMarkedChecked: [] });
+      const promoted = small.replace('| N1 | review |', '| N1 | checked |');
+      assert.deepEqual(disagreements(promoted, ['R1', 'B1']), { ...healthy, markedCheckedButNotDefined: ['N1'] });
     });
 
     it('a rule that moved to another heading', () => {
-      const moved = specText.replace('## Backend', '## Servers');
-      const rule = parseSpec(moved).rules.find((r) => r.id === 'B1');
-      assert.notEqual(rule?.anchor, RULE_SECTIONS.B1);
+      const anchorOfB1 = (spec: string) => parseSpec(spec).rules.find((rule) => rule.id === 'B1')?.anchor;
+      assert.equal(anchorOfB1(small), 'backend');
+      assert.equal(anchorOfB1(small.replace('## Backend', '## Servers')), 'servers');
+    });
+
+    it('a row that is not a rule, and a rule defined twice', () => {
+      assert.throws(() => parseSpec(small.replace('| B1 | checked | app |', '| B1 | checked | apps |')), /B1/);
+      assert.throws(() => parseSpec(small + table('| R1 | checked | both | Again |')), /R1 twice/);
     });
 
     it('an assertion that was deleted, or that only a comment or a type mentions', () => {
