@@ -3,6 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "test": {
+      "dependsOn": ["^build", "build"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/cli/templates/game/**"]
     }
   }
