@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { test } from 'vitest';
 import { assertContract, LATE_HOST_MS, runContract, type ContractPlayer } from './harness';
+import type { ContractMeta } from './outcome.ts';
 
 const entry = process.env.CONTRACT_ENTRY;
 const htmlFile = process.env.CONTRACT_HTML;
@@ -17,7 +18,7 @@ const playerModule = process.env.CONTRACT_PLAYER;
 const late = process.env.CONTRACT_HOST === 'late';
 if (!entry || !htmlFile) throw new Error('run through `game-contract`, which sets CONTRACT_ENTRY and CONTRACT_HTML');
 
-test(`${name} keeps the game contract${late ? `, the host after ${LATE_HOST_MS} ms` : ''}`, async () => {
+test(`${name} keeps the game contract${late ? `, the host after ${LATE_HOST_MS} ms` : ''}`, async ({ task }) => {
   const html = readFileSync(htmlFile, 'utf8');
   const player = playerModule
     ? ((await import(/* @vite-ignore */ playerModule)) as { default: ContractPlayer }).default
@@ -34,5 +35,10 @@ test(`${name} keeps the game contract${late ? `, the host after ${LATE_HOST_MS} 
     // Not console.log, which vitest keeps to itself for a passing test.
     process.stdout.write(`${line}${validator ? ` validator=${String(validator)}` : ''}\n`);
   }
-  assertContract(result);
+  try {
+    assertContract(result);
+  } catch (verdict) {
+    (task.meta as ContractMeta).contractBroken = true;
+    throw verdict;
+  }
 });

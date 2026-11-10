@@ -13,8 +13,16 @@ export type Outcome = 'kept' | 'broken' | 'error';
  */
 export const SESSION_EXIT = { kept: 0, broken: 20, error: 1 } as const satisfies Record<Outcome, number>;
 
-/** The `name` of the error `assertContract` throws, which `session.ts` reads as `broken`. */
-export const CONTRACT_BROKEN = 'ContractBroken';
+/**
+ * What `page.contract.ts` records in its test's metadata (vitest's
+ * `task.meta`), which reaches `session.ts` through the reporter API.
+ * `contractBroken` is set when the contract checker named a rule the page
+ * broke. `session.ts` reads `broken` from here and not from the test's error,
+ * whose name and message a page's own error can copy.
+ */
+export interface ContractMeta {
+  contractBroken?: true;
+}
 
 export function outcomeOf(status: number | null): Outcome {
   if (status === SESSION_EXIT.kept) return 'kept';

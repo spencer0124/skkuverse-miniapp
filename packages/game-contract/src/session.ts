@@ -9,24 +9,30 @@
  * node_modules. With `cache: false` vitest writes no results cache either.
  */
 import { resolve } from 'node:path';
-import { startVitest, type Vitest } from 'vitest/node';
+import { startVitest, type Reporter, type TestModule } from 'vitest/node';
 import { shared } from '../vitest.shared.ts';
-import { CONTRACT_BROKEN, SESSION_EXIT, type Outcome } from './outcome.ts';
+import { SESSION_EXIT, type ContractMeta, type Outcome } from './outcome.ts';
 
 const tool = resolve(import.meta.dirname, '..');
 
-/** `broken` only when the one test failed on the contract checker's error and nothing else failed. */
-function outcome(vitest: Vitest): Outcome {
-  if (vitest.state.getUnhandledErrors().length > 0) return 'error';
-  const modules = vitest.state.getTestModules();
+/** `broken` only when the one test failed after the contract checker named a rule, and nothing else failed. */
+function outcomeOfRun(modules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<unknown>): Outcome {
+  if (unhandledErrors.length > 0) return 'error';
   if (modules.some((module) => module.errors().length > 0)) return 'error';
-  const results = modules.flatMap((module) => [...module.children.allTests()].map((test) => test.result()));
-  const [result] = results;
-  if (results.length !== 1 || !result) return 'error';
-  if (result.state === 'passed') return 'kept';
-  const brokenOnly = result.state === 'failed' && result.errors.length > 0 && result.errors.every((e) => e.name === CONTRACT_BROKEN);
-  return brokenOnly ? 'broken' : 'error';
+  const tests = modules.flatMap((module) => [...module.children.allTests()]);
+  const [test] = tests;
+  if (tests.length !== 1 || !test) return 'error';
+  const { state } = test.result();
+  if (state === 'passed') return 'kept';
+  return state === 'failed' && (test.meta() as ContractMeta).contractBroken === true ? 'broken' : 'error';
 }
+
+let outcome: Outcome = 'error';
+const verdict: Reporter = {
+  onTestRunEnd(testModules, unhandledErrors) {
+    outcome = outcomeOfRun(testModules, unhandledErrors);
+  },
+};
 
 try {
   const vitest = await startVitest(
@@ -39,13 +45,15 @@ try {
       include: ['dist/page.contract.js'],
       run: true,
       cache: false,
+      // vitest adds github-actions by itself only when no reporter is named.
+      reporters: ['default', ...(process.env.GITHUB_ACTIONS === 'true' ? ['github-actions' as const] : []), verdict],
       // Under node_modules vitest would hand the page contract to node, and node
       // would import the page, its CSS and the game's player without vite.
       server: { deps: { inline: ['@skkuverse/game-contract'] } },
     },
     { resolve: shared.resolve },
   );
-  process.exitCode = SESSION_EXIT[outcome(vitest)];
+  process.exitCode = SESSION_EXIT[outcome];
   await vitest.exit();
 } catch (error) {
   console.error(error);
