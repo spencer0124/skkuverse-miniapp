@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { after, describe, it } from 'node:test';
@@ -67,5 +67,90 @@ describe('miniapp-cli check --dir', () => {
     assert.match(result.stdout, /^✗ club /m);
     assert.equal(result.status, 1);
     assert.doesNotMatch(result.stderr, /deploy\.config\.json/);
+  });
+});
+
+describe('miniapp-cli check --json', () => {
+  const FIELDS = ['id', 'level', 'message', 'rule', 'spec'];
+
+  /** A repository with the scaffolded miniapp `club` registered, and `react` dropped from its package.json (S2). */
+  function repoBreakingS2(): string {
+    const root = folder('json-');
+    writeFileSync(join(root, 'deploy.config.json'), JSON.stringify({ apps: { club: { project: 'miniapp-club' } }, games: {} }));
+    assert.equal(run(root, 'new', 'club').status, 0);
+    const file = join(root, 'apps', 'club', 'package.json');
+    const pkg = JSON.parse(readFileSync(file, 'utf8'));
+    delete pkg.dependencies.react;
+    writeFileSync(file, JSON.stringify(pkg));
+    return root;
+  }
+
+  it('prints an empty array and exits 0 when no package breaks a rule', () => {
+    const root = folder('json-empty-');
+    writeFileSync(join(root, 'deploy.config.json'), '{"apps":{},"games":{}}');
+    const result = run(root, 'check', '--json');
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), []);
+    assert.equal(result.stderr, '');
+  });
+
+  it('prints each finding with its package, rule, level, message and spec heading, and exits 1', () => {
+    const result = run(repoBreakingS2(), 'check', 'club', '--json');
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, '');
+    const findings: Record<string, unknown>[] = JSON.parse(result.stdout);
+    for (const finding of findings) assert.deepEqual(Object.keys(finding).sort(), FIELDS);
+    assert.deepEqual(
+      findings.filter((finding) => finding.rule === 'S2'),
+      [
+        {
+          id: 'club',
+          rule: 'S2',
+          level: 'error',
+          message: 'package.json does not depend on react',
+          spec: 'docs/reference/miniapp-spec.md#package',
+        },
+      ],
+    );
+  });
+
+  it('lists the findings of the text output, in its order', () => {
+    const root = repoBreakingS2();
+    const text = run(root, 'check', 'club')
+      .stdout.split('\n')
+      .filter((line) => /^[✗!] /.test(line))
+      .map((line) => line.slice(2));
+    const json: { id: string; rule: string; message: string }[] = JSON.parse(run(root, 'check', 'club', '--json').stdout);
+    assert.ok(text.length > 1, 'the fixture breaks more than one rule');
+    assert.deepEqual(json.map((f) => `${f.id} ${f.rule} ${f.message}`), text);
+  });
+
+  it('prints the findings of a package outside the repository under its id', () => {
+    const outside = folder('json-outside-');
+    const dir = join(outside, 'club');
+    mkdirSync(dir);
+    const result = run(outside, 'check', '--dir', dir, '--id', 'club', '--json');
+    assert.equal(result.status, 1);
+    const findings: { id: string }[] = JSON.parse(result.stdout);
+    assert.ok(findings.length > 0);
+    assert.ok(findings.every((finding) => finding.id === 'club'));
+  });
+
+  it('prints an error to stderr and nothing to stdout when a package does not exist', () => {
+    const result = run(repoBreakingS2(), 'check', 'nope', '--json');
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /apps\/nope or games\/nope does not exist/);
+  });
+
+  it('is refused by the commands that have no JSON output', () => {
+    const root = repoBreakingS2();
+    for (const args of [['new', 'other', '--json'], ['ship', 'nope', '--json']]) {
+      const result = run(root, ...args);
+      assert.equal(result.status, 1, args.join(' '));
+      assert.equal(result.stdout, '');
+      assert.match(result.stderr, /--json is only for check/, args.join(' '));
+    }
+    assert.ok(!existsSync(join(root, 'apps', 'other')));
   });
 });

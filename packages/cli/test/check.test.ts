@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
 import { checkApp, compareVersions, MAX_FILE_BYTES, MAX_FILES, type CheckTarget, type RuleId } from '../src/check.ts';
+import { toJson } from '../src/report.ts';
 
 const scratch = mkdtempSync(join(tmpdir(), 'miniapp-cli-test-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -198,5 +199,36 @@ describe('compareVersions', () => {
     assert.equal(compareVersions('0.2.9', '0.3.0'), -1);
     assert.equal(compareVersions('0.10.0', '0.3.0'), 1);
     assert.equal(compareVersions('0.3.0-beta.1', '0.3.0'), -1);
+  });
+});
+
+describe('toJson', () => {
+  it('names the package, the rule, the level, the message and the spec heading of a finding', () => {
+    const dropReact = JSON.stringify({
+      scripts: { dev: 'vite', build: 'vite build', typecheck: 'tsc --noEmit' },
+      dependencies: { '@skkuverse/miniapp': '^0.4.0', 'react-dom': '^19' },
+      devDependencies: { vite: '^6', typescript: '^5' },
+    });
+    assert.deepEqual(toJson('club', checkApp(target('club', { 'package.json': dropReact }))), [
+      {
+        id: 'club',
+        rule: 'S2',
+        level: 'error',
+        message: 'package.json does not depend on react',
+        spec: 'docs/reference/miniapp-spec.md#package',
+      },
+    ]);
+  });
+
+  it('keeps a warning a warning, so a host exception reads as allowed', () => {
+    const findings = checkApp(target('a', {}, { project: 'p', host: 'x.example', hostReason: 'legacy' }));
+    assert.deepEqual(
+      toJson('a', findings).map((f) => [f.rule, f.level, f.spec]),
+      [['R4', 'warn', 'docs/reference/miniapp-spec.md#identity']],
+    );
+  });
+
+  it('is empty for a package that passes', () => {
+    assert.deepEqual(toJson('good', checkApp(target('good'))), []);
   });
 });
