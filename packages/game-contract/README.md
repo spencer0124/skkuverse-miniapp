@@ -14,11 +14,24 @@ pnpm exec game-contract --entry <module> --html <index.html> [--player <module>]
 
 Each page is played twice, in vitest with a happy-dom window. The first run has the host
 there at once. The second has a host that appears only after the page gave up its search
-and called `onNoHost`. The command exits 1 and names each rule a page broke, such as
-`one-over-per-run`. It exits 2 and prints `runner error, contract not checked` when a run
-ends without a verdict. That happens when vitest fails to start, and also when the page or
-its player fails to load, throws outside the contract check, or runs past the two-minute
-test timeout. The error printed above that line says which.
+and called `onNoHost`.
+
+The command ends with one of three exit codes:
+
+- `0` when every page keeps the contract, and after `--help` or `-h`.
+- `1` when a page breaks a rule of the contract. The command names each rule the page
+  broke, such as `one-over-per-run`, and prints `broke the game contract`. It also exits 1
+  on a usage error, before any page is played: no `deploy.config.json` in the folder, a game
+  that is not built, `--entry` without `--html`, an option it does not know, or a
+  `GAME_CONTRACT_SESSION_TIMEOUT_MS` that is not a whole number above 0.
+- `2` when a run ends without a verdict. The command prints `runner error, contract not
+  checked`, and the error printed above that line says what went wrong. That happens when
+  vitest fails to start, or when the page or its player fails to load or throws. A throw in
+  an event listener or a timer counts, and so does a promise rejection that nothing handles.
+  It also happens when a run passes the two-minute test timeout, and when a session still
+  runs after three minutes, as one with a page stuck in a loop does. The command kills that
+  session. To change the limit, set `GAME_CONTRACT_SESSION_TIMEOUT_MS` to a number of
+  milliseconds.
 
 A game whose runs end only when someone plays them ships a `contract.player.ts` beside its
 page. The file plays the runs, and its type is `ContractPlayer` in
