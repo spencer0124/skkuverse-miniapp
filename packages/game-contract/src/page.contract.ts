@@ -15,7 +15,7 @@ const htmlFile = process.env.CONTRACT_HTML;
 const name = process.env.CONTRACT_NAME ?? entry;
 const playerModule = process.env.CONTRACT_PLAYER;
 const late = process.env.CONTRACT_HOST === 'late';
-if (!entry || !htmlFile) throw new Error('run through `pnpm contract`, which sets CONTRACT_ENTRY and CONTRACT_HTML');
+if (!entry || !htmlFile) throw new Error('run through `game-contract`, which sets CONTRACT_ENTRY and CONTRACT_HTML');
 
 test(`${name} keeps the game contract${late ? `, the host after ${LATE_HOST_MS} ms` : ''}`, async () => {
   const html = readFileSync(htmlFile, 'utf8');

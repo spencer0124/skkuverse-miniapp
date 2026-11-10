@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * `pnpm contract`: plays every built game against the fake host and holds it
- * to the protocol contract. Run it after the games are built.
+ * `game-contract`: plays every built game against the fake host and holds it
+ * to the protocol contract. Run it from the repository root after the games
+ * are built.
  *
- *   pnpm contract [<id>...]                           every game under games/, or the ones named
- *   pnpm contract --entry <module> --html <index.html> [--player <module>]  any page, by its entry module (source or built)
+ *   game-contract [<id>...]                           every game under games/, or the ones named
+ *   game-contract --entry <module> --html <index.html> [--player <module>]  any page, by its entry module (source or built)
  *
  * A game is played from its build: the module `dist/index.html` loads. A game
  * whose runs need playing to end ships `contract.player.ts` beside its page,
@@ -16,11 +17,13 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 const tool = resolve(import.meta.dirname, '..');
-const root = resolve(tool, '..', '..');
+const root = process.cwd();
+const vitestBin = join(dirname(createRequire(import.meta.url).resolve('vitest/package.json')), 'vitest.mjs');
 
 interface Page {
   name: string;
@@ -69,7 +72,7 @@ function play(page: Page, session: (typeof SESSIONS)[number]): boolean {
   console.log(`\n▶ ${page.name}${session.label}`);
   const result = spawnSync(
     process.execPath,
-    [join(tool, 'node_modules', 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.contract.config.ts'],
+    [vitestBin, 'run', '--config', join(tool, 'dist', 'vitest.contract.config.js')],
     {
       cwd: tool,
       stdio: 'inherit',
