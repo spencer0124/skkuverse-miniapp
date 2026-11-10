@@ -17,13 +17,11 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 const tool = resolve(import.meta.dirname, '..');
 const root = process.cwd();
-const vitestBin = join(dirname(createRequire(import.meta.url).resolve('vitest/package.json')), 'vitest.mjs');
 
 interface Page {
   name: string;
@@ -72,7 +70,7 @@ function play(page: Page, session: (typeof SESSIONS)[number]): boolean {
   console.log(`\n▶ ${page.name}${session.label}`);
   const result = spawnSync(
     process.execPath,
-    [vitestBin, 'run', '--config', join(tool, 'dist', 'vitest.contract.config.js')],
+    [join(tool, 'dist', 'session.js')],
     {
       cwd: tool,
       stdio: 'inherit',
