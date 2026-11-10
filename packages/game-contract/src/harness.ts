@@ -32,7 +32,7 @@
  * A browser (Playwright) would add pixels and real layout, not protocol
  * coverage, and costs a browser download in CI; the visual check stays manual.
  */
-import { Window } from 'happy-dom';
+import { BrowserErrorCaptureEnum, Window } from 'happy-dom';
 import { vi } from 'vitest';
 import { HOST_SLOW_POLL_MS, HOST_WAIT_MS } from '@skkuverse/miniapp/game';
 import {
@@ -262,7 +262,7 @@ function mount(html: string): void {
     // By default happy-dom catches what a listener throws and reports it only to
     // the page's own console. Disabled, the throw reaches the runner, which ends
     // the session as a runner error with the page's stack.
-    settings: { errorCapture: 'disabled' },
+    settings: { errorCapture: BrowserErrorCaptureEnum.disabled },
   });
   const scope = globalThis as unknown as Record<string, unknown>;
   const page = win as unknown as Record<string, unknown>;
