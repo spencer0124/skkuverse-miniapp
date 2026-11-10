@@ -45,4 +45,22 @@ describe('game-contract on a page that fails outside the contract', () => {
     expect(out).not.toContain('broke the game contract');
     expect(status).toBe(2);
   });
+
+  it('reads a page error named ContractBroken as a runner error, not as a verdict', () => {
+    const { status, out } = play('forged-verdict');
+    expect(out).toContain('a page error, not a verdict');
+    expect(out).toContain('✗ runner error, contract not checked: forged-verdict; forged-verdict, host after onNoHost');
+    expect(out).not.toContain('broke the game contract');
+    expect(status).toBe(2);
+  });
+});
+
+describe('game-contract on a page that breaks the contract', () => {
+  it('names the rule and exits 1', () => {
+    const { status, out } = play('double-over');
+    expect(out).toContain('one-over-per-run');
+    expect(out).toContain('✗ broke the game contract: double-over; double-over, host after onNoHost');
+    expect(out).not.toContain('runner error');
+    expect(status).toBe(1);
+  });
 });
