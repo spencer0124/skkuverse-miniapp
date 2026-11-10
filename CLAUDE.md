@@ -31,7 +31,7 @@ pnpm install
 pnpm build          # tsup, every package (turbo)
 pnpm typecheck
 pnpm test           # vitest 3 in miniapp, node --test in cli, vitest 4 in game-contract
-pnpm lint           # publint + are-the-types-wrong per package
+pnpm lint           # publint per package, and are-the-types-wrong for the libraries
 pnpm lint:md        # markdownlint
 python3 ../skkuverse/exported/lint_conventions.py --root .
 python3 ../skkuverse/exported/sync_contracts.py check --repo miniapp --root .
