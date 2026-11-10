@@ -29,8 +29,12 @@ export function toJson(id: string, findings: Finding[]): JsonFinding[] {
   return findings.map(({ rule, level, message }) => ({ id, rule, level, message, spec: `${SPEC_FILE}#${RULE_SECTIONS[rule]}` }));
 }
 
-/** Prints the findings of every package as one JSON array and nothing else. True when nothing is an error. */
+/**
+ * Prints the findings of every package as one JSON array and nothing else, a
+ * finding to a line. True when nothing is an error.
+ */
 export function reportJson(reports: PackageReport[]): boolean {
-  console.log(JSON.stringify(reports.flatMap(({ id, findings }) => toJson(id, findings)), null, 2));
+  const found = reports.flatMap(({ id, findings }) => toJson(id, findings));
+  console.log(found.length === 0 ? '[]' : `[\n${found.map((f) => `  ${JSON.stringify(f)}`).join(',\n')}\n]`);
   return reports.every(({ findings }) => findings.every((f) => f.level !== 'error'));
 }

@@ -100,6 +100,8 @@ describe('miniapp-cli check --json', () => {
     assert.equal(result.stderr, '');
     const findings: Record<string, unknown>[] = JSON.parse(result.stdout);
     for (const finding of findings) assert.deepEqual(Object.keys(finding).sort(), FIELDS);
+    // One finding to a line between the brackets, so a long list stays short to read and to grep.
+    assert.equal(result.stdout.trimEnd().split('\n').length, findings.length + 2);
     assert.deepEqual(
       findings.filter((finding) => finding.rule === 'S2'),
       [
