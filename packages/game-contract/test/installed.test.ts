@@ -1,10 +1,11 @@
 /**
  * The runner as a user gets it: packed, installed under the node_modules of a
  * project outside this repository, and started through its bin from that
- * project's folder. The other tests import `src/` and never see what changes
- * once the runner sits under node_modules. It installs twice: with pnpm, which
- * keeps the package and its dependencies under node_modules/.pnpm, and with
- * npm, which hoists them flat. Both installs fetch from the registry.
+ * project's folder. The other tests run it from this repository and never see
+ * what changes once the runner sits under node_modules. It installs twice:
+ * with pnpm, which keeps the package and its dependencies under
+ * node_modules/.pnpm, and with npm, which hoists them flat. Both installs fetch
+ * from the registry.
  */
 import { spawnSync } from 'node:child_process';
 import {
