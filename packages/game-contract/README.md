@@ -8,17 +8,11 @@ vitest, which runs the pages, does not.
 Run it from the repository root, the folder that holds `deploy.config.json`, after the games are built:
 
 ```sh
-pnpm add -D --allow-build=esbuild @skkuverse/game-contract
+pnpm add -D @skkuverse/game-contract
 pnpm exec game-contract                 # every game under games/
 pnpm exec game-contract <id>...         # the games named
 pnpm exec game-contract --entry <module> --html <index.html> [--player <module>] [--name <name>]
 ```
-
-The install pulls in esbuild, which runs an install script. In a fresh project pnpm 11
-exits 1 on a plain `pnpm add -D @skkuverse/game-contract` with `ERR_PNPM_IGNORED_BUILDS: esbuild`
-unless that build is allowed. `--allow-build=esbuild` allows it by writing
-`allowBuilds: { esbuild: true }` to `pnpm-workspace.yaml`, so a project that already sets
-`allowBuilds` for esbuild can leave the flag out.
 
 Each page is played twice, in vitest with a happy-dom window. The first run has the host
 there at once. The second has a host that appears only after the page gave up its search
