@@ -6,7 +6,9 @@
  * Vitest takes its settings from here, not from a config file. Installed from
  * npm, this package can sit in a folder no one may write to, and vite writes
  * the bundle of a config file it loads next to that file or under the nearest
- * node_modules. With `cache: false` vitest writes no results cache either.
+ * node_modules. With `cache: false` and `fsModuleCache: false` vitest writes
+ * no results cache and no module cache, which vitest 5 keeps in a node_modules
+ * folder by default.
  */
 import { resolve } from 'node:path';
 import { startVitest, type Reporter, type TestModule } from 'vitest/node';
@@ -45,6 +47,7 @@ try {
       include: ['dist/page.contract.js'],
       run: true,
       cache: false,
+      fsModuleCache: false,
       // The page runs in a thread of this process, so the kill at the session's
       // time limit (`src/cli.ts`) ends it too. A child process would outlive it.
       pool: 'threads',
