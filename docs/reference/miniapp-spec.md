@@ -17,7 +17,7 @@ skkuverse hosts every miniapp and every game itself. Each hands over a package, 
 
 Each rule has an ID, a kind and the packages it applies to. The kind says who enforces it:
 
-- **checked**: `check` enforces it. The implementation is `tools/miniapp-cli/src/check.ts` in skkuverse-mini, and each failure prints the rule ID.
+- **checked**: `check` enforces it. The implementation is `packages/cli/src/check.ts` in this repository, and each failure prints the rule ID.
 - **review**: the operator reads the code for it before a first release and when a release touches it.
 
 The **For** column says which packages a rule applies to: `app` for a miniapp, `game` for a game, `both` for either. A rule for one is never checked against the other.
@@ -26,7 +26,7 @@ Numeric limits are not repeated here. Each rule names the file that owns its val
 
 ## Kinds
 
-The folder is the kind. A package under `apps/<id>/` in skkuverse-mini is a miniapp, and one under `games/<id>/` is a game. The two share the id namespace, the message envelope, the CLI and this document. Everything that grants trust is separate: the folder, the domain, the Pages project (`miniapp-<id>` or `game-<id>`), the server registry and its origin list, and the methods the app grants. A game page is granted only the `game.*` methods, and a miniapp page none of them ([protocol](protocol.md#games)).
+The folder is the kind. In a repository of miniapps, a package under `apps/<id>/` is a miniapp, and one under `games/<id>/` is a game. The two share the id namespace, the message envelope, the CLI and this document. Everything that grants trust is separate: the folder, the domain, the Pages project (`miniapp-<id>` or `game-<id>`), the server registry and its origin list, and the methods the app grants. A game page is granted only the `game.*` methods, and a miniapp page none of them ([protocol](protocol.md#games)).
 
 ## Identity
 
@@ -40,7 +40,7 @@ The folder is the kind. A package under `apps/<id>/` in skkuverse-mini is a mini
 
 ## Package
 
-A miniapp is one package directory, `apps/<id>/` in skkuverse-mini:
+A miniapp is one package directory, `apps/<id>/`:
 
 ```text
 apps/<id>/
@@ -53,12 +53,12 @@ apps/<id>/
   README.md             what it is, where its data comes from, how it deploys
 ```
 
-`pnpm new <id>` creates one from `templates/miniapp/`. A game is `games/<id>/`, created by `pnpm new --kind game <id>` from `templates/game/`, which is also where its file tree is defined.
+`miniapp-cli new <id>` creates one from `packages/cli/templates/miniapp/`. A game is `games/<id>/`, created by `miniapp-cli new --kind game <id>` from `packages/cli/templates/game/`, which is also where its file tree is defined.
 
 | Rule | Kind | For | Requirement |
 | --- | --- | --- | --- |
 | S1 | checked | app | Every file in the tree above exists (`REQUIRED_FILES`) |
-| S2 | checked | app | The stack is Vite, React and TypeScript: the package depends on `REQUIRED_DEPENDENCIES`. In skkuverse-mini, versions come from the workspace catalog (`pnpm-workspace.yaml`) rather than per package |
+| S2 | checked | app | The stack is Vite, React and TypeScript: the package depends on `REQUIRED_DEPENDENCIES`. The templates take versions from the workspace catalog (`pnpm-workspace.yaml`) of the repository they are scaffolded into, rather than per package |
 | S3 | checked | both | `package.json` defines `REQUIRED_SCRIPTS` |
 | S4 | checked | both | The **installed** `@skkuverse/miniapp` is at least `SDK_FLOOR`. The check reads the installed copy rather than the declared range, because a `0.x` caret never crosses a minor and `^0.2.1` silently stays below `0.3.0` |
 
@@ -105,7 +105,7 @@ A miniapp may call a backend of its own. skkuverse hosts the static page, not th
 
 ## What the platform writes
 
-`ship` copies `dist/` to a staging folder and adds two files, defined in `tools/miniapp-cli/src/platform.ts`:
+`ship` copies `dist/` to a staging folder and adds two files, defined in `packages/cli/src/platform.ts`:
 
 - `_headers`: a Content Security Policy restricting scripts to the miniapp's own origin, and an immutable cache rule for `/assets/*`.
 - `_redirects`: the single-page fallback to `index.html`.

@@ -8,7 +8,7 @@ Documents follow the Diátaxis structure (`docs/how-to|reference|explanation|dec
 
 ## What this repository is
 
-The shared code every skkuverse miniapp imports, published to public npm:
+The shared code every skkuverse miniapp imports, and the tools that check and ship one, published to public npm:
 
 - `packages/tokens` → `@skkuverse/tokens`. Four files (`colors`, `typography`, `spacing`, `radius`) are hash-checked copies of skkuverse-app's token files, under the umbrella contracts `design.*`. Never edit them here. `css.ts` is local.
 - `packages/ui` → `@skkuverse/ui`, the web port of the SKKU Design System.
@@ -19,6 +19,8 @@ The shared code every skkuverse miniapp imports, published to public npm:
   - `src/testing/` is `./testing`: the fake game host, the game contract and the bound fixtures (`fixtures/bounds.json`, also published on its own).
   - `src/react/` holds `MiniappRoot` and the hooks. It must never import `@skkuverse/ui`.
   - `src/react/ui/` holds the SDS-styled components.
+- `packages/cli` → `@skkuverse/miniapp-cli`: `check`, `new` and `ship`. `src/check.ts` enforces the `checked` rules of `docs/reference/miniapp-spec.md`, and `templates/` holds what `new` scaffolds. It ships as built JavaScript, with the templates beside it.
+- `packages/game-contract` → `@skkuverse/game-contract`: plays a built game against the fake host from `./testing` and holds it to the game protocol contract. It installs vitest and happy-dom, which is why it is not part of the CLI.
 
 Read `docs/explanation/architecture.md` for how these meet the app's mini-app shell and the server registry.
 
@@ -28,7 +30,7 @@ Read `docs/explanation/architecture.md` for how these meet the app's mini-app sh
 pnpm install
 pnpm build          # tsup, every package (turbo)
 pnpm typecheck
-pnpm test           # vitest in packages/miniapp
+pnpm test           # vitest 3 in miniapp, node --test in cli, vitest 4 in game-contract
 pnpm lint           # publint + are-the-types-wrong per package
 pnpm lint:md        # markdownlint
 python3 ../skkuverse/exported/lint_conventions.py --root .

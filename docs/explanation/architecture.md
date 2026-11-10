@@ -13,7 +13,7 @@ audience: public
 
 ## Context
 
-A miniapp is a small web app, built with Vite and React, that runs inside the skkuverse app. First-party miniapps live together in skkuverse-mini, one package each, and deploy to Cloudflare Pages at `https://<name>.mini.skkuverse.com`, only after passing the [miniapp spec](../reference/miniapp-spec.md) check. The app opens it in a `react-native-webview` screen called the mini-app shell.
+A miniapp is a small web app, built with Vite and React, that runs inside the skkuverse app. First-party miniapps live together in skkuverse-mini, one package each, and deploy to Cloudflare Pages at `https://<name>.mini.skkuverse.com`, only after passing the [miniapp spec](../reference/miniapp-spec.md) check. That check is `miniapp-cli check`, which this repository publishes as `@skkuverse/miniapp-cli` and which `ship` runs first. The app opens it in a `react-native-webview` screen called the mini-app shell.
 
 Three things used to be copied into every miniapp: the design system, the bridge message types and a file of bridge helpers. By the sixth miniapp the copies had drifted. This repository replaced them with three npm packages ([ADR 0001](../decisions/0001-sdk-distribution.md)). It then gave the channel a proper contract: request/response messages, a declared shell and injected safe areas ([ADR 0002](../decisions/0002-miniapp-protocol-shell-viewport.md)).
 
@@ -48,6 +48,8 @@ Three things used to be copied into every miniapp: the design system, the bridge
 | `@skkuverse/miniapp` | The page-side SDK: every function safe to call anywhere | `packages/miniapp/src/sdk`, `transport.ts` |
 | `@skkuverse/miniapp/react` | `MiniappRoot` and hooks | `packages/miniapp/src/react` |
 | `@skkuverse/miniapp/react/ui` | SDS-styled components such as `MapButton` | `packages/miniapp/src/react/ui` |
+| `@skkuverse/miniapp-cli` | `check`, `new` and `ship`: the checker of the miniapp spec, the scaffold templates and the deploy | `packages/cli` |
+| `@skkuverse/game-contract` | Plays a built game against the fake host and holds it to the game protocol contract | `packages/game-contract` |
 | Mini-app shell | Injection, the message dispatcher, chrome and viewport | skkuverse-app `apps/mobile/app/mini-app.tsx` |
 | Registry | Identity, start URL, and the merged shell | skkuverse-server `src/miniapps` |
 
