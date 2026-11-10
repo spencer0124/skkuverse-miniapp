@@ -7,6 +7,14 @@ packages:
 allowBuilds:
   esbuild: true
 
+# An install takes no release younger than 5 days (the value is in minutes), so a
+# compromised release has time to be caught and pulled. It matches the 5-day
+# cooldown in .github/dependabot.yml. Our own packages are exempt, so a release of
+# them can be installed the moment it is published.
+minimumReleaseAge: 7200
+minimumReleaseAgeExclude:
+  - "@skkuverse/*"
+
 # One version per tool across the workspace. Members reference these with
 # `"typescript": "catalog:"`, so a bump happens here rather than in every
 # package.json.

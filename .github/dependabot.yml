@@ -12,7 +12,7 @@ updates:
     schedule:
       interval: monthly
     # WHY: a release younger than 5 days is not proposed, so a compromised one has time to be caught and pulled.
-    # This repository sets no install-time release age of its own (no .npmrc min-release-age).
+    # pnpm-workspace.yaml sets the same 5 days for installs (minimumReleaseAge).
     cooldown:
       default-days: 5
     groups:
