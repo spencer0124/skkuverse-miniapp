@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * `pnpm contract`: plays every built game against the fake host and holds it
  * to the protocol contract. Run it after the games are built.

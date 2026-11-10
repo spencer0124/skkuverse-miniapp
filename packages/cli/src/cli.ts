@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * skkuverse-mini's operator CLI. Run from the repository root through the root
  * package scripts:
