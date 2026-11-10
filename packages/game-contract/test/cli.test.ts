@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -14,9 +14,17 @@ function run(cwd: string, ...args: string[]) {
   return spawnSync(process.execPath, [cli, ...args], { cwd, encoding: 'utf8' });
 }
 
-/** Plays one fixture page; `out` is stdout and stderr with vitest's colors taken out. */
-function play(fixture: string) {
-  const result = run(fixtures, '--entry', `${fixture}.ts`, '--html', html, '--name', fixture);
+/**
+ * Plays one fixture page; `out` is stdout and stderr with vitest's colors taken
+ * out. A run that outlives `timeout` is killed, so a hung runner fails the case.
+ */
+function play(fixture: string, env: Record<string, string> = {}, timeout = 60_000) {
+  const result = spawnSync(process.execPath, [cli, '--entry', `${fixture}.ts`, '--html', html, '--name', fixture], {
+    cwd: fixtures,
+    encoding: 'utf8',
+    env: { ...process.env, ...env },
+    timeout,
+  });
   return { status: result.status, out: `${result.stdout}${result.stderr}`.replace(/\x1b\[[0-9;]*m/g, '') };
 }
 
@@ -53,6 +61,32 @@ describe('game-contract on a page that fails outside the contract', () => {
     expect(out).not.toContain('broke the game contract');
     expect(status).toBe(2);
   });
+});
+
+describe('game-contract on a page stuck in a loop', () => {
+  const pidFile = join(scratch, 'busy-loop.pids');
+  const pids = () => (existsSync(pidFile) ? readFileSync(pidFile, 'utf8').split('\n').filter(Boolean).map(Number) : []);
+  const alive = (pid: number) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  afterAll(() => {
+    for (const pid of pids().filter(alive)) process.kill(pid, 'SIGKILL');
+  });
+
+  it('stops each session at the time limit, ends its process, and reports a runner error', () => {
+    const { status, out } = play('busy-loop', { GAME_CONTRACT_SESSION_TIMEOUT_MS: '5000', BUSY_LOOP_PID_FILE: pidFile });
+    expect(pids(), 'both sessions reached the loop').toHaveLength(2);
+    expect(pids().filter(alive), 'processes still running the page').toEqual([]);
+    expect(out).toContain('busy-loop did not finish within 5 s');
+    expect(out).toContain('busy-loop, host after onNoHost did not finish within 5 s');
+    expect(out).toContain('✗ runner error, contract not checked: busy-loop; busy-loop, host after onNoHost');
+    expect(status).toBe(2);
+  }, 90_000);
 });
 
 describe('game-contract on a page that breaks the contract', () => {
