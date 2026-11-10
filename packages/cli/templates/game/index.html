@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover (spec H1): the game draws edge to edge and pads
+         with --sv-inset-*, so the notch and the home bar never cover it. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>__ID__ | 스꾸버스</title>
+  </head>
+  <body>
+    <!-- The game headers allow scripts, styles and images from this origin
+         only (spec G4): no inline <script>, <style> or style=, no CDN. -->
+    <canvas id="game"></canvas>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

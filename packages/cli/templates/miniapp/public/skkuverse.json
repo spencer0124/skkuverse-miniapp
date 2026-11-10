@@ -1,0 +1,8 @@
+{
+  "shell": {
+    "bar": "top",
+    "header": "opaque",
+    "statusBar": "dark",
+    "background": "#FFFFFF"
+  }
+}
