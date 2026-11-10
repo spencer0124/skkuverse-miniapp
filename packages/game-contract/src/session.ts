@@ -38,7 +38,6 @@ const verdict: Reporter = {
 
 try {
   const vitest = await startVitest(
-    'test',
     [],
     {
       ...shared.test,
