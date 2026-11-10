@@ -255,7 +255,15 @@ export async function runContract(page: ContractPage, options: ContractOptions =
  * page's `<body>` markup, scripts aside, and a no-op 2D context on every canvas.
  */
 function mount(html: string): void {
-  const win = new Window({ url: 'https://contract.game.skkuverse.com/', width: 390, height: 844 });
+  const win = new Window({
+    url: 'https://contract.game.skkuverse.com/',
+    width: 390,
+    height: 844,
+    // By default happy-dom catches what a listener throws and reports it only to
+    // the page's own console. Disabled, the throw reaches the runner, which ends
+    // the session as a runner error with the page's stack.
+    settings: { errorCapture: 'disabled' },
+  });
   const scope = globalThis as unknown as Record<string, unknown>;
   const page = win as unknown as Record<string, unknown>;
   for (const key of Object.getOwnPropertyNames(win)) {
