@@ -16,8 +16,9 @@ Each page is played twice, in vitest with a happy-dom window. The first run has 
 there at once. The second has a host that appears only after the page gave up its search
 and called `onNoHost`. The command exits 1 and names each rule a page broke, such as
 `one-over-per-run`. It exits 2 and prints `runner error, contract not checked` when a run
-ends without a verdict, for example when the page fails to load. The error printed above
-that line says why.
+ends without a verdict. That happens when vitest fails to start, and also when the page or
+its player fails to load, throws outside the contract check, or runs past the two-minute
+test timeout. The error printed above that line says which.
 
 A game whose runs end only when someone plays them ships a `contract.player.ts` beside its
 page. The file plays the runs, and its type is `ContractPlayer` in

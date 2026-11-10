@@ -140,11 +140,10 @@ describe.each(['pnpm', 'npm'])('game-contract installed by %s', (layout) => {
   }, 300_000);
 
   function contract(...args: string[]) {
-    const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST')));
     const result = spawnSync(join(project, 'node_modules/.bin/game-contract'), args, {
       cwd: project,
       encoding: 'utf8',
-      env: { ...env, PATH: `${dirname(process.execPath)}${delimiter}${process.env.PATH ?? ''}` },
+      env: { ...process.env, PATH: `${dirname(process.execPath)}${delimiter}${process.env.PATH ?? ''}` },
     });
     return { status: result.status, out: `${result.stdout}${result.stderr}` };
   }
@@ -187,6 +186,8 @@ describe.each(['pnpm', 'npm'])('game-contract installed by %s', (layout) => {
     const modules = join(project, 'node_modules');
     setWritable(modules, false);
     try {
+      // As root a folder without the write bit still takes new files, and this case would prove nothing.
+      expect(() => writeFileSync(join(pkg, 'probe'), ''), 'the package folder refuses new files').toThrow(/EACCES/);
       const { status, out } = contract('demo', 'played');
       expect(out).toContain('✓ 2 page(s) keep the game contract');
       expect(status).toBe(0);
