@@ -3,7 +3,7 @@
 Plays a built skkuverse game against the fake host from `@skkuverse/miniapp/testing` and
 fails when the page breaks a rule of the game protocol contract. It needs Node 22.13 or later.
 
-Run it from the repository root, after the games are built:
+Run it from the repository root, the folder that holds `deploy.config.json`, after the games are built:
 
 ```sh
 pnpm add -D @skkuverse/game-contract
@@ -18,7 +18,8 @@ and called `onNoHost`. The command exits 1 and names each rule a page broke, suc
 `one-over-per-run`.
 
 A game whose runs end only when someone plays them ships a `contract.player.ts` beside its
-page. The file plays the runs, and `src/harness.ts` describes its type.
+page. The file plays the runs, and its type is `ContractPlayer` in
+[`src/harness.ts`](https://github.com/skkuverse/skkuverse-miniapp/blob/main/packages/game-contract/src/harness.ts).
 
 The package depends on vitest and happy-dom, so it installs far more than
 `@skkuverse/miniapp-cli` does. That is why the two are separate packages.

@@ -108,6 +108,9 @@ function main(argv: string[]): number {
       },
     ];
   } else {
+    if (!existsSync(join(root, 'deploy.config.json'))) {
+      throw new Error(`no deploy.config.json in ${root}; run game-contract from the repository root`);
+    }
     const ids = positionals.length > 0 ? positionals : listGames();
     if (ids.length === 0) {
       console.log('no games under games/');
