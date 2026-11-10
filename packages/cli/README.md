@@ -22,3 +22,21 @@ walking up from the working directory. Every command also takes `--root <path>`.
 
 The spec marks each rule `checked` or `review`. The CLI enforces the `checked` rules, and
 `src/check.ts` holds them.
+
+## What `new` and `ship` need from the repository
+
+`new` and `ship` expect the repository to be a pnpm workspace laid out like this:
+
+- `pnpm-workspace.yaml` lists `apps/*` and `games/*` as packages. `pnpm install` then links
+  a new package, and `ship` builds it with `pnpm --filter ./apps/<id>` or `./games/<id>`.
+- The same file has a `catalog` entry for every dependency that the
+  [miniapp template](https://github.com/skkuverse/skkuverse-miniapp/blob/main/packages/cli/templates/miniapp/package.json)
+  and the [game template](https://github.com/skkuverse/skkuverse-miniapp/blob/main/packages/cli/templates/game/package.json)
+  take as `catalog:`.
+- The root has a `tsconfig.base.json`, which the `tsconfig.json` of each template extends.
+- For `ship`, the root has `wrangler` installed, so that `node_modules/.bin/wrangler`
+  exists, and wrangler can deploy to the Pages projects that `deploy.config.json` names.
+
+The README that `new` writes runs `pnpm check`, `pnpm ship` and, in a game,
+`pnpm contract`. Define them as scripts in the root `package.json`, such as
+`"check": "miniapp-cli check"` and `"contract": "game-contract"`.
