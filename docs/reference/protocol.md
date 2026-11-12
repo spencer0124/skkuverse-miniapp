@@ -109,7 +109,7 @@ A miniapp declares the shell the app draws around it in `public/skkuverse.json`,
 | `statusBar` | `dark`, `light` | `dark` | Status bar icon colour |
 | `background` | `#RRGGBB` | `#FFFFFF` | Painted behind the page while it loads and on overscroll |
 
-skkuverse-server fetches the manifest of every first-party miniapp and merges it into `GET /miniapps/:id`. The app therefore knows the shell before it creates the WebView, and the first frame is already right. The merge order is default, then the registry entry, then the manifest. The registry still owns identity: the start URL, the name and the verified badge. A manifest can only change presentation. A change takes up to about ten minutes to reach users, through the server's cache and then the response cache.
+skkuverse-server fetches the manifest of every first-party miniapp and merges it into `GET /miniapps/:id`. The app therefore knows the shell before it creates the WebView, and the first frame is already right. The merge order is default, then the registry entry, then the manifest. The registry still owns identity: the start URL, the name and the verified badge. A manifest can only change presentation. A manifest change can take up to about ten minutes to reach users.
 
 `shell.set` changes `header`, `statusBar` and `background` during a session, for example to go full-bleed for a game or switch to light icons over a dark scene. `bar` changes the layout, so only the manifest sets it.
 
