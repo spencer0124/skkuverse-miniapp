@@ -174,8 +174,8 @@ export async function runContract(page: ContractPage, options: ContractOptions =
   host.init();
   await advance(1_000);
 
-  const playOut = async (run: string) => {
-    const before = count('game.over');
+  /** Plays a run until a game.over beyond `before`, the count from before the run began. */
+  const playOut = async (run: string, before: number) => {
     for (let waited = 0; count('game.over') === before; waited += STEP_MS) {
       if (waited >= runCapMs) {
         problems.push({ rule: 'run-ends', detail: `${run} sent no game.over within ${runCapMs} ms` });
@@ -186,36 +186,43 @@ export async function runContract(page: ContractPage, options: ContractOptions =
     }
     return true;
   };
+  /**
+   * Starts a run. Resolves to the game.over count from before it started, so a
+   * run that ends while it is begun still ends; `null` when it did not start.
+   */
   const begin = async (run: string, start: () => void) => {
+    const overs = count('game.over');
     const before = count('game.start');
     start();
     await advance(1_000);
-    if (count('game.start') > before) return true;
+    if (count('game.start') > before) return overs;
     problems.push({ rule: 'run-starts', detail: `${run} sent no game.start` });
-    return false;
+    return null;
   };
 
-  if (!(await begin('run 1 (a press on the title)', startRun))) return finish();
+  const run1 = await begin('run 1 (a press on the title)', startRun);
+  if (run1 === null) return finish();
   await advance(1_000);
   host.pause();
   await advance(5_000);
   host.resume();
   host.sound(false);
   await advance(1_000);
-  if (!(await playOut('run 1'))) return finish();
+  if (!(await playOut('run 1', run1))) return finish();
   host.sound(true);
 
+  let run2: number | null;
   if (player.restartToTitle) {
     host.restart();
     await advance(1_000);
-    if (!(await begin('run 2 (a press after game.restart took it to the title)', startRun))) return finish();
-  } else if (!(await begin('run 2 (game.restart)', () => host.restart()))) return finish();
-  if (!(await playOut('run 2'))) return finish();
+    run2 = await begin('run 2 (a press after game.restart took it to the title)', startRun);
+  } else run2 = await begin('run 2 (game.restart)', () => host.restart());
+  if (run2 === null || !(await playOut('run 2', run2))) return finish();
 
   host.reset();
   await advance(1_000);
-  if (!(await begin('run 3 (a press after game.reset)', startRun))) return finish();
-  if (!(await playOut('run 3'))) return finish();
+  const run3 = await begin('run 3 (a press after game.reset)', startRun);
+  if (run3 === null || !(await playOut('run 3', run3))) return finish();
 
   const revivesLeft = () => {
     const last = [...host.messages].reverse().find((m) => m?.method === 'game.over');
@@ -229,9 +236,10 @@ export async function runContract(page: ContractPage, options: ContractOptions =
       return finish();
     }
     revives += 1;
+    const overs = count('game.over');
     host.revive();
     await advance(1_000);
-    if (!(await playOut(`run 3 after game.revive ${revives}`))) return finish();
+    if (!(await playOut(`run 3 after game.revive ${revives}`, overs))) return finish();
   }
   if (revives > 0) {
     // The final loss: none left, so another game.revive must change nothing.
