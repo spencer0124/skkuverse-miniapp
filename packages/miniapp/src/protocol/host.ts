@@ -20,16 +20,16 @@ export interface HostGlobal {
   receive(json: string): void;
 }
 
-// Built from char codes: written literally, either one ends a line in source.
-const LINE_SEPARATOR = String.fromCharCode(0x2028);
-const PARAGRAPH_SEPARATOR = String.fromCharCode(0x2029);
+const SCRIPT_UNSAFE = /[<>\/\u2028\u2029]/g;
 
 /**
- * JSON for embedding in a script: `JSON.stringify` leaves U+2028 and U+2029
- * unescaped, and older engines end a string literal on them.
+ * JSON for embedding in a script. `JSON.stringify` leaves `<`, `>` and `/`
+ * as they are, so a value could close a `<script>` element the script sits
+ * in, and U+2028 and U+2029, which older engines end a string literal on.
+ * They only occur inside JSON strings, where a `\u` escape is the same value.
  */
 function embed(value: unknown): string {
-  return JSON.stringify(value).split(LINE_SEPARATOR).join('\\u2028').split(PARAGRAPH_SEPARATOR).join('\\u2029');
+  return JSON.stringify(value).replace(SCRIPT_UNSAFE, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 }
 
 export interface HostBootstrapOptions {
