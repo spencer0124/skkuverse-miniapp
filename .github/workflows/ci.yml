@@ -1,13 +1,14 @@
 name: CI
 
 # WHY: a push to dev runs too, because work lands on dev directly and would otherwise meet CI only on the release.
+# A push to main runs once more on the merged tree, so the main branch carries its own result and badge.
 # The repository is public: the token is read-only and no job passes a secret, so a fork's pull request runs the
 # same checks as the maintainers' own.
 on:
   pull_request:
     branches: [main, dev]
   push:
-    branches: [dev]
+    branches: [main, dev]
 
 permissions:
   contents: read
