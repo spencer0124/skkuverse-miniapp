@@ -234,6 +234,7 @@ function checkRoot(source: string, id: string, add: Add): void {
   }
   for (const tag of tags) {
     const props = tag[1] ?? '';
+    if (/\{\s*\.\.\./.test(props)) add('R2', '<MiniappRoot> takes no spread props; a spread could replace its literal id');
     const rootId = /\bid=["']([^"']*)["']/.exec(props)?.[1];
     if (rootId === undefined) add('R2', '<MiniappRoot> needs a string literal id');
     else if (rootId !== id) add('R2', `<MiniappRoot id="${rootId}"> does not match the id "${id}"`);

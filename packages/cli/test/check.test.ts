@@ -79,6 +79,10 @@ describe('checkApp', () => {
     assert.deepEqual(rules(target('a', { 'src/main.tsx': decoy })), ['R2']);
   });
 
+  it('R2: a spread on <MiniappRoot> fails, since it could replace the literal id', () => {
+    assert.deepEqual(rules(target('a', { 'src/main.tsx': '<MiniappRoot id="a" browser="block" {...props}>' })), ['R2']);
+  });
+
   it('R2, R3: every <MiniappRoot> tag is held to them, not only the first', () => {
     const page = `const sample = '<MiniappRoot id="a" browser="block">';\n<MiniappRoot id="b" browser="block">`;
     assert.deepEqual(rules(target('a', { 'src/main.tsx': page })), ['R2']);
