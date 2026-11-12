@@ -14,6 +14,13 @@ import {
 } from '../src/platform.ts';
 import { planDeploy, ship, stageSite } from '../src/ship.ts';
 
+/**
+ * `git rebase -x` and git hooks export GIT_DIR and its kin, and every git this
+ * file starts, the tests' own and the one inside `ship`, would act on that
+ * repository instead of the throwaway one. The variables go, for this process only.
+ */
+for (const name of Object.keys(process.env)) if (name.startsWith('GIT_')) delete process.env[name];
+
 const scratch = mkdtempSync(join(tmpdir(), 'miniapp-cli-ship-test-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
 
