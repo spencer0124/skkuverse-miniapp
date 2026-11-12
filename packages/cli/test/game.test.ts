@@ -121,6 +121,35 @@ describe('checkApp for a game', () => {
     assert.deepEqual(findings.map((f) => [f.rule, f.level]), [['G2', 'error']]);
   });
 
+  it('G2: a game with no src/ fails', () => {
+    const findings = checkApp(game('a', { 'src/main.ts': null }));
+    assert.deepEqual(findings.map((f) => [f.rule, f.level]), [['G2', 'error']]);
+  });
+
+  it('G2: naming the client without calling the bootGame it exports fails', () => {
+    const cases = [
+      "const sdk = '@skkuverse/miniapp/game';\n",
+      "import { bootGame } from '@skkuverse/miniapp/game';\n",
+      "import type { GamePhase } from '@skkuverse/miniapp/game';\nbootGame({});\n",
+      "import { type bootGame } from '@skkuverse/miniapp/game';\nbootGame({});\n",
+      "import { bootGame as boot } from '@skkuverse/miniapp/game';\nbootGame({});\n",
+    ];
+    for (const page of cases) {
+      assert.deepEqual(rules(game('a', { 'src/main.ts': page })), ['G2'], page);
+    }
+  });
+
+  it('G2: bootGame called under the name it was imported by boots', () => {
+    const cases = [
+      "import { bootGame as boot, type GamePhase } from '@skkuverse/miniapp/game';\nconst game = boot({});\n",
+      "import * as sdk from '@skkuverse/miniapp/game';\nsdk.bootGame({});\n",
+      'import {\n  bootGame,\n  type GameRect,\n} from "@skkuverse/miniapp/game";\nexport const game = bootGame ({\n});\n',
+    ];
+    for (const page of cases) {
+      assert.deepEqual(checkApp(game('a', { 'src/main.ts': page })), [], page);
+    }
+  });
+
   it('G3: a game has no backend', () => {
     assert.deepEqual(rules(game('a', { 'functions/api/score.ts': '' })), ['G3']);
     assert.deepEqual(rules(game('a', {}, { project: 'game-a', backend: 'functions' })), ['G3']);

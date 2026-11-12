@@ -249,19 +249,45 @@ function checkRoot(source: string, id: string, add: Add): void {
  */
 function checkGameSource(dir: string, add: Add): void {
   const src = join(dir, 'src');
-  if (!existsSync(src)) return;
+  if (!existsSync(src)) {
+    add('G2', `no src/, so nothing shows the page boots through bootGame from ${GAME_CLIENT}`);
+    return;
+  }
   let boots = false;
   for (const file of walk(src)) {
     if (!SOURCE_FILE.test(file)) continue;
     const text = stripComments(readText(file) ?? '');
-    if (text.includes(`'${GAME_CLIENT}'`) || text.includes(`"${GAME_CLIENT}"`)) boots = true;
+    if (callsBootGame(text)) boots = true;
     const lines = text.split('\n');
     for (const { pattern, what } of HOST_REACH) {
       const line = lines.findIndex((l) => pattern.test(l));
       if (line >= 0) add('G2', `${relative(dir, file)}:${line + 1} ${what}; only bootGame from ${GAME_CLIENT} may`);
     }
   }
-  if (!boots) add('G2', `src/ does not import bootGame from ${GAME_CLIENT}`);
+  if (!boots) add('G2', `src/ does not call bootGame imported from ${GAME_CLIENT}`);
+}
+
+/**
+ * Whether one source file imports `bootGame` from the game client and calls
+ * it, by the name it imported it under or through a namespace import.
+ */
+function callsBootGame(source: string): boolean {
+  const from = String.raw`\s*from\s*['"]${escapeRegExp(GAME_CLIENT)}['"]`;
+  const callees: string[] = [];
+  for (const [, names = ''] of source.matchAll(new RegExp(String.raw`\bimport\s*(?:[A-Za-z_$][\w$]*\s*,\s*)?\{([^}]*)\}${from}`, 'g'))) {
+    for (const name of names.split(',')) {
+      const local = /^\s*bootGame(?:\s+as\s+([A-Za-z_$][\w$]*))?\s*$/.exec(name);
+      if (local) callees.push(escapeRegExp(local[1] ?? 'bootGame'));
+    }
+  }
+  for (const [, ns = ''] of source.matchAll(new RegExp(String.raw`\bimport\s*\*\s*as\s+([A-Za-z_$][\w$]*)${from}`, 'g'))) {
+    callees.push(String.raw`${escapeRegExp(ns)}\s*\.\s*bootGame`);
+  }
+  return callees.some((callee) => new RegExp(String.raw`(?<![\w$.])${callee}\s*\(`).test(source));
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 }
 
 /** Blanks comments out, keeping every line where it was. */
