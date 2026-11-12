@@ -125,12 +125,16 @@ const FAKED = ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'se
 const FRAME_MS = 1000 / 60;
 /** The DOM the page and the host's bootstrap reach by bare name, taken from the page's window over node's own. */
 const DOM_GLOBALS = ['Event', 'CustomEvent', 'EventTarget'] as const;
+/** How much page time an entry module may spend waiting on its timers before the runner gives up on it. */
+const LOAD_CAP_MS = 60_000;
+/** The runner's own timer, taken before the page's are faked, to let module loading go on between steps. */
+const runnerSetTimeout = globalThis.setTimeout;
 
 /**
  * The scripted session:
  *
- * 1. The page boots with no host; the host appears `hostDelayMs` later, which
- *    with `LATE_HOST_MS` is after the page has heard `onNoHost`.
+ * 1. The page loads with no host; the host appears `hostDelayMs` after it has
+ *    loaded, which with `LATE_HOST_MS` is after the page has heard `onNoHost`.
  * 2. Before `game.init`, a press: the page must not start a run.
  * 3. Run 1 starts on a press; mid-run the host pauses, waits, resumes and
  *    turns the sound off; the run plays out to its end.
@@ -159,7 +163,7 @@ export async function runContract(page: ContractPage, options: ContractOptions =
     await host.flush();
   };
 
-  await page.load();
+  await load(page);
   await advance(options.hostDelayMs ?? 300);
   host.install();
   await advance(HOST_FOUND_MS);
@@ -254,6 +258,29 @@ export async function runContract(page: ContractPage, options: ContractOptions =
   function finish(): ContractResult {
     return { host, violations: checkGameContract(host.log), problems };
   }
+}
+
+/**
+ * Imports the page's entry module. One that waits on a timer at its top level
+ * settles only as page time passes, so while the import is pending and a page
+ * timer is due, time moves on to that timer. Between steps the runner's own
+ * timer lets the module loader read and transform files.
+ */
+async function load(page: ContractPage): Promise<void> {
+  let settled = false;
+  const loading = page.load();
+  loading.then(
+    () => (settled = true),
+    () => (settled = true),
+  );
+  const start = Date.now();
+  while (!settled) {
+    await new Promise((resolve) => runnerSetTimeout(resolve, 1));
+    if (settled || vi.getTimerCount() === 0) continue;
+    if (Date.now() - start >= LOAD_CAP_MS) throw new Error(`the entry module did not finish loading within ${LOAD_CAP_MS} ms of page time`);
+    await vi.advanceTimersToNextTimerAsync();
+  }
+  await loading;
 }
 
 /**
