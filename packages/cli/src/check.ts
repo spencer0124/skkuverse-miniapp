@@ -326,7 +326,8 @@ function checkGameOutput(dist: string, files: readonly string[], add: Add): void
 }
 
 function checkGameHtml(rel: string, source: string, add: Add): void {
-  const html = source.replace(/<!--[\s\S]*?-->/g, '');
+  // A space, not nothing: the text on either side of a comment must not join into a tag.
+  const html = source.replace(/<!--[\s\S]*?-->/g, ' ');
   if (/<style\b/i.test(html)) add('G5', `${rel}: an inline <style> is blocked by the game headers (default-src 'self'); move it to a .css file`);
   for (const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*)>/gi)) {
     const name = (match[1] ?? '').toLowerCase();
@@ -408,7 +409,7 @@ function checkHtml(html: string, add: Add): void {
   if (!viewport) add('H1', 'index.html: no viewport <meta>');
   else if (!/viewport-fit\s*=\s*cover/i.test(viewport)) add('H1', 'index.html: the viewport <meta> needs viewport-fit=cover');
 
-  for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+  for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)) {
     const attrs = match[1] ?? '';
     const body = match[2] ?? '';
     const type = /\btype=["']([^"']*)["']/i.exec(attrs)?.[1]?.toLowerCase();

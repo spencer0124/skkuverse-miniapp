@@ -277,7 +277,11 @@ function mount(html: string): void {
 
   const document = win.document;
   const body = /<body\b[^>]*>([\s\S]*)<\/body>/i.exec(html)?.[1] ?? '';
-  document.body.innerHTML = body.replace(/<!--[\s\S]*?-->/g, '').replace(/<script\b[\s\S]*?<\/script\s*>/gi, '');
+  // Parsed inert in a template, so no script in it loads or runs before it is removed.
+  const template = document.createElement('template');
+  template.innerHTML = body;
+  for (const script of template.content.querySelectorAll('script')) script.remove();
+  document.body.replaceChildren(template.content);
   const lang = /<html\b[^>]*\blang=["']([^"']+)["']/i.exec(html)?.[1];
   if (lang) document.documentElement.lang = lang;
   win.HTMLCanvasElement.prototype.getContext = function getContext(this: HTMLCanvasElement) {
