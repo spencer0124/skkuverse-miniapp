@@ -241,15 +241,14 @@ export async function runContract(page: ContractPage, options: ContractOptions =
     await advance(1_000);
     if (!(await playOut(`run 3 after game.revive ${revives}`, overs))) return finish();
   }
-  if (revives > 0) {
-    // The final loss: none left, so another game.revive must change nothing.
-    const sent = host.messages.length;
-    host.revive();
-    await advance(1_000);
-    const after = host.messages.slice(sent);
-    const ran = after.some((m) => m?.method === 'game.start' || m?.method === 'game.over' || (m?.method === 'game.phase' && 'params' in m && (m.params as { phase?: unknown }).phase === 'running'));
-    if (ran) problems.push({ rule: 'revive-capped', detail: `a game.revive after the final loss ran the game again: ${after.map((m) => m?.method ?? '?').join(', ')}` });
-  }
+  // The final loss, whether or not the page offered a revive before it: none
+  // left, so another game.revive must change nothing.
+  const sent = host.messages.length;
+  host.revive();
+  await advance(1_000);
+  const after = host.messages.slice(sent);
+  const ran = after.some((m) => m?.method === 'game.start' || m?.method === 'game.over' || (m?.method === 'game.phase' && 'params' in m && (m.params as { phase?: unknown }).phase === 'running'));
+  if (ran) problems.push({ rule: 'revive-capped', detail: `a game.revive after the final loss ran the game again: ${after.map((m) => m?.method ?? '?').join(', ')}` });
   return finish();
 
   function finish(): ContractResult {
