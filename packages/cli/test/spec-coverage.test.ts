@@ -7,8 +7,11 @@
  *
  * The checks read names, not behavior. A rule is raised when its ID is a string
  * literal in `src`, and asserted when its ID is a literal in a positive
- * `assert` call in `test`. Whether the assertion can fail is for the case
- * itself, and the spec's For column is parsed and compared with nothing.
+ * `assert` call in `test`, outside a case that is skipped or marked todo. They
+ * cannot tell whether that assertion can fail: `assert.ok(true, 'R3')`, a
+ * check that is never reached and a test that no longer exercises the rule all
+ * count. That is for the case itself, and the spec's For column is parsed and
+ * compared with nothing.
  */
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -83,14 +86,52 @@ function assertMethod(callee: ts.Expression): string | undefined {
   return undefined;
 }
 
-/** `it.skip(...)`, `describe.todo(...)` and the like, whose body the runner does not run. */
-function isSkipped(callee: ts.Expression): boolean {
-  return (
-    ts.isPropertyAccessExpression(callee) &&
-    ts.isIdentifier(callee.expression) &&
-    ['it', 'test', 'describe', 'suite'].includes(callee.expression.text) &&
-    ['skip', 'todo'].includes(callee.name.text)
+const CASE_FUNCTIONS = ['it', 'test', 'describe', 'suite'];
+
+/** The `skip` or `todo` option of a case, unless it is `false`. */
+function hasSkipOption(call: ts.CallExpression): boolean {
+  return call.arguments.some(
+    (argument) =>
+      ts.isObjectLiteralExpression(argument) &&
+      argument.properties.some(
+        (property) =>
+          ts.isPropertyAssignment(property) &&
+          (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
+          ['skip', 'todo'].includes(property.name.text) &&
+          property.initializer.kind !== ts.SyntaxKind.FalseKeyword,
+      ),
   );
+}
+
+/** Whether the body of a case calls `skip` or `todo` on the context it was given, whatever the branch. */
+function skipsItself(call: ts.CallExpression): boolean {
+  const body = call.arguments.find((argument) => ts.isArrowFunction(argument) || ts.isFunctionExpression(argument));
+  const context = body?.parameters[0]?.name;
+  if (body === undefined || context === undefined || !ts.isIdentifier(context)) return false;
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      ts.isIdentifier(node.expression.expression) &&
+      node.expression.expression.text === context.text &&
+      ['skip', 'todo'].includes(node.expression.name.text)
+    ) {
+      found = true;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(body.body);
+  return found;
+}
+
+/** A case the runner does not run, or runs without a verdict: `it.skip(...)`, `{ todo: true }`, `t.skip()` inside it. */
+function isSkipped(call: ts.CallExpression): boolean {
+  const callee = call.expression;
+  if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && CASE_FUNCTIONS.includes(callee.expression.text)) {
+    return ['skip', 'todo'].includes(callee.name.text) || hasSkipOption(call) || skipsItself(call);
+  }
+  return ts.isIdentifier(callee) && CASE_FUNCTIONS.includes(callee.text) && (hasSkipOption(call) || skipsItself(call));
 }
 
 /**
@@ -98,12 +139,12 @@ function isSkipped(callee: ts.Expression): boolean {
  * type. Comments hold none. With `inAssertion`, only those inside a call of
  * `assert` or one of its methods, and not under a `!` or inside `notEqual`,
  * `doesNotMatch` and the like, because a test that a rule is absent does not
- * show that it fires, and not inside a skipped or todo case.
+ * show that it fires, and not inside a skipped or todo case, however it was skipped.
  */
 function stringLiterals(source: string, inAssertion = false): Set<string> {
   const found = new Set<string>();
   const visit = (node: ts.Node, asserting: boolean, negated: boolean): void => {
-    if (inAssertion && ts.isCallExpression(node) && isSkipped(node.expression)) return;
+    if (inAssertion && ts.isCallExpression(node) && isSkipped(node)) return;
     const method = ts.isCallExpression(node) ? assertMethod(node.expression) : undefined;
     const within = asserting || method !== undefined;
     const not =
@@ -231,6 +272,18 @@ describe('spec coverage', () => {
         "it('G3: x', () => { assert.deepEqual(rules(a), ['G3']); });",
       ].join('\n');
       assert.deepEqual([...stringLiterals(source, true)], ['G3']);
+    });
+
+    it('an assertion in a case skipped or marked todo by its options, or by a call on its own context', () => {
+      const source = [
+        "it('G1: x', { skip: true }, () => { assert.deepEqual(rules(a), ['G1']); });",
+        "it('G2: x', { todo: 'later' }, () => { assert.deepEqual(rules(a), ['G2']); });",
+        "it('G3: x', (t) => { t.skip(); assert.deepEqual(rules(a), ['G3']); });",
+        "it('G4: x', async (context) => { context.todo('later'); assert.deepEqual(rules(a), ['G4']); });",
+        "it('G5: x', { skip: false }, () => { assert.deepEqual(rules(a), ['G5']); });",
+        "it('G6: x', { timeout: 100 }, (t) => { t.diagnostic('x'); assert.deepEqual(rules(a), ['G6']); });",
+      ].join('\n');
+      assert.deepEqual([...stringLiterals(source, true)].sort(), ['G5', 'G6']);
     });
   });
 });
