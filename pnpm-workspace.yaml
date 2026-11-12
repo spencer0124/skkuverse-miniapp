@@ -48,15 +48,15 @@ catalog:
   "@vitejs/plugin-react": ^4.4.1
 
 overrides:
-  # esbuild 0.28.2's darwin-arm64 binary hangs on `--version` (its own install
-  # check) on the maintainer's Mac, so install never finishes. tsup already sits
-  # on 0.27 and vite accepts `^0.27 || ^0.28`, so hold every consumer there.
-  # Remove once a 0.28 release is confirmed to start.
-  esbuild: ~0.27.7
-  # markdownlint-cli2 0.23.3 pins markdown-it 15.0.1, which GHSA-gfr2-rv44-r23c and
-  # GHSA-r7fv-28h4-cvq7 (both high) cover, and 15.0.3 fixes them. markdownlint-cli2 0.24.0
-  # would bring re2js 2.8.6 (GHSA-gg6h-894w-4m9c, high), so it stays on 0.23. Remove this
-  # and the smol-toml line once a markdownlint-cli2 release takes both without that re2js.
-  markdown-it: 15.0.3
-  # markdownlint-cli2 0.23.3 pins smol-toml 1.8.0 (GHSA-r4xh-jqrq-34v2, moderate), fixed in 1.9.1.
-  smol-toml: 1.9.1
+  # tsup 8.5.1 asks for esbuild `^0.27.0`, which leaves it on 0.27.7 (GHSA-g7r4-m6w7-qqqr,
+  # fixed in 0.28.1). vite accepts `^0.27 || ^0.28`, so hold every consumer on 0.28.2.
+  # Remove once tsup accepts 0.28.
+  esbuild: 0.28.2
+  # micromark-extension-math, under markdownlint, asks for katex `^0.16.0`, and every 0.16
+  # release is in GHSA-238p-pmpm-9mq7's range, fixed in 0.18.2. 0.18.10 is the last 0.18 that
+  # is not deprecated (0.18.11 shipped 0.19's breaking changes). Remove once it accepts 0.18.
+  katex: 0.18.10
+  # markdownlint 0.42.0, under markdownlint-cli2 0.24.0, pins re2js 2.8.6
+  # (GHSA-gg6h-894w-4m9c, high), fixed in 2.8.7. Remove once markdownlint-cli2 takes a
+  # markdownlint that pins a fixed re2js.
+  re2js: 2.8.8
