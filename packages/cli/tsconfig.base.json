@@ -1,0 +1,7 @@
+{
+  // The templates extend "../../tsconfig.base.json", which is the repository's
+  // base once a template is scaffolded into apps/<id>. From
+  // templates/<kind>/ that path lands here, so this file points it at the base
+  // of this workspace and an editor can read a template in place.
+  "extends": "../../tsconfig.base.json"
+}

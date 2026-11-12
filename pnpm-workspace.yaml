@@ -7,6 +7,14 @@ packages:
 allowBuilds:
   esbuild: true
 
+# An install takes no release younger than 5 days (the value is in minutes), so a
+# compromised release has time to be caught and pulled. It matches the 5-day
+# cooldown in .github/dependabot.yml. Our own packages are exempt, so a release of
+# them can be installed the moment it is published.
+minimumReleaseAge: 7200
+minimumReleaseAgeExclude:
+  - "@skkuverse/*"
+
 # One version per tool across the workspace. Members reference these with
 # `"typescript": "catalog:"`, so a bump happens here rather than in every
 # package.json.
@@ -16,10 +24,39 @@ catalog:
   react-dom: ^19.1.0
   "@types/react": ^19.1.0
   "@types/react-dom": ^19.1.0
+  "@types/node": ^22.20.5
+  # The game contract depends on vitest, so this range is what `npm i -D
+  # @skkuverse/game-contract` resolves. Every Node 22 from 22.13.0 bundles npm 10.9.
+  # - vitest 4.1 names vite as both a dependency and a peer, and npm before 11.6 fails
+  #   installing it with "Cannot read properties of null (reading 'edgesOut')".
+  # - vitest 3 installs, but every vitest 3 release brings tinypool 1.x, which has two
+  #   critical advisories that only tinypool 2.1.2 fixes.
+  # - vitest 5 names vite only as a peer, and npm 10.9 installs it.
+  # The game contract's installed-package test installs with the npm of the Node it runs
+  # on, and CI runs it on Node 22.13.0 (npm 10.9.2), so a vitest that npm 10.9 cannot
+  # install fails there. That limit ends once the oldest supported Node bundles npm 11.6.
+  vitest: ^5.1.0
+  # 21.0.4 is the first release outside GHSA-c8p4-j97h-3vg8 and GHSA-834v-8h66-3h79.
+  happy-dom: ^21.0.4
+  # Not imported here. The templates under packages/cli/templates name them as
+  # `catalog:`, so a repository that scaffolds from them needs the same names.
+  # The templates are not workspaces, so knip sees no reference to these two and
+  # knip.json skips its unused-entry check for this file. The floor is 6.4.0 because
+  # the game contract's vitest 5 takes vite as a peer in `^6.4.0 || ^7 || ^8`, and a
+  # repository that scaffolds from these templates installs the game contract.
+  vite: ^6.4.0
+  "@vitejs/plugin-react": ^4.4.1
 
-# esbuild 0.28.2's darwin-arm64 binary hangs on `--version` (its own install
-# check) on the maintainer's Mac, so install never finishes. tsup already sits
-# on 0.27 and vite accepts `^0.27 || ^0.28`, so hold every consumer there.
-# Remove once a 0.28 release is confirmed to start.
 overrides:
-  esbuild: ~0.27.7
+  # tsup 8.5.1 asks for esbuild `^0.27.0`, which leaves it on 0.27.7 (GHSA-g7r4-m6w7-qqqr,
+  # fixed in 0.28.1). vite accepts `^0.27 || ^0.28`, so hold every consumer on 0.28.2.
+  # Remove once tsup accepts 0.28.
+  esbuild: 0.28.2
+  # micromark-extension-math, under markdownlint, asks for katex `^0.16.0`, and every 0.16
+  # release is in GHSA-238p-pmpm-9mq7's range, fixed in 0.18.2. 0.18.10 is the last 0.18 that
+  # is not deprecated (0.18.11 shipped 0.19's breaking changes). Remove once it accepts 0.18.
+  katex: 0.18.10
+  # markdownlint 0.42.0, under markdownlint-cli2 0.24.0, pins re2js 2.8.6
+  # (GHSA-gg6h-894w-4m9c, high), fixed in 2.8.7. Remove once markdownlint-cli2 takes a
+  # markdownlint that pins a fixed re2js.
+  re2js: 2.8.8

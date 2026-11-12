@@ -113,4 +113,21 @@ describe('hostBootstrapScript', () => {
     const script = hostDeliverScript('https://a.dev', { id: 'r1', ok: true, result: `a${LS}b` });
     expect(script).not.toContain(LS);
   });
+
+  it('keeps markup out of both scripts, so either can sit in a <script> element', () => {
+    const markup = '</script><script>alert(1)</script><!--';
+    const scripts = [
+      hostBootstrapScript({ capabilities: [markup], viewport: VIEWPORT, origin: 'https://a.dev' }),
+      hostDeliverScript('https://a.dev', { id: 'r1', ok: true, result: markup }),
+    ];
+    for (const script of scripts) expect(script).not.toMatch(/<\/script|<!--/i);
+
+    const { win, run } = environment('https://a.dev');
+    run(scripts[0]!);
+    const seen: unknown[] = [];
+    win.addEventListener(MESSAGE_EVENT, (e) => seen.push((e as CustomEvent).detail));
+    run(scripts[1]!);
+    expect((win.skkuverse as { capabilities: string[] }).capabilities).toEqual([markup]);
+    expect(seen).toEqual([{ id: 'r1', ok: true, result: markup }]);
+  });
 });

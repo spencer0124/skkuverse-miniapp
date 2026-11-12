@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": [
+    "packages/tokens/src/{colors,radius,spacing,typography}.ts",
+    "packages/cli/templates/**"
+  ],
+  "ignoreIssues": {
+    "pnpm-workspace.yaml": ["catalog"]
+  },
+  "workspaces": {
+    "packages/game-contract": {
+      "vitest": false,
+      "entry": ["vitest.config.ts", "test/**/*.test.ts", "test/global-setup.ts", "test/fixtures/*.ts"]
+    }
+  },
+  "rules": {
+    "exports": "off",
+    "types": "off",
+    "nsExports": "off",
+    "nsTypes": "off",
+    "duplicates": "off"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "@skkuverse/miniapp-cli",
+  "version": "0.0.0",
+  "description": "check, new and ship for a repository of skkuverse miniapps and games.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "miniapp-cli": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/skkuverse/skkuverse-miniapp.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "publint",
+    "test": "node --experimental-strip-types --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@skkuverse/miniapp": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

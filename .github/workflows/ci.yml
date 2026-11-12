@@ -40,10 +40,42 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
-      # WHY: publint and are-the-types-wrong, per package: what a consumer's install and type resolution will
-      # actually see, checked before npm does.
+      # WHY: publint on every package, and are-the-types-wrong on the three that ship types (miniapp, tokens, ui):
+      # what a consumer's install and type resolution will actually see, checked before npm does. The two bin-only
+      # packages (miniapp-cli, game-contract) have no types to resolve, so publint alone covers them.
       - run: pnpm lint
       - run: pnpm lint:md
+      # WHY: a file nothing imports, or a dependency nothing uses or declares, fails here instead of piling up. The
+      # export, type and duplicate rules are off: each ui component is exported by name and as the default, and the
+      # token files are hash-locked copies.
+      - run: pnpm knip
+
+  # WHY: `build` runs the Node in .nvmrc, which resolves to the newest 22. The lowest Node that any package's
+  # `engines.node` admits is 22.13.0, so this job runs the tests on exactly that release, with the npm it bundles
+  # (10.9.2): the setup of a user on the oldest supported Node. The game contract's installed-package test installs with
+  # that npm. It is a job of its own rather than a matrix on `build`, because the ruleset requires the check named
+  # `build`. Keep the version equal to that lowest Node.
+  node-floor:
+    name: test (node 22.13.0)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+
+      # WHY: the log says which Node and npm the tests ran on.
+      - run: node --version && npm --version
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
 
   # WHY: the shared workflow's node toolchain runs `npm ci`, which a pnpm workspace cannot, so the pnpm checks stay in
   # `build`. This job adds the workflow linters, dependency review and the `ci / gate` check a ruleset requires.
