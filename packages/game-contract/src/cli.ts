@@ -48,12 +48,27 @@ interface Page {
 /** Where a game keeps its player, beside its page. */
 const PLAYER_FILE = 'contract.player.ts';
 
-/** The module a built game's `index.html` loads, as a path under `dist/`. */
+/**
+ * The module a built game's `index.html` loads, as a path under `dist/`: the
+ * first `<script type="module" src>`, its attributes in any order, its `src`
+ * from the site root (`/assets/…`) or relative to the page (`./assets/…`).
+ */
 function builtEntry(dist: string): string {
-  const html = readFileSync(join(dist, 'index.html'), 'utf8');
-  const src = /<script\b[^>]*\btype=["']module["'][^>]*\bsrc=["']\/([^"']+)["']/i.exec(html)?.[1];
-  if (!src) throw new Error(`${join(dist, 'index.html')} loads no module script`);
-  return join(dist, src);
+  const page = join(dist, 'index.html');
+  for (const [, attrs = ''] of readFileSync(page, 'utf8').matchAll(/<script\b([^>]*)>/gi)) {
+    if (scriptAttribute(attrs, 'type')?.toLowerCase() !== 'module') continue;
+    const src = scriptAttribute(attrs, 'src');
+    if (src === undefined) continue;
+    if (/^(?:[a-z][a-z0-9+.-]*:|[\\/]{2})/i.test(src)) throw new Error(`${page} loads its module script from another origin: ${src}`);
+    return src.startsWith('/') ? join(dist, src) : resolve(dist, src);
+  }
+  throw new Error(`${page} loads no module script`);
+}
+
+/** An attribute's value, quoted or bare; `undefined` when the tag has none. */
+function scriptAttribute(attrs: string, name: string): string | undefined {
+  const match = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'i').exec(attrs);
+  return match ? (match[1] ?? match[2] ?? match[3] ?? '') : undefined;
 }
 
 function gamePage(id: string): Page {

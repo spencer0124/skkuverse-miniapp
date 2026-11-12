@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -97,6 +97,29 @@ describe('game-contract on a page stuck in a loop', () => {
     expect(out).toContain('✗ runner error, contract not checked: busy-loop; busy-loop, host after onNoHost');
     expect(status).toBe(2);
   }, 90_000);
+});
+
+describe('game-contract on built games', () => {
+  it('finds the module script by its attributes, in any order, with a src relative to the page', () => {
+    const root = mkdtempSync(join(scratch, 'built-'));
+    writeFileSync(join(root, 'deploy.config.json'), '{"apps":{},"games":{}}');
+    const pages = {
+      relative: '<script type="module" crossorigin src="./assets/index-a1b2c3d4.js"></script>',
+      'src-first': '<script src="/assets/index-a1b2c3d4.js" type="module"></script>',
+    };
+    for (const [id, script] of Object.entries(pages)) {
+      mkdirSync(join(root, 'games', id, 'dist', 'assets'), { recursive: true });
+      writeFileSync(join(root, 'games', id, 'dist', 'index.html'), `<!doctype html><html lang="ko"><head>${script}</head><body><canvas id="game"></canvas></body></html>`);
+      // A page that never sends game.ready: played, it breaks the contract on host-found.
+      writeFileSync(join(root, 'games', id, 'dist', 'assets', 'index-a1b2c3d4.js'), 'export {};\n');
+    }
+    const result = run(root);
+    const out = `${result.stdout}${result.stderr}`.replace(/\x1b\[[0-9;]*m/g, '');
+    expect(out).not.toContain('loads no module script');
+    expect(out).toContain('host-found: no game.ready');
+    expect(out).toContain('✗ broke the game contract: relative; relative, host after onNoHost; src-first; src-first, host after onNoHost');
+    expect(result.status).toBe(1);
+  });
 });
 
 describe('game-contract on a page that breaks the contract', () => {
