@@ -163,6 +163,10 @@ describe('checkApp for a game', () => {
       assert.deepEqual(rules(game('a', { 'dist/index.html': GOOD_HTML.replace('<canvas id="game">', '<canvas id="game" data-style="x">') })), []);
     });
 
+    it('joins no tag where it cuts a comment out', () => {
+      assert.deepEqual(rules(game('a', { 'dist/index.html': body('<sty<!-- -->le>') })), []);
+    });
+
     it('fails a link, image or sound off the game origin, and a frame, object or embed at all', () => {
       const cases = [
         head('<link rel="stylesheet" href="https://cdn.example/tossface.css">'),

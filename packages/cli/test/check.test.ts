@@ -124,6 +124,11 @@ describe('checkApp', () => {
     assert.deepEqual(rules(target('a', { 'dist/index.html': data })), []);
   });
 
+  it('H1: ends a script at an end tag with attributes, as a browser does', () => {
+    const remote = GOOD_HTML.replace('</head>', '<script src="https://cdn.example/x.js"></script foo></head>');
+    assert.deepEqual(rules(target('a', { 'dist/index.html': remote })), ['H1']);
+  });
+
   it('M1: the manifest is strict where the parser is silent', () => {
     const m = (shell: unknown, extra: Record<string, unknown> = {}) =>
       ({ 'dist/skkuverse.json': JSON.stringify({ shell, ...extra }) });
