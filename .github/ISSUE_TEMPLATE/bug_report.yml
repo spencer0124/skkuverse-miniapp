@@ -1,0 +1,63 @@
+name: Bug report
+description: A package, the CLI or the game contract does the wrong thing, throws or fails to install.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste a token, a cookie, an `.npmrc` or request headers. For a security problem, use the private report link instead of this form.
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options:
+        - "@skkuverse/miniapp"
+        - "@skkuverse/ui"
+        - "@skkuverse/tokens"
+        - "@skkuverse/miniapp-cli"
+        - "@skkuverse/game-contract"
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: The installed version, from your lockfile or `npm ls <package>`.
+      placeholder: 0.4.1
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Where it runs
+      description: The skkuverse app version and platform for a page inside the app, the browser for a page outside it, or Node and the OS for the CLI and the game contract.
+      placeholder: skkuverse app 3.7.0 (iOS 18)
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The code you call or the command you run, step by step.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: What happened instead, with the error message or the command output.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A link to a small repository, or the smallest page or game that shows the problem. Optional, but it gets the bug fixed sooner.

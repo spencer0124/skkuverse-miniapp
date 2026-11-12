@@ -1,0 +1,33 @@
+name: Feature request
+description: Something a package, the CLI or the game contract should do.
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options:
+        - "@skkuverse/miniapp"
+        - "@skkuverse/ui"
+        - "@skkuverse/tokens"
+        - "@skkuverse/miniapp-cli"
+        - "@skkuverse/game-contract"
+        - Not sure
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you are trying to build, and what stops you today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The change you have in mind, such as a new SDK function, component or check. Optional.
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to open a pull request for this. Pull requests are by invitation (see CONTRIBUTING.md).
