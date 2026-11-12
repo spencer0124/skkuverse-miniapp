@@ -92,6 +92,12 @@ describe('ship', () => {
     assert.throws(() => planDeploy(root, 'y'), /not in deploy\.config\.json/);
   });
 
+  it('plans an id that names a property every object inherits', () => {
+    const root = repo({ apps: { constructor: { project: 'miniapp-constructor' } }, games: {} });
+    assert.equal(planDeploy(root, 'constructor').kind, 'app');
+    assert.throws(() => planDeploy(root, 'toString'), /not in deploy\.config\.json/);
+  });
+
   it('stages the build with the platform files written byte for byte', () => {
     for (const kind of ['app', 'game'] as const) {
       const dist = join(mkdtempSync(join(scratch, 'dist-')), 'dist');

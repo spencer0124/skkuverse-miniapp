@@ -12,7 +12,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { parseShellFields } from '@skkuverse/miniapp/protocol';
-import { FOLDER, hostFor, type AppConfig, type DeployConfig, type Kind } from './config.ts';
+import { entryOf, FOLDER, hostFor, type AppConfig, type DeployConfig, type Kind } from './config.ts';
 
 export type RuleId =
   | 'R1' | 'R2' | 'R3' | 'R4'
@@ -212,7 +212,7 @@ export function checkIdNamespace(root: string, id: string, dir: string, config: 
   if (!inRepo && existsSync(join(root, FOLDER.game, id))) {
     out.push({ rule: 'G1', level: 'error', message: `the id is taken by ${FOLDER.game}/${id}` });
   }
-  if (config !== null && id in config.apps) {
+  if (config !== null && entryOf(config, 'app', id) !== undefined) {
     out.push({ rule: 'G1', level: 'error', message: `deploy.config.json lists ${id} under "apps"` });
   }
   return out;

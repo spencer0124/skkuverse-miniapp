@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
-import { findRoot } from '../src/config.ts';
+import { entryOf, findRoot, loadConfig } from '../src/config.ts';
 
 const scratch = mkdtempSync(join(tmpdir(), 'miniapp-cli-config-test-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -38,6 +38,36 @@ describe('findRoot', () => {
     assert.throws(
       () => findRoot(empty),
       (error: unknown) => error instanceof Error && error.message.includes(empty) && error.message.includes('--root'),
+    );
+  });
+});
+
+describe('loadConfig', () => {
+  const load = (config: unknown) => {
+    const root = mkdtempSync(join(scratch, 'config-'));
+    writeFileSync(join(root, 'deploy.config.json'), JSON.stringify(config));
+    return loadConfig(root);
+  };
+
+  it('finds only the entries the file lists, none that every object inherits', () => {
+    const config = load({ apps: { constructor: { project: 'miniapp-constructor' } } });
+    assert.equal(entryOf(config, 'app', 'constructor')?.project, 'miniapp-constructor');
+    assert.equal(entryOf(config, 'game', 'constructor'), undefined);
+    assert.equal(entryOf(config, 'app', 'toString'), undefined);
+  });
+
+  it("accepts a Pages project named for its section, the id aside", () => {
+    const config = load({ apps: { 'eskara-2026': { project: 'miniapp-eskara' } }, games: { apple: { project: 'game-apple' } } });
+    assert.equal(config.apps['eskara-2026']?.project, 'miniapp-eskara');
+  });
+
+  it("refuses a Pages project outside its section's prefix, or one two entries deploy to", () => {
+    assert.throws(() => load({ apps: { foo: { project: 'game-bar' } } }), /apps\.foo deploys to "game-bar"; a miniapp's Pages project starts with "miniapp-"/);
+    assert.throws(() => load({ apps: {}, games: { foo: { project: 'miniapp-foo' } } }), /games\.foo deploys to "miniapp-foo"; a game's Pages project starts with "game-"/);
+    assert.throws(() => load({ apps: { foo: {} } }), /apps\.foo has no "project"/);
+    assert.throws(
+      () => load({ apps: { a: { project: 'miniapp-a' }, b: { project: 'miniapp-a' } } }),
+      /apps\.b deploys to "miniapp-a", which apps\.a deploys to/,
     );
   });
 });

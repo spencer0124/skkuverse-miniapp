@@ -6,7 +6,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { checkApp, checkIdNamespace, type Finding } from './check.ts';
-import { entriesOf, FOLDER, KINDS, loadConfig, type Kind } from './config.ts';
+import { entriesOf, entryOf, FOLDER, KINDS, loadConfig, type Kind } from './config.ts';
 
 export interface PackageReport {
   id: string;
@@ -38,7 +38,7 @@ export function checkRepo(root: string, { ids, kind }: RepoCheckOptions = {}): P
 
   for (const { id, kind: k } of targets) {
     const dir = join(root, FOLDER[k], id);
-    const entry = entriesOf(config, k)[id];
+    const entry = entryOf(config, k, id);
     const findings = checkApp({ id, dir, kind: k, config: entry ?? null });
     if (k === 'game') findings.push(...checkIdNamespace(root, id, dir, config));
     if (!entry) {

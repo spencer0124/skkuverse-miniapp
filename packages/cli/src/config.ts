@@ -59,19 +59,45 @@ export function namedRoot(path: string): string {
   return dir;
 }
 
+/** The prefix of every Pages project in a section, so no entry deploys over a package of the other kind. */
+const PROJECT_PREFIX: Record<Kind, string> = { app: 'miniapp-', game: 'game-' };
+
 export function loadConfig(root: string): DeployConfig {
   const raw: unknown = JSON.parse(readFileSync(join(root, CONFIG_FILE), 'utf8'));
   if (typeof raw !== 'object' || raw === null || !('apps' in raw)) {
     throw new Error(`${CONFIG_FILE}: expected an object with "apps"`);
   }
-  const games = 'games' in raw ? raw.games : {};
-  if (typeof games !== 'object' || games === null || Array.isArray(games)) {
-    throw new Error(`${CONFIG_FILE}: "games" must be an object`);
+  const config = { ...(raw as DeployConfig) };
+  const deployedBy = new Map<string, string>();
+  for (const kind of KINDS) {
+    const section = FOLDER[kind];
+    const entries: unknown = section in raw ? (raw as Record<string, unknown>)[section] : {};
+    if (typeof entries !== 'object' || entries === null || Array.isArray(entries)) {
+      throw new Error(`${CONFIG_FILE}: "${section}" must be an object`);
+    }
+    config[section] = entries as Record<string, AppConfig>;
+    for (const [id, entry] of Object.entries(config[section])) {
+      const where = `${section}.${id}`;
+      const project: unknown = (entry as Partial<AppConfig> | null)?.project;
+      if (typeof project !== 'string') throw new Error(`${CONFIG_FILE}: ${where} has no "project"`);
+      if (!project.startsWith(PROJECT_PREFIX[kind])) {
+        throw new Error(`${CONFIG_FILE}: ${where} deploys to "${project}"; a ${kind === 'app' ? 'miniapp' : 'game'}'s Pages project starts with "${PROJECT_PREFIX[kind]}"`);
+      }
+      const other = deployedBy.get(project);
+      if (other !== undefined) throw new Error(`${CONFIG_FILE}: ${where} deploys to "${project}", which ${other} deploys to`);
+      deployedBy.set(project, where);
+    }
   }
-  return { ...(raw as DeployConfig), games: games as DeployConfig['games'] };
+  return config;
 }
 
 /** The entries of one kind. */
 export function entriesOf(config: DeployConfig, kind: Kind): Record<string, AppConfig> {
   return config[FOLDER[kind]];
+}
+
+/** The entry of one kind for `id`, never a property every object inherits, such as `constructor`. */
+export function entryOf(config: DeployConfig, kind: Kind, id: string): AppConfig | undefined {
+  const entries = entriesOf(config, kind);
+  return Object.hasOwn(entries, id) ? entries[id] : undefined;
 }

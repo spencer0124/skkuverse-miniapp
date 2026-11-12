@@ -36,6 +36,8 @@ The spec marks each rule `checked` or `review`. The CLI enforces the `checked` r
 - The root has a `tsconfig.base.json`, which the `tsconfig.json` of each template extends.
 - For `ship`, the root has `wrangler` installed, so that `node_modules/.bin/wrangler`
   exists, and wrangler can deploy to the Pages projects that `deploy.config.json` names.
+  Every command refuses a `deploy.config.json` whose `project` does not start with
+  `miniapp-` under `apps` or `game-` under `games`, or that names one project twice.
 
 The README that `new` writes runs `pnpm check`, `pnpm ship` and, in a game,
 `pnpm contract`. Define them as scripts in the root `package.json`, such as

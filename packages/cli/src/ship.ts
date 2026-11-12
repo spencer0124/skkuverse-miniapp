@@ -18,7 +18,7 @@ import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { checkApp, checkIdNamespace } from './check.ts';
-import { FOLDER, hostFor, loadConfig, type AppConfig, type Kind } from './config.ts';
+import { entryOf, FOLDER, hostFor, loadConfig, type AppConfig, type Kind } from './config.ts';
 import { platformFiles } from './platform.ts';
 import { report } from './report.ts';
 
@@ -45,8 +45,8 @@ export interface DeployPlan {
 /** Resolves the id to its kind from `deploy.config.json`; an id under both sections is refused (G1). */
 export function planDeploy(root: string, id: string): DeployPlan {
   const config = loadConfig(root);
-  const app = config.apps[id];
-  const game = config.games[id];
+  const app = entryOf(config, 'app', id);
+  const game = entryOf(config, 'game', id);
   if (app && game) throw new Error(`${id} is under both "apps" and "games" in deploy.config.json (G1)`);
   const entry = app ?? game;
   if (!entry) throw new Error(`${id} is not in deploy.config.json`);
