@@ -15,3 +15,9 @@ test('a page whose entry module awaits a timer at its top level is played', asyn
   assertContract(result);
   expect(result.host.methods().filter((m) => m === 'game.start')).toHaveLength(3);
 }, 20_000);
+
+test('a page whose entry module waits past the load cap is not played', async () => {
+  await expect(runContract({ html, load: () => import('./fixtures/slow-top-level-await') })).rejects.toThrow(
+    /did not finish loading within 60000 ms of page time/,
+  );
+}, 20_000);
