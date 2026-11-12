@@ -11,8 +11,10 @@ name: Owner gate
 #
 # The approval record is the run-name below. GitHub writes it from the event payload when it creates the run, no API
 # edits it, and pull_request_target always runs the definition on the default branch, so no pull request, triage
-# user or other workflow can produce a pull_request_target run of this file with a forged name. A label added with a
-# workflow token starts no run, so it never approves. A comment by github-actions[bot] was rejected as the record:
+# user or other workflow can produce a pull_request_target run of this file with a forged name. Since 2025-12-08
+# that holds for a pull request to any base branch, dev included:
+# https://github.blog/changelog/2025-11-07-actions-pull_request_target-and-environment-branch-protections-changes/
+# A label added with a workflow token starts no run, so it never approves. A comment by github-actions[bot] was rejected as the record:
 # any workflow a writer pushes to a branch, and the @claude job, post as that bot.
 #
 # LIMIT: the approved head is the one in the `labeled` payload, which is the head GitHub had when it applied the

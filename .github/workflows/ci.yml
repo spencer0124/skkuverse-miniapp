@@ -50,6 +50,9 @@ jobs:
       # export, type and duplicate rules are off: each ui component is exported by name and as the default, and the
       # token files are hash-locked copies.
       - run: pnpm knip
+      # WHY: the owner gate's decision script runs only on pull requests to main, from main, so its cases run here,
+      # against a fake gh, before a change to it can reach main.
+      - run: bash .github/owner-gate/test.sh
 
   # WHY: `build` runs the Node in .nvmrc, which resolves to the newest 22. The lowest Node that any package's
   # `engines.node` admits is 22.13.0, so this job runs the tests on exactly that release, with the npm it bundles
