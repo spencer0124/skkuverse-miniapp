@@ -1,6 +1,6 @@
 {
   "name": "@skkuverse/ui",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "SKKU Design System (SDS) for the web: providers and components ported from the skkuverse app.",
   "license": "Apache-2.0",
   "type": "module",

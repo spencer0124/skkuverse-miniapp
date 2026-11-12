@@ -1,6 +1,6 @@
 {
   "name": "@skkuverse/game-contract",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Plays a built skkuverse game page against the SDK fake host and holds it to the game protocol contract.",
   "license": "Apache-2.0",
   "type": "module",

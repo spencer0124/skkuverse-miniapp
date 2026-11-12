@@ -1,5 +1,15 @@
 # @skkuverse/miniapp
 
+## 0.4.2
+
+### Patch Changes
+
+- 0a41995: `hostBootstrapScript` and `hostDeliverScript` escape `<`, `>` and `/` in the values they embed, so neither script can be closed early when it sits in an HTML `<script>` element. What the scripts do is unchanged.
+- f4eb98c: Point the repository metadata at skkuverse/skkuverse-miniapp.
+- Updated dependencies [f4eb98c]
+  - @skkuverse/tokens@0.1.1
+  - @skkuverse/ui@0.1.2
+
 ## 0.4.1
 
 ### Patch Changes
