@@ -99,6 +99,16 @@ describe('game-contract on a page stuck in a loop', () => {
   }, 90_000);
 });
 
+describe('game-contract sessions', () => {
+  it('set CONTRACT_HOST and CONTRACT_PLAYER themselves, whatever the caller exported', () => {
+    const { status, out } = play('double-over', { CONTRACT_HOST: 'late', CONTRACT_PLAYER: join(scratch, 'no-such-player.ts') });
+    expect(out).toMatch(/> double-over keeps the game contract\n/);
+    expect(out).toContain('✗ broke the game contract: double-over; double-over, host after onNoHost');
+    expect(out).not.toContain('runner error');
+    expect(status).toBe(1);
+  });
+});
+
 describe('game-contract on built games', () => {
   it('finds the module script by its attributes, in any order, with a src relative to the page', () => {
     const root = mkdtempSync(join(scratch, 'built-'));

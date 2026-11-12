@@ -112,6 +112,9 @@ function sessionTimeoutMs(): number {
   return ms;
 }
 
+/** The caller's environment without the session's own keys, which `play` sets per page and session. */
+const { CONTRACT_ENTRY: _entry, CONTRACT_HTML: _html, CONTRACT_NAME: _name, CONTRACT_PLAYER: _player, CONTRACT_HOST: _host, ...inheritedEnv } = process.env;
+
 function play(page: Page, session: (typeof SESSIONS)[number], timeout: number): Outcome {
   const name = `${page.name}${session.label}`;
   console.log(`\n▶ ${name}`);
@@ -124,7 +127,7 @@ function play(page: Page, session: (typeof SESSIONS)[number], timeout: number): 
       timeout,
       killSignal: 'SIGKILL',
       env: {
-        ...process.env,
+        ...inheritedEnv,
         CONTRACT_ENTRY: page.entry,
         CONTRACT_HTML: page.html,
         CONTRACT_NAME: page.name,
