@@ -117,6 +117,8 @@ const STEP_MS = 500;
 export const LATE_HOST_MS = HOST_WAIT_MS + 5_000;
 /** How long the page may take to send `game.ready` once the host is there: one slow poll, and a second. */
 const HOST_FOUND_MS = HOST_SLOW_POLL_MS + 1_000;
+/** How long the runner watches for a run after the final game.revive, which the page must refuse. */
+const FINAL_REVIVE_WATCH_MS = 5_000;
 /** More revives than any game offers a run: a page still offering one after these never stops. */
 const MAX_REVIVES_PLAYED = 8;
 /** The clock and timers the page sees, faked before the page boots. */
@@ -249,7 +251,7 @@ export async function runContract(page: ContractPage, options: ContractOptions =
   // left, so another game.revive must change nothing.
   const sent = host.messages.length;
   host.revive();
-  await advance(1_000);
+  await advance(FINAL_REVIVE_WATCH_MS);
   const after = host.messages.slice(sent);
   const ran = after.some((m) => m?.method === 'game.start' || m?.method === 'game.over' || (m?.method === 'game.phase' && 'params' in m && (m.params as { phase?: unknown }).phase === 'running'));
   if (ran) problems.push({ rule: 'revive-capped', detail: `a game.revive after the final loss ran the game again: ${after.map((m) => m?.method ?? '?').join(', ')}` });
@@ -277,8 +279,8 @@ async function load(page: ContractPage): Promise<void> {
   while (!settled) {
     await new Promise((resolve) => runnerSetTimeout(resolve, 1));
     if (settled || vi.getTimerCount() === 0) continue;
-    if (Date.now() - start >= LOAD_CAP_MS) throw new Error(`the entry module did not finish loading within ${LOAD_CAP_MS} ms of page time`);
     await vi.advanceTimersToNextTimerAsync();
+    if (Date.now() - start > LOAD_CAP_MS) throw new Error(`the entry module did not finish loading within ${LOAD_CAP_MS} ms of page time`);
   }
   await loading;
 }

@@ -9,9 +9,11 @@ export interface TimedRunOptions {
   runMs: number;
   /** Takes every game.revive, though each game.over says none is left. */
   reviveUnoffered?: boolean;
+  /** How long after such a game.revive the run goes on. */
+  reviveDelayMs?: number;
 }
 
-export function bootTimedRun({ runMs, reviveUnoffered = false }: TimedRunOptions): void {
+export function bootTimedRun({ runMs, reviveUnoffered = false, reviveDelayMs = 0 }: TimedRunOptions): void {
   let phase: GamePhase = 'ready';
   let end: ReturnType<typeof setTimeout> | undefined;
 
@@ -27,8 +29,10 @@ export function bootTimedRun({ runMs, reviveUnoffered = false }: TimedRunOptions
       ? {
           onRevive: () => {
             if (phase !== 'crashed') return;
-            setPhase('running');
-            end = setTimeout(over, runMs);
+            setTimeout(() => {
+              setPhase('running');
+              end = setTimeout(over, runMs);
+            }, reviveDelayMs);
           },
         }
       : {}),

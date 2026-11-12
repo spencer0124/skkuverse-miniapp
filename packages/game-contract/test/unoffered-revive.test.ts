@@ -14,3 +14,9 @@ test('a page that offers no revive but takes game.revive breaks revive-capped', 
   expect(result.violations).toEqual([]);
   expect(result.problems.map((p) => p.rule)).toEqual(['revive-capped']);
 });
+
+test('a page that runs again a while after the final game.revive breaks revive-capped', async () => {
+  const result = await runContract({ html, load: () => import('./fixtures/late-unoffered-revive') });
+  expect(result.violations).toEqual([]);
+  expect(result.problems.map((p) => p.rule)).toEqual(['revive-capped']);
+});
