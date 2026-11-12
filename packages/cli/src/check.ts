@@ -220,21 +220,27 @@ export function checkIdNamespace(root: string, id: string, dir: string, config: 
 
 type Add = (rule: RuleId, message: string, level?: Finding['level']) => void;
 
+/**
+ * R2, R3 over every `<MiniappRoot>` tag outside a comment, so a tag the page
+ * does not render cannot stand in for the one it does.
+ */
 function checkRoot(source: string, id: string, add: Add): void {
   // Props must be literals for this to read them, which is also what makes
   // them reviewable. A `>` inside an expression prop would end the match early.
-  const tag = /<MiniappRoot\b([^>]*)>/.exec(source);
-  if (!tag) {
+  const tags = [...stripComments(source).matchAll(/<MiniappRoot\b([^>]*)>/g)];
+  if (tags.length === 0) {
     add('R2', 'src/main.tsx does not render <MiniappRoot>');
     return;
   }
-  const props = tag[1] ?? '';
-  const rootId = /\bid=["']([^"']*)["']/.exec(props)?.[1];
-  if (rootId === undefined) add('R2', '<MiniappRoot> needs a string literal id');
-  else if (rootId !== id) add('R2', `<MiniappRoot id="${rootId}"> does not match the id "${id}"`);
-  const browser = /\bbrowser=["']([^"']*)["']/.exec(props)?.[1];
-  if (browser === undefined) add('R3', '<MiniappRoot> needs an explicit browser="block" or browser="allow"');
-  else if (browser !== 'block' && browser !== 'allow') add('R3', `browser="${browser}" is neither "block" nor "allow"`);
+  for (const tag of tags) {
+    const props = tag[1] ?? '';
+    const rootId = /\bid=["']([^"']*)["']/.exec(props)?.[1];
+    if (rootId === undefined) add('R2', '<MiniappRoot> needs a string literal id');
+    else if (rootId !== id) add('R2', `<MiniappRoot id="${rootId}"> does not match the id "${id}"`);
+    const browser = /\bbrowser=["']([^"']*)["']/.exec(props)?.[1];
+    if (browser === undefined) add('R3', '<MiniappRoot> needs an explicit browser="block" or browser="allow"');
+    else if (browser !== 'block' && browser !== 'allow') add('R3', `browser="${browser}" is neither "block" nor "allow"`);
+  }
 }
 
 /**

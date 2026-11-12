@@ -73,6 +73,17 @@ describe('checkApp', () => {
     assert.deepEqual(rules(target('a', { 'src/main.tsx': '<MiniappRoot id="a" dev={true}>' })), ['R3']);
   });
 
+  it('R2, R3: a root in a comment is not the root the page renders', () => {
+    const decoy = '// <MiniappRoot id="a" browser="block">\n/* <MiniappRoot id="a" browser="allow"> */\n';
+    assert.deepEqual(rules(target('a', { 'src/main.tsx': `${decoy}<MiniappRoot id="b">` })), ['R2', 'R3']);
+    assert.deepEqual(rules(target('a', { 'src/main.tsx': decoy })), ['R2']);
+  });
+
+  it('R2, R3: every <MiniappRoot> tag is held to them, not only the first', () => {
+    const page = `const sample = '<MiniappRoot id="a" browser="block">';\n<MiniappRoot id="b" browser="block">`;
+    assert.deepEqual(rules(target('a', { 'src/main.tsx': page })), ['R2']);
+  });
+
   it('R4: a host exception warns, and needs a reason', () => {
     assert.deepEqual(rules(target('a', {}, { project: 'p', host: 'x.example', hostReason: 'legacy' }), 'warn'), ['R4']);
     assert.deepEqual(rules(target('a', {}, { project: 'p', host: 'x.example' })), ['R4']);
