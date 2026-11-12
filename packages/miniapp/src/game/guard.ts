@@ -6,7 +6,7 @@
  *
  * This does not judge a run, and it cannot stop a modified app. It closes the
  * cheap ways in, from inside the page. A game adds its own on top (a typing
- * game's field, say), and the server checks every ranked result.
+ * game's field, say), and every ranked result is verified outside the page.
  *
  * `window.skkuverse` needs no pin here: the host's bootstrap defines it
  * non-writable and non-configurable before the page's script runs.
