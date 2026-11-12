@@ -1,5 +1,13 @@
 # @skkuverse/ui
 
+## 0.1.2
+
+### Patch Changes
+
+- f4eb98c: Point the repository metadata at skkuverse/skkuverse-miniapp.
+- Updated dependencies [f4eb98c]
+  - @skkuverse/tokens@0.1.1
+
 ## 0.1.1
 
 ### Patch Changes
