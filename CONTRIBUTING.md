@@ -19,7 +19,7 @@ A maintainer may ask Claude about a pull request with `@claude` in a comment.
 - `dev` is the working branch. Every change reaches `dev`, by pull request or by a maintainer's commit.
 - `main` is the release branch. It takes only the `dev` → `main` pull request.
 - An invited pull request targets `dev`.
-- A maintainer versions and publishes the packages from a local checkout ([docs/how-to/release-packages.md](docs/how-to/release-packages.md)). A pull request never bumps a version or edits a `CHANGELOG.md`.
+- A maintainer versions and publishes the packages from a local checkout ([docs/how-to/release-packages.md](docs/how-to/release-packages.md)). An invited pull request never bumps a version or edits a `CHANGELOG.md`: that is the maintainer's version commit on `dev`.
 
 ## Before you open an invited pull request
 
@@ -31,6 +31,8 @@ pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm lint:md && pnpm k
 ```
 
 `pnpm test` in the game contract installs its packed tarball with pnpm and npm, so it needs the npm registry.
+
+CI also runs `pnpm test` on Node 22.13.0, the lowest version any package's `engines.node` admits. If your change touches what runs on Node, such as the CLI or the game contract, run `pnpm test` on that version too.
 
 - Follow [CLAUDE.md](CLAUDE.md), and read [docs/explanation/architecture.md](docs/explanation/architecture.md) for how the packages meet the app and the server.
 - Add a changeset for a user-visible change to a published package: run `pnpm changeset`, pick the packages and the bump, and commit the generated `.changeset/*.md` with the change. A change to the app protocol is at least a `minor` of `@skkuverse/miniapp`, and follows [docs/how-to/add-a-bridge-method.md](docs/how-to/add-a-bridge-method.md).
