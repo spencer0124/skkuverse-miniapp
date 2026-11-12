@@ -81,14 +81,13 @@ export interface GameOver {
   /** How many more times the page would accept `game.revive` for this run. */
   revivesLeft: number;
   /**
-   * The validator a ranked page was built for, `<gameId>@<n>`. The server
-   * accepts only the versions it knows, so a result without one, or with a
-   * malformed one, cannot be placed on a board.
+   * The validator a ranked page was built for, `<gameId>@<n>`. Ranked results
+   * are verified outside the page.
    */
   validator?: string;
   /** Figures the result card shows beside the score. Display only, never submitted. */
   stats?: GameStats;
-  /** How the run was played, logged as evidence for judging a score. Never shown or submitted. */
+  /** How the run was played. Never shown or submitted. */
   telemetry?: GameStats;
 }
 
