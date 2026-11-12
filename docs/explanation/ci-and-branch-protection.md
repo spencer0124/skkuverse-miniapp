@@ -20,10 +20,10 @@ Work lands on `dev`, by a maintainer's push or an invited pull request. `main` i
 ## Structure
 
 ```text
- push to dev ──────────────┐
+ push to dev or main ──────┐
  pull request to dev ──────┼──▶ ci.yml: build, test (node 22.13.0), ci / *
  pull request to main ─────┘         + CodeQL, GitGuardian, CodeRabbit
-          │                          + owner-gate.yml (to main only)
+          │                          + owner-gate.yml (pull requests to main)
           ▼
  main ruleset: required checks, merge commit only, threads resolved
           │
@@ -35,13 +35,13 @@ Work lands on `dev`, by a maintainer's push or an invited pull request. `main` i
 
 | Workflow | Runs on | Token | Secret | Does |
 | --- | --- | --- | --- | --- |
-| [`ci.yml`](../../.github/workflows/ci.yml) | Pull requests to `dev` or `main`, and pushes to `dev` | `contents: read` | None | Jobs `build`, `test (node 22.13.0)` and `ci`, below |
+| [`ci.yml`](../../.github/workflows/ci.yml) | Pull requests to `dev` or `main`, and pushes to `dev` or `main` | `contents: read` | None | Jobs `build`, `test (node 22.13.0)` and `ci`, below |
 | [`claude.yml`](../../.github/workflows/claude.yml) | An issue or pull request comment that mentions `@claude` from an owner, member or collaborator | `contents: read`, `pull-requests: write`, `issues: write`, `actions: read` | `CLAUDE_CODE_OAUTH_TOKEN`, in the `claude` environment | Answers in the thread, read-only |
-| [`owner-gate.yml`](../../.github/workflows/owner-gate.yml) | Pull requests to `main` (`pull_request_target`) | `pull-requests: write` | None | Fails when a listed file changed without the `owner-approved` label |
+| [`owner-gate.yml`](../../.github/workflows/owner-gate.yml) | Pull requests to `main` (`pull_request_target`) | `contents`, `pull-requests`, `issues` and `actions`, all `read` | None | Job `gate`, which fails when a listed file changed without an owner's approval of the current head |
 
 `ci.yml` has these jobs:
 
-- `build` installs with `pnpm install --frozen-lockfile`, then runs `pnpm build`, `pnpm typecheck`, `pnpm test`, `pnpm lint` (publint, and are-the-types-wrong on the three packages that ship types), `pnpm lint:md` and `pnpm knip`.
+- `build` installs with `pnpm install --frozen-lockfile`, then runs `pnpm build`, `pnpm typecheck`, `pnpm test`, `pnpm lint` (publint, and are-the-types-wrong on the three packages that ship types), `pnpm lint:md` and `pnpm knip`. Last, it runs `bash .github/owner-gate/test.sh`, which plays the owner gate's decision script through recorded pull request histories against a fake `gh`.
 - `test (node 22.13.0)` runs `pnpm test` on Node 22.13.0 and the npm it bundles. That is the lowest Node any package's `engines.node` admits, so the game contract's installed-package test runs with the oldest npm a user can have.
 - `ci` calls the organization's shared workflow, [`checks.yml`](https://github.com/skkuverse/.github/blob/285b8226d57b25c620521056c52cc0d7c685a917/.github/workflows/checks.yml), pinned to a commit. Its node toolchain runs `npm ci`, which a pnpm workspace cannot, so this repository passes `toolchain: none` and `check-cmd: "true"`. `ci / check` therefore checks out the code and runs nothing else. `ci / workflows` runs actionlint and zizmor over `.github/`, after checking each downloaded archive against a pinned sha256. zizmor runs online, so it also checks that each pinned commit belongs to its action and matches its version comment. `ci / dependency-review` fails a pull request that adds a dependency with a known vulnerability of high severity or worse. `ci / gate` passes only when each of the other three succeeded or was skipped.
 
@@ -64,7 +64,20 @@ Work lands on `dev`, by a maintainer's push or an invited pull request. `main` i
 
 ### The owner gate
 
-A pull request to `main` that changes a file listed in [`.github/owner-gate-paths`](../../.github/owner-gate-paths), such as a workflow, `scripts/publish.mjs` or `pnpm-workspace.yaml`, needs the maintainer's `owner-approved` label. [`owner-gate.yml`](../../.github/workflows/owner-gate.yml) checks it. It runs on `pull_request_target`, so the definition comes from `main` and the pull request cannot change the check that judges it. It checks out nothing and runs no code from the pull request. It reads the changed files, the labels and the list through the API. A pushed commit that changes a listed file removes the label, and the maintainer adds it again after reading that commit.
+A pull request to `main` that changes a file listed in [`.github/owner-gate-paths`](../../.github/owner-gate-paths), such as a workflow, `scripts/publish.mjs` or `pnpm-workspace.yaml`, needs the approval of a login listed in [`.github/owner-gate-owners`](../../.github/owner-gate-owners). An owner approves by adding the `owner-approved` label, and the approval covers the head the pull request had at that moment.
+
+[`owner-gate.yml`](../../.github/workflows/owner-gate.yml) runs its `gate` job when a pull request is opened, edited, reopened, labeled or unlabeled, and on each push to it. The job runs [`gate.sh`](../../.github/owner-gate/gate.sh), which judges the head its check attaches to from the pull request's current state:
+
+- If the pull request changes no listed file, the check passes.
+- Otherwise the latest `owner-approved` label event must be an add by a listed login.
+- The run that GitHub started for that label event must record the head the label was added at. The record is the run's name, which GitHub writes from the event payload. No API edits a run name.
+- The compare from that approved head to the current head must be a fast-forward that changes no listed file.
+
+So a push that changes a listed file after the approval fails every later run, and so does a force-push that drops the approved head. Nothing removes the label. To approve a new head, the owner removes the label and adds it again.
+
+The workflow runs on `pull_request_target`, so GitHub runs the definition from `main`, and the pull request cannot change the check that judges it. A change to the gate takes effect only after it merges into `main`. The job checks out `main`, runs only `main`'s copy of the script and holds a read-only token. A pull request's changed copy of the script never runs there, so CI's `build` job runs the script's cases, and a change to the script is tested before it reaches `main`.
+
+The gate has three known limits. The approved head is the head GitHub had when it applied the label, so a push that lands just before the click is approved with it. A merge of `main` into the pull request that brings in a listed file fails the check until the owner approves again. A compare that lists 300 files or more fails the check, because GitHub lists no more.
 
 ## Supply chain
 
@@ -93,7 +106,9 @@ Publishing stays with a person for two reasons. npm trusted publishing rejects t
 
 **The secret sits behind four locks.** An issue comment runs in this repository's context even on a fork's pull request. So `claude.yml` checks the commenter's association on the job, keeps the token in an environment that admits only `main`, gives Claude the job's own read-only token and no `id-token` permission, and blocks every tool that writes or pushes. A prompt injection in a pull request can make Claude say something, but it cannot make Claude push.
 
-**`pull_request_target` is used once, and with no checkout.** The trigger runs with the base repository's token, so a workflow that checks out and runs a pull request's code under it hands that code the token. The owner gate needs the token only to read the pull request and remove a label, and it never runs the pull request's code. zizmor flags the trigger, and the workflow records why it is suppressed.
+**CI runs on pushes too.** Work lands on `dev` directly, so a push to `dev` runs CI, or that work would first meet CI on the release pull request. A push to `main` runs CI once more on the merged tree, so `main` carries its own result, and the README's badge shows that result.
+
+**`pull_request_target` is used once, and it runs no pull request code.** The trigger runs the base repository's definition with the base repository's token, so a workflow that checks out and runs a pull request's code under it hands that code the token. The owner gate checks out only `main`, and its token can only read. The gate needs the trigger because no pull request can start a run of it with a forged name, so the run name can hold the approval. A comment by `github-actions[bot]` was rejected as the record, because any workflow a writer pushes to a branch, and the `@claude` job, post as that bot. zizmor flags the trigger, and the workflow records why it is suppressed.
 
 **The contract hashes stay local for now.** Checking them in CI needs the umbrella repository's manifest, which is private, or a generated public slice of it. CI cloned the umbrella with a deploy key until 2026-11-10, and that job was removed with the key. Until a public slice exists, a drifted vendored file is caught only when a maintainer runs the check.
 

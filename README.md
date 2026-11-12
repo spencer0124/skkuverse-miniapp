@@ -1,6 +1,6 @@
 # skkuverse-miniapp
 
-[![CI](https://github.com/skkuverse/skkuverse-miniapp/actions/workflows/ci.yml/badge.svg?branch=dev&event=push)](https://github.com/skkuverse/skkuverse-miniapp/actions/workflows/ci.yml?query=branch%3Adev)
+[![CI](https://github.com/skkuverse/skkuverse-miniapp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/skkuverse/skkuverse-miniapp/actions/workflows/ci.yml?query=branch%3Amain)
 [![@skkuverse/miniapp on npm](https://img.shields.io/npm/v/@skkuverse/miniapp?label=%40skkuverse%2Fminiapp)](https://www.npmjs.com/package/@skkuverse/miniapp)
 [![@skkuverse/miniapp-cli on npm](https://img.shields.io/npm/v/@skkuverse/miniapp-cli?label=%40skkuverse%2Fminiapp-cli)](https://www.npmjs.com/package/@skkuverse/miniapp-cli)
 [![License](https://img.shields.io/npm/l/@skkuverse/miniapp)](LICENSE)
@@ -85,7 +85,7 @@ pnpm exec game-contract            # every game under games/
 pnpm exec game-contract <id>       # one game
 ```
 
-It plays each page twice: once with the host there from the start, and once with a host that appears only after the page gave up looking. It exits 1 and names each rule a page broke. The first-party games' CI plays every game through it. The rules and the exit codes are in the [game-contract README](packages/game-contract/README.md).
+It plays each page twice: once with the host there from the start, and once with a host that appears only after the page gave up looking. It exits 1 and names each rule a page broke, so a games repository can run it in CI to keep every game to the contract. The rules and the exit codes are in the [game-contract README](packages/game-contract/README.md).
 
 ## Known gaps
 
