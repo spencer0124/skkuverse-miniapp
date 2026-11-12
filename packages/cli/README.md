@@ -5,7 +5,7 @@ Checks a skkuverse miniapp or game against the
 scaffolds new ones, and deploys them to Cloudflare Pages. It needs Node 22.13 or later.
 
 ```sh
-pnpm add -D @skkuverse/miniapp-cli
+pnpm add -Dw @skkuverse/miniapp-cli
 pnpm exec miniapp-cli check
 ```
 
