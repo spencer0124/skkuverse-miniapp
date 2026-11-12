@@ -24,6 +24,7 @@ export function checkRepo(root: string, { ids, kind }: RepoCheckOptions = {}): P
   const config = loadConfig(root);
   const kinds = kind === undefined ? KINDS : [kind];
   const out: PackageReport[] = [];
+  const selected = (id: string) => ids === undefined || ids.includes(id);
 
   const targets: { id: string; kind: Kind }[] = [];
   if (ids === undefined) {
@@ -48,7 +49,7 @@ export function checkRepo(root: string, { ids, kind }: RepoCheckOptions = {}): P
   }
 
   for (const k of kinds) {
-    for (const id of Object.keys(entriesOf(config, k))) {
+    for (const id of Object.keys(entriesOf(config, k)).filter(selected)) {
       if (!existsSync(join(root, FOLDER[k], id))) {
         out.push({ id, findings: [{ rule: 'R4', level: 'error', message: `deploy.config.json lists it but ${FOLDER[k]}/${id} does not exist` }] });
       }

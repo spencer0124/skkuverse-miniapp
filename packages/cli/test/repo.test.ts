@@ -116,6 +116,14 @@ describe('checkRepo', () => {
     });
   });
 
+  it('R4: a named id is not failed by another entry with no folder', () => {
+    const root = repo({ apps: { ghost: { project: 'miniapp-ghost' } }, games: { apple: { project: 'game-apple' } } });
+    scaffold(root, 'apple', 'game');
+    installAndBuild(join(root, 'games', 'apple'));
+    assert.deepEqual(checkRepo(root, { ids: ['apple'] }), [{ id: 'apple', findings: [] }]);
+    assert.deepEqual(checkRepo(root).map((r) => r.id), ['apple', 'ghost']);
+  });
+
   it('reads a deploy config without "games" as no games', () => {
     const root = repo({ apps: {} });
     assert.deepEqual(loadConfig(root).games, {});
