@@ -3,7 +3,7 @@ title: CI and Branch Protection
 type: explanation
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-12
+last-updated: 2026-11-13
 audience: public
 ---
 
@@ -22,7 +22,7 @@ Work lands on `dev`, by a maintainer's push or an invited pull request. `main` i
 ```text
  push to dev or main ──────┐
  pull request to dev ──────┼──▶ ci.yml: build, test (node 22.13.0), ci / *
- pull request to main ─────┘         + CodeQL, GitGuardian, CodeRabbit
+ pull request to main ─────┘         + CodeQL
           │                          + owner-gate.yml (pull requests to main)
           ▼
  main ruleset: required checks, merge commit only, threads resolved
@@ -43,7 +43,7 @@ Work lands on `dev`, by a maintainer's push or an invited pull request. `main` i
 
 - `build` installs with `pnpm install --frozen-lockfile`, then runs `pnpm build`, `pnpm typecheck`, `pnpm test`, `pnpm lint` (publint, and are-the-types-wrong on the three packages that ship types), `pnpm lint:md` and `pnpm knip`. Last, it runs `bash .github/owner-gate/test.sh`, which plays the owner gate's decision script through recorded pull request histories against a fake `gh`.
 - `test (node 22.13.0)` runs `pnpm test` on Node 22.13.0 and the npm it bundles. That is the lowest Node any package's `engines.node` admits, so the game contract's installed-package test runs with the oldest npm a user can have.
-- `ci` calls the organization's shared workflow, [`checks.yml`](https://github.com/skkuverse/.github/blob/285b8226d57b25c620521056c52cc0d7c685a917/.github/workflows/checks.yml), pinned to a commit. Its node toolchain runs `npm ci`, which a pnpm workspace cannot, so this repository passes `toolchain: none` and `check-cmd: "true"`. `ci / check` therefore checks out the code and runs nothing else. `ci / workflows` runs actionlint and zizmor over `.github/`, after checking each downloaded archive against a pinned sha256. zizmor runs online, so it also checks that each pinned commit belongs to its action and matches its version comment. `ci / dependency-review` fails a pull request that adds a dependency with a known vulnerability of high severity or worse. `ci / gate` passes only when each of the other three succeeded or was skipped.
+- `ci` calls [`checks.yml`](../../.github/workflows/checks.yml), a copy of skkuverse/.github's `checks.yml` at v1.0.1, with the files it reads from that repository in [`.github/checks/`](../../.github/checks). Its node toolchain runs `npm ci`, which a pnpm workspace cannot, so this repository passes `toolchain: none` and `check-cmd: "exit 0"`. `ci / check` therefore checks out the code and runs nothing else. `ci / workflows` runs actionlint and zizmor over `.github/`, after checking each downloaded archive against a pinned sha256. zizmor runs online, so it also checks that each pinned commit belongs to its action and matches its version comment. `ci / dependency-review` fails a pull request that adds a dependency with a known vulnerability of high severity or worse. `ci / gate` passes only when each of the other three succeeded or was skipped.
 
 ### Rulesets
 
@@ -51,7 +51,7 @@ Work lands on `dev`, by a maintainer's push or an invited pull request. `main` i
 | --- | --- | --- |
 | `creation-window` | Every branch except `dependabot/**` | Nobody can create a branch in this repository. Dependabot can. A contributor works from a fork |
 | `dev` | `dev` | No deletion, no force push |
-| `main` | `main` | No deletion, no force push. A pull request is required, merged with a merge commit only, with every review thread resolved. Required checks are `build`, `ci / gate`, `GitGuardian Security Checks` and `CodeRabbit`, and the branch must be up to date with `main`. CodeQL results gate the merge: an error alert, or a security alert of high severity or worse |
+| `main` | `main` | No deletion, no force push. A pull request is required, merged with a merge commit only, with every review thread resolved. Required checks are `build` and `ci / gate`, and the branch must be up to date with `main`. CodeQL results gate the merge: an error alert, or a security alert of high severity or worse |
 | `owner-updates` | `dev` and `main` | Blocks every update to either branch. The repository admin role bypasses it, so only an admin pushes to `dev` or merges into `main` |
 
 ### Repository settings
@@ -109,6 +109,8 @@ Publishing stays with a person for two reasons. npm trusted publishing rejects t
 **CI runs on pushes too.** Work lands on `dev` directly, so a push to `dev` runs CI, or that work would first meet CI on the release pull request. A push to `main` runs CI once more on the merged tree, so `main` carries its own result, and the README's badge shows that result.
 
 **`pull_request_target` is used once, and it runs no pull request code.** The trigger runs the base repository's definition with the base repository's token, so a workflow that checks out and runs a pull request's code under it hands that code the token. The owner gate checks out only `main`, and its token can only read. The gate needs the trigger because no pull request can start a run of it with a forged name, so the run name can hold the approval. A comment by `github-actions[bot]` was rejected as the record, because any workflow a writer pushes to a branch, and the `@claude` job, post as that bot. zizmor flags the trigger, and the workflow records why it is suppressed.
+
+**The checks workflow is a copy, not a call.** The organization's repositories are not reachable from here, and a workflow in this repository cannot call a workflow in a repository it cannot reach. So `checks.yml` and the two files it reads live here, at the v1.0.1 content. `ci.yml` calls it by path, so the required check is still named `ci / gate`. Updating the copy is a manual edit. GitGuardian and CodeRabbit are not required checks for now, and code scanning still gates the merge.
 
 **The contract hashes stay local for now.** Checking them in CI needs the umbrella repository's manifest, which is private, or a generated public slice of it. CI cloned the umbrella with a deploy key until 2026-11-10, and that job was removed with the key. Until a public slice exists, a drifted vendored file is caught only when a maintainer runs the check.
 

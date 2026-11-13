@@ -1,6 +1,6 @@
 # skkuverse-miniapp
 
-[![CI](https://github.com/skkuverse/skkuverse-miniapp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/skkuverse/skkuverse-miniapp/actions/workflows/ci.yml?query=branch%3Amain)
+[![CI](https://github.com/spencer0124/skkuverse-miniapp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/spencer0124/skkuverse-miniapp/actions/workflows/ci.yml?query=branch%3Amain)
 [![@skkuverse/miniapp on npm](https://img.shields.io/npm/v/@skkuverse/miniapp?label=%40skkuverse%2Fminiapp)](https://www.npmjs.com/package/@skkuverse/miniapp)
 [![@skkuverse/miniapp-cli on npm](https://img.shields.io/npm/v/@skkuverse/miniapp-cli?label=%40skkuverse%2Fminiapp-cli)](https://www.npmjs.com/package/@skkuverse/miniapp-cli)
 [![License](https://img.shields.io/npm/l/@skkuverse/miniapp)](LICENSE)
