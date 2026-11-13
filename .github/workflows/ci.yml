@@ -81,11 +81,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
-  # WHY: the shared workflow's node toolchain runs `npm ci`, which a pnpm workspace cannot, so the pnpm checks stay in
+  # WHY: the checks workflow's node toolchain runs `npm ci`, which a pnpm workspace cannot, so the pnpm checks stay in
   # `build`. This job adds the workflow linters, dependency review and the `ci / gate` check a ruleset requires.
   ci:
-    uses: skkuverse/.github/.github/workflows/checks.yml@285b8226d57b25c620521056c52cc0d7c685a917 # v1.0.1
+    uses: ./.github/workflows/checks.yml # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the $/ form
     with:
       toolchain: none
-      check-cmd: "true"
+      check-cmd: "exit 0"
       public: true
