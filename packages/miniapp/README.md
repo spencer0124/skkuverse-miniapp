@@ -42,4 +42,4 @@ stage.addEventListener('pointerdown', () => game.start()); // refused until game
 
 Declare the shell the app draws around the page in `public/skkuverse.json`.
 
-See the [protocol reference](https://github.com/skkuverse/skkuverse-miniapp/blob/main/docs/reference/protocol.md).
+See the [protocol reference](https://github.com/spencer0124/skkuverse-miniapp/blob/main/docs/reference/protocol.md).

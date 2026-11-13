@@ -1,0 +1,64 @@
+name: Owner gate
+
+# WHY: a pull request to main that changes a file in .github/owner-gate-paths needs the approval of a login in
+# .github/owner-gate-owners. The owner gives it by adding the `owner-approved` label, and it covers the head the pull
+# request had at that moment. Every run judges the head its check attaches to from current state, in
+# .github/owner-gate/gate.sh: the latest label event must be an `owner-approved` add by a listed login, the run
+# GitHub started for that event names the head it was added at, and the compare from that head to this one must be a
+# fast-forward that changes no listed file. So a later push that changes a listed file fails every run after it,
+# whichever run saw the push, and a force-push that drops the approved head fails too. Nothing removes the label: the
+# decision never depended on a run removing it, and the owner removes and adds it again to approve a new head.
+#
+# The approval record is the run-name below. GitHub writes it from the event payload when it creates the run, no API
+# edits it, and pull_request_target always runs the definition on the default branch, so no pull request, triage
+# user or other workflow can produce a pull_request_target run of this file with a forged name. Since 2025-12-08
+# that holds for a pull request to any base branch, dev included:
+# https://github.blog/changelog/2025-11-07-actions-pull_request_target-and-environment-branch-protections-changes/
+# A label added with a workflow token starts no run, so it never approves. A comment by github-actions[bot] was rejected as the record:
+# any workflow a writer pushes to a branch, and the @claude job, post as that bot.
+#
+# LIMIT: the approved head is the one in the `labeled` payload, which is the head GitHub had when it applied the
+# label, not the head on the owner's screen. A push that lands before the click is approved with it; a push after the
+# click is caught. The labeled run's summary names the approved head, to compare with the commit the owner reviewed.
+# LIMIT: a merge of main into the pull request after the approval that brings a listed file fails until the owner
+# approves again, and a compare listing 300 files or more fails, because GitHub lists no more.
+#
+# pull_request_target runs this definition from main, so the pull request cannot change the check that judges it.
+# The job checks out main, runs only main's script, and holds a read-only token.
+run-name: owner-gate pr=${{ github.event.pull_request.number }} ${{ github.event.action }} approval=${{ github.event.label.name == 'owner-approved' }} head=${{ github.event.pull_request.head.sha }} by=${{ github.event.sender.login }}
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] checks out main only, runs no pull request code, read-only token
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+permissions: {}
+
+# WHY: the decision is a function of current state, so dropping a pending run loses nothing. One run at a time per
+# pull request keeps an older run from finishing after a newer one.
+concurrency:
+  group: owner-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout of main, and the compares
+      pull-requests: read # the pull request's label events
+      issues: read # the same events, through the issues API
+      actions: read # this workflow's runs, whose names record the approvals
+    steps:
+      # WHY: with no ref, pull_request_target checks out the default branch, never the pull request.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the owner list
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash .github/owner-gate/gate.sh

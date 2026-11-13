@@ -50,6 +50,9 @@ jobs:
       # export, type and duplicate rules are off: each ui component is exported by name and as the default, and the
       # token files are hash-locked copies.
       - run: pnpm knip
+      # WHY: the owner gate's decision script runs only on pull requests to main, from main, so its cases run here,
+      # against a fake gh, before a change to it can reach main.
+      - run: bash .github/owner-gate/test.sh
 
   # WHY: `build` runs the Node in .nvmrc, which resolves to the newest 22. The lowest Node that any package's
   # `engines.node` admits is 22.13.0, so this job runs the tests on exactly that release, with the npm it bundles
@@ -78,11 +81,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
-  # WHY: the shared workflow's node toolchain runs `npm ci`, which a pnpm workspace cannot, so the pnpm checks stay in
+  # WHY: the checks workflow's node toolchain runs `npm ci`, which a pnpm workspace cannot, so the pnpm checks stay in
   # `build`. This job adds the workflow linters, dependency review and the `ci / gate` check a ruleset requires.
   ci:
-    uses: skkuverse/.github/.github/workflows/checks.yml@285b8226d57b25c620521056c52cc0d7c685a917 # v1.0.1
+    uses: ./.github/workflows/checks.yml # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the $/ form
     with:
       toolchain: none
-      check-cmd: "true"
+      check-cmd: "exit 0"
       public: true
