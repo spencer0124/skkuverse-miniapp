@@ -1,7 +1,7 @@
 # @skkuverse/miniapp-cli
 
 Checks a skkuverse miniapp or game against the
-[miniapp spec](https://github.com/skkuverse/skkuverse-miniapp/blob/main/docs/reference/miniapp-spec.md),
+[miniapp spec](https://github.com/spencer0124/skkuverse-miniapp/blob/main/docs/reference/miniapp-spec.md),
 scaffolds new ones, and deploys them to Cloudflare Pages. It needs Node 22.13 or later.
 
 ```sh
@@ -30,8 +30,8 @@ The spec marks each rule `checked` or `review`. The CLI enforces the `checked` r
 - `pnpm-workspace.yaml` lists `apps/*` and `games/*` as packages. `pnpm install` then links
   a new package, and `ship` builds it with `pnpm --filter ./apps/<id>` or `./games/<id>`.
 - The same file has a `catalog` entry for every dependency that the
-  [miniapp template](https://github.com/skkuverse/skkuverse-miniapp/blob/main/packages/cli/templates/miniapp/package.json)
-  and the [game template](https://github.com/skkuverse/skkuverse-miniapp/blob/main/packages/cli/templates/game/package.json)
+  [miniapp template](https://github.com/spencer0124/skkuverse-miniapp/blob/main/packages/cli/templates/miniapp/package.json)
+  and the [game template](https://github.com/spencer0124/skkuverse-miniapp/blob/main/packages/cli/templates/game/package.json)
   take as `catalog:`.
 - The root has a `tsconfig.base.json`, which the `tsconfig.json` of each template extends.
 - For `ship`, the root has `wrangler` installed, so that `node_modules/.bin/wrangler`

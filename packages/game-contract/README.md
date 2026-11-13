@@ -42,7 +42,7 @@ runner error wins over a broken contract, because the page with no verdict may b
 
 A game whose runs end only when someone plays them ships a `contract.player.ts` beside its
 page. The file plays the runs, and its type is `ContractPlayer` in
-[`src/harness.ts`](https://github.com/skkuverse/skkuverse-miniapp/blob/main/packages/game-contract/src/harness.ts).
+[`src/harness.ts`](https://github.com/spencer0124/skkuverse-miniapp/blob/main/packages/game-contract/src/harness.ts).
 
 The package depends on vitest and happy-dom, so it installs far more than
 `@skkuverse/miniapp-cli` does. That is why the two are separate packages.
