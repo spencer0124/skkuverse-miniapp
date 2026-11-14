@@ -1,0 +1,23 @@
+{
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "exclude": [
+        "refs/heads/dependabot/**/*"
+      ],
+      "include": [
+        "~ALL"
+      ]
+    }
+  },
+  "enforcement": "active",
+  "name": "creation-window",
+  "rules": [
+    {
+      "type": "creation"
+    }
+  ],
+  "source": "spencer0124/skkuverse-miniapp",
+  "source_type": "Repository",
+  "target": "branch"
+}

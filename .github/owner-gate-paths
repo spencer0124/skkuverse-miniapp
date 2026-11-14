@@ -3,6 +3,7 @@
 .github/owner-gate-paths
 .github/owner-gate-owners
 .github/owner-gate/*
+.github/rulesets/*
 .github/workflows/*
 .github/CODEOWNERS
 .github/dependabot.yml

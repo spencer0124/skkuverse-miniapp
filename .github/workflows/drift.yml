@@ -1,0 +1,32 @@
+name: Drift
+
+# WHY: a repository setting changes without a commit, so a daily run compares it with the files that record it. A pull
+# request that changes those files runs the same compare against the live settings.
+on:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/rulesets/**
+      - .github/workflows/drift.yml
+
+permissions: {}
+
+jobs:
+  rulesets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # WHY: the workflow token cannot read bypass_actors, so this compare leaves them out on both sides. The owner
+      # compares them with --keep-bypass (docs/explanation/ci-and-branch-protection.md).
+      - name: Compare the live rulesets with .github/rulesets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: bash .github/rulesets/compare.sh "$REPO"
