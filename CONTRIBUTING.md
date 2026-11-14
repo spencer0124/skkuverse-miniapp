@@ -16,18 +16,16 @@ A maintainer may ask Claude about a pull request with `@claude` in a comment.
 
 ## How changes flow
 
-- `dev` is the working branch. Every change reaches `dev`, by pull request or by a maintainer's commit.
-- `main` is the release branch. It takes only the `dev` → `main` pull request.
-- An invited pull request targets `dev`.
-- A maintainer versions and publishes the packages from a local checkout ([docs/how-to/release-packages.md](docs/how-to/release-packages.md)). An invited pull request never bumps a version or edits a `CHANGELOG.md`: that is the maintainer's version commit on `dev`.
+- `main` is the only long-lived branch. Every change reaches it through a pull request, from a branch such as `feat/<topic>` or from a fork.
+- An invited pull request targets `main`.
+- A maintainer versions and publishes the packages from a local checkout ([docs/how-to/release-packages.md](docs/how-to/release-packages.md)). An invited pull request never bumps a version or edits a `CHANGELOG.md`: that is the maintainer's Version Packages pull request.
 
 ## Before you open an invited pull request
 
-Run the same checks as CI (`.github/workflows/ci.yml`), on the Node version in `.nvmrc` with the pnpm version in `package.json`:
+Run the same checks as CI's `build` job, on the Node version in `.nvmrc` with the pnpm version in `package.json`:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm lint:md && pnpm knip
+pnpm check:ci
 ```
 
 `pnpm test` in the game contract installs its packed tarball with pnpm and npm, so it needs the npm registry.

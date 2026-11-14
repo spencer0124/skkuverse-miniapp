@@ -3,7 +3,7 @@ title: Distribute The Miniapp SDK And SDS As Public npm Packages
 type: adr
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-10
+last-updated: 2026-11-14
 audience: public
 ---
 
@@ -98,6 +98,10 @@ Until npm fixes it, `release.yml` only opens the Version Packages PR. A maintain
 ## Amendment 2026-11-10: versioning is local too
 
 `release.yml` is removed. `main` requires status checks, and a PR that a workflow opens with its own `GITHUB_TOKEN` starts no workflows, so the Version Packages PR could never merge. A branch ruleset also keeps workflows from creating `changeset-release/main`. A maintainer now runs `pnpm changeset version` on `dev`, commits it, merges `dev → main` through a PR and publishes from `main` with `scripts/publish.mjs`. Restoring CI publishing, once npm fixes the claim, means a new workflow that does not open PRs. See [release-packages](../how-to/release-packages.md).
+
+## Amendment 2026-11-14: versioning on a branch off `main`
+
+`dev` is retired. Every change now reaches `main` through its own pull request, so the version commit has no `dev` to land on. A maintainer runs `pnpm changeset version` on a `chore/version-packages` branch cut from `main` and opens it as the Version Packages pull request, which the owner merges. Publishing is unchanged: a maintainer runs `scripts/publish.mjs` from `main`. See [release-packages](../how-to/release-packages.md).
 
 ## Related
 

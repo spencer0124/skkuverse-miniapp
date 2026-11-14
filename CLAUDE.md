@@ -34,6 +34,7 @@ pnpm test           # vitest in miniapp and game-contract, node --test in cli; g
 pnpm lint           # publint per package, and are-the-types-wrong for the libraries
 pnpm lint:md        # markdownlint
 pnpm knip           # files nothing imports, dependencies nothing uses, imports of packages no manifest lists
+pnpm check:ci       # scripts/check-ci.sh: every step of CI's build job, in order; --skip <step> leaves one out
 python3 ../skkuverse/exported/lint_conventions.py --root .
 python3 ../skkuverse/exported/sync_contracts.py check --repo miniapp --root .
 ```
@@ -43,6 +44,6 @@ python3 ../skkuverse/exported/sync_contracts.py check --repo miniapp --root .
 - **The protocol is shared with the app.** Adding a method means an entry in `protocol/messages.ts`, a wrapper in `sdk/`, and a handler in skkuverse-app. See `docs/how-to/add-a-bridge-method.md`. Anything that grants value must be verified by a server, never trusted from a message.
 - **Every SDK function is safe outside the app.** Each one is a no-op or a browser fallback, never a throw. The hooks are the exception: they throw outside `MiniappRoot`, on purpose.
 - **Entry boundaries are tested.** `./protocol`, `./game`, `./testing` and `.` import no package, and `./react` never reaches `@skkuverse/ui`. `test/entry-boundaries.test.ts` walks each entry's import graph, so a stray import fails CI.
-- **Releases go through Changesets, locally.** Every user-visible change carries a `.changeset/*.md`. No workflow versions or publishes. A maintainer runs `pnpm changeset version` on `dev`, commits it, and merges `dev → main` through a PR. Publishing is a human running `node scripts/publish.mjs` from `main`, because npm trusted publishing rejects this repository's OIDC tokens (npm/cli#9969). An agent cannot publish: npm needs an interactive two-factor login. See `docs/how-to/release-packages.md`.
+- **Releases go through Changesets, locally.** Every user-visible change carries a `.changeset/*.md`. No workflow versions or publishes. The Version Packages PR is `pnpm changeset version` on `chore/version-packages` cut from `origin/main`, and the owner merges it. Publishing is a human running `node scripts/publish.mjs` from `main`, because npm trusted publishing rejects this repository's OIDC tokens (npm/cli#9969). An agent cannot publish: npm needs an interactive two-factor login. See `docs/how-to/release-packages.md`.
 - **Ship order across repositories.** An SDK change ships before the app handles it. The app's OTA with a new shell ships before miniapps that depend on it are merged to production, or the installed app shows them the browser gate.
-- **Branches.** Work on `dev`; `main` is merge-only, through a PR. Never put a Claude session link or `Claude-Session:` trailer in commits or PRs.
+- **Branches.** Work on `feat/<topic>` cut from `origin/main` and open a PR into `main`, which is merge-only. There is no `dev`. Never put a Claude session link or `Claude-Session:` trailer in commits or PRs.
