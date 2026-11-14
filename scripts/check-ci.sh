@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-# Every check of CI's `build` job, in its order: `pnpm check:ci`, which .github/workflows/ci.yml runs as that job, and
-# which a local push hook can run on the commit being pushed.
-#
-# Usage: check-ci.sh [--skip <step>]...  A skipped step is named in the output; a step name this script does not
-# have, or any other argument, fails before the first step runs.
-# WHY: the local push gate passes `--skip test`, because the full suite outlasts a push on a shared machine; CI runs
-# it on every pull request. CI never passes --skip.
+# Usage: check-ci.sh [--skip <step>]...
+# WHY: the local push gate passes `--skip test`, because the full suite outlasts a push. CI runs it on every pull
+# request.
 set -euo pipefail
 export CI=true TZ=UTC LANG=C.UTF-8
 
@@ -44,12 +40,8 @@ step install pnpm install --frozen-lockfile
 step build pnpm build
 step typecheck pnpm typecheck
 step test pnpm test
-# WHY: publint on every package, and are-the-types-wrong on the three that ship types (miniapp, tokens, ui): what a
-# consumer's install and type resolution will see, checked before npm does. The two bin-only packages (miniapp-cli,
-# game-contract) have no types to resolve, so publint alone covers them.
 step lint pnpm lint
 step lint-md pnpm lint:md
-# WHY: a file nothing imports, or a dependency nothing uses or declares, fails here instead of piling up.
 step knip pnpm knip
 # WHY: the owner gate's decision script runs only from main, on pull requests to main, so its cases run here, against
 # a fake gh, before a change to it can reach main.

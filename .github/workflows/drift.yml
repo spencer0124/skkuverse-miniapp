@@ -1,7 +1,7 @@
 name: Drift
 
-# WHY: a repository setting changes without a commit, so a daily run compares it with the files that record it. A pull
-# request that changes those files runs the same compare against the live settings.
+# WHY: no workflow event fires when a ruleset changes (branch_protection_rule covers classic branch protection only),
+# so a daily run compares the live rulesets with .github/rulesets.
 on:
   schedule:
     - cron: "23 4 * * *"
@@ -23,8 +23,6 @@ jobs:
         with:
           persist-credentials: false
 
-      # WHY: the workflow token cannot read bypass_actors, so this compare leaves them out on both sides. The owner
-      # compares them with --keep-bypass (docs/explanation/ci-and-branch-protection.md).
       - name: Compare the live rulesets with .github/rulesets
         env:
           GH_TOKEN: ${{ github.token }}

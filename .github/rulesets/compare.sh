@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
-# The live rulesets of a repository against the files beside this script, one <name>.json per ruleset: what
-# `gh api repos/<repo>/rulesets/<id>` returns, less the fields that change on every edit or with the reader.
-# .github/workflows/drift.yml runs it daily, on dispatch, and on a pull request that changes this folder.
-#
 # Usage: compare.sh <owner>/<repo> [--keep-bypass | --write]
-#   (no flag)      compare without bypass_actors, the mode the workflow runs
+#   (no flag)      compare without bypass_actors
 #   --keep-bypass  compare bypass_actors too
 #   --write        write each live ruleset into <name>.json, bypass_actors included
-# WHY: a token without administration read, such as a workflow's, gets no bypass_actors, so the workflow's compare
-# drops them on both sides. --keep-bypass and --write need a repository admin's token.
-# retired/ holds the rulesets deleted on 2026-11-14, as exported before deletion. Nothing reads it.
+# WHY: GitHub returns bypass_actors only to a token with write access to the ruleset, which a workflow token lacks,
+# so the default compare drops them on both sides. --keep-bypass and --write need a repository admin's token.
 set -euo pipefail
 
 usage() {
