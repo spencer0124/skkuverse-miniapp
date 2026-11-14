@@ -21,14 +21,14 @@ drop='del(.id, .node_id, .created_at, .updated_at, ._links, .current_user_can_by
 [ -z "$mode" ] && drop="$drop | del(.bypass_actors)"
 
 live=$(gh api "repos/$repo/rulesets?includes_parents=false" --paginate --jq '.[].id' | while read -r id; do
-  gh api "repos/$repo/rulesets/$id"
+  gh api "repos/$repo/rulesets/$id" || exit 1
 done | jq -S -s "map($drop)")
 
 if [ "$mode" = --write ]; then
-  for name in $(jq -r '.[].name' <<<"$live"); do
+  while IFS= read -r name; do
     jq -S --arg name "$name" '.[] | select(.name == $name)' <<<"$live" >"$dir/$name.json"
     echo "compare.sh: wrote $name.json"
-  done
+  done < <(jq -r '.[].name' <<<"$live")
   exit 0
 fi
 

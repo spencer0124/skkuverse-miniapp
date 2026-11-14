@@ -38,11 +38,11 @@ feat/<topic> + changeset ──PR──▶ main
    - `patch` is for fixes.
    - `minor` is for anything new, and for breaking changes while the packages are 0.x.
    - A protocol change is at least a `minor` of `@skkuverse/miniapp`.
-2. **Version on a branch.** When the pending changesets should ship, cut `chore/version-packages` from the current `main` and version there:
+2. **Version on a branch.** When the pending changesets should ship, cut `chore/version-packages` from the current `main` and version there. `-C` resets a local `chore/version-packages` that the last release left behind:
 
    ```sh
    git fetch origin
-   git switch -c chore/version-packages origin/main
+   git switch -C chore/version-packages origin/main
    pnpm changeset version
    ```
 
