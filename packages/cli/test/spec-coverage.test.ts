@@ -103,13 +103,18 @@ function hasSkipOption(call: ts.CallExpression): boolean {
   );
 }
 
-/** Whether the body of a case calls `skip` or `todo` on the context it was given, whatever the branch. */
+/**
+ * Whether the body of a case calls `skip` or `todo` on the context it was
+ * given, whatever the branch. A nested function whose parameter takes the same
+ * name, such as a subtest's own `t`, binds another context and is not searched.
+ */
 function skipsItself(call: ts.CallExpression): boolean {
   const body = call.arguments.find((argument) => ts.isArrowFunction(argument) || ts.isFunctionExpression(argument));
   const context = body?.parameters[0]?.name;
   if (body === undefined || context === undefined || !ts.isIdentifier(context)) return false;
   let found = false;
   const visit = (node: ts.Node): void => {
+    if (ts.isFunctionLike(node) && node.parameters.some((parameter) => ts.isIdentifier(parameter.name) && parameter.name.text === context.text)) return;
     if (
       ts.isCallExpression(node) &&
       ts.isPropertyAccessExpression(node.expression) &&
@@ -125,13 +130,18 @@ function skipsItself(call: ts.CallExpression): boolean {
   return found;
 }
 
-/** A case the runner does not run, or runs without a verdict: `it.skip(...)`, `{ todo: true }`, `t.skip()` inside it. */
+/**
+ * A case the runner does not run, or runs without a verdict: `it.skip(...)`,
+ * `{ todo: true }`, `t.skip()` inside it. A subtest, `t.test(...)`, is a case
+ * too, skipped by its options or by a call on its own context.
+ */
 function isSkipped(call: ts.CallExpression): boolean {
   const callee = call.expression;
   if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && CASE_FUNCTIONS.includes(callee.expression.text)) {
     return ['skip', 'todo'].includes(callee.name.text) || hasSkipOption(call) || skipsItself(call);
   }
-  return ts.isIdentifier(callee) && CASE_FUNCTIONS.includes(callee.text) && (hasSkipOption(call) || skipsItself(call));
+  const isCase = ts.isIdentifier(callee) ? CASE_FUNCTIONS.includes(callee.text) : ts.isPropertyAccessExpression(callee) && callee.name.text === 'test';
+  return isCase && (hasSkipOption(call) || skipsItself(call));
 }
 
 /**
@@ -284,6 +294,21 @@ describe('spec coverage', () => {
         "it('G6: x', { timeout: 100 }, (t) => { t.diagnostic('x'); assert.deepEqual(rules(a), ['G6']); });",
       ].join('\n');
       assert.deepEqual([...stringLiterals(source, true)].sort(), ['G5', 'G6']);
+    });
+
+    it('an assertion beside a subtest that skips its own context under the same name', () => {
+      const source = "it('G1: x', async (t) => { await t.test('child', (t) => { t.skip(); }); assert.deepEqual(rules(a), ['G1']); });";
+      assert.deepEqual([...stringLiterals(source, true)], ['G1']);
+    });
+
+    it('an assertion in a subtest skipped or marked todo by its options, or by a call on its own context', () => {
+      const source = [
+        "it('G1: x', async (t) => { await t.test('child', { skip: true }, () => { assert.deepEqual(rules(a), ['G2']); }); assert.deepEqual(rules(a), ['G1']); });",
+        "it('G3: x', async (t) => { await t.test('child', { todo: true }, () => { assert.deepEqual(rules(a), ['G3']); }); });",
+        "it('G4: x', async (t) => { await t.test('child', (t) => { t.skip(); assert.deepEqual(rules(a), ['G4']); }); });",
+        "it('G5: x', async (t) => { await t.test('child', () => { assert.deepEqual(rules(a), ['G5']); }); });",
+      ].join('\n');
+      assert.deepEqual([...stringLiterals(source, true)].sort(), ['G1', 'G5']);
     });
   });
 });
