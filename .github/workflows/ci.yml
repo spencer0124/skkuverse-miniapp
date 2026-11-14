@@ -1,5 +1,7 @@
 name: CI
 
+# Throwaway change for the V3 lane 2 probe. Do not merge.
+
 # WHY: a push to dev runs too, because work lands on dev directly and would otherwise meet CI only on the release.
 # A push to main runs once more on the merged tree, so the main branch carries its own result and badge.
 # The repository is public: the token is read-only and no job passes a secret, so a fork's pull request runs the
