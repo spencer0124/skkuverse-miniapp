@@ -76,3 +76,5 @@ feat/<topic> + changeset ──PR──▶ main
 
 - [0001-sdk-distribution](../decisions/0001-sdk-distribution.md) — why npm, and why versioning and publishing are local
 - [add-a-bridge-method](add-a-bridge-method.md) — the release order for a protocol change
+
+Throwaway line for the V3 stack probe, lower layer. Do not merge.
