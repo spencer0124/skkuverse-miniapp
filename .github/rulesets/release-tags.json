@@ -1,0 +1,24 @@
+{
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": [
+        "refs/tags/@skkuverse/**"
+      ]
+    }
+  },
+  "enforcement": "active",
+  "name": "release-tags",
+  "rules": [
+    {
+      "type": "update"
+    },
+    {
+      "type": "deletion"
+    }
+  ],
+  "source": "spencer0124/skkuverse-miniapp",
+  "source_type": "Repository",
+  "target": "tag"
+}

@@ -3,10 +3,12 @@
 .github/owner-gate-paths
 .github/owner-gate-owners
 .github/owner-gate/*
+.github/rulesets/*
 .github/workflows/*
 .github/CODEOWNERS
 .github/dependabot.yml
 scripts/publish.mjs
+scripts/check-ci.sh
 .changeset/config.json
 pnpm-workspace.yaml
 .npmrc

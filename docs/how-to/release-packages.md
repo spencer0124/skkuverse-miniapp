@@ -3,7 +3,7 @@ title: Release The Packages
 type: how-to
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-10
+last-updated: 2026-11-14
 audience: internal
 ---
 
@@ -13,18 +13,18 @@ audience: internal
 
 ## Overview
 
-Versions are managed by [Changesets](https://github.com/changesets/changesets), entirely from a local checkout. A maintainer versions the packages on `dev`, merges to `main` through the usual PR, and publishes from `main`. No workflow versions or publishes: a PR that a workflow opens with its own token starts no checks, so it could never meet `main`'s required checks. Publishing stays local because npm trusted publishing rejects this repository's OIDC tokens ([npm/cli#9969](https://github.com/npm/cli/issues/9969)), and without it npm needs a person at a web two-factor login.
+Versions are managed by [Changesets](https://github.com/changesets/changesets), entirely from a local checkout. A maintainer versions the packages on a branch cut from `main`, merges it through a PR, and publishes from `main`. No workflow versions or publishes: a PR that a workflow opens with its own token starts no checks, so it could never meet `main`'s required checks. Publishing stays local because npm trusted publishing rejects this repository's OIDC tokens ([npm/cli#9969](https://github.com/npm/cli/issues/9969)), and without it npm needs a person at a web two-factor login.
 
 ```text
-change + changeset ──▶ dev
-                        │ local: pnpm changeset version, commit
-                        ▼
-                       dev ──PR──▶ main
-                                    │
-                                    ▼
-                local: node scripts/publish.mjs ──▶ npm
-                                    │
-                      miniapps bump their dependency
+feat/<topic> + changeset ──PR──▶ main
+                                   │
+      local: chore/version-packages from main, pnpm changeset version
+                                   │
+         chore/version-packages ──PR──▶ main
+                                         │
+                     local: node scripts/publish.mjs ──▶ npm
+                                         │
+                           miniapps bump their dependency
 ```
 
 ## Prerequisites
@@ -38,14 +38,16 @@ change + changeset ──▶ dev
    - `patch` is for fixes.
    - `minor` is for anything new, and for breaking changes while the packages are 0.x.
    - A protocol change is at least a `minor` of `@skkuverse/miniapp`.
-2. **Version on `dev`.** When the pending changesets should ship, run this on an up-to-date `dev`:
+2. **Version on a branch.** When the pending changesets should ship, cut `chore/version-packages` from the current `main` and version there. `-C` resets a local `chore/version-packages` that the last release left behind:
 
    ```sh
+   git fetch origin
+   git switch -C chore/version-packages origin/main
    pnpm changeset version
    ```
 
    It bumps each package's version, writes its `CHANGELOG.md` and deletes the consumed changesets. Review the diff, which should be only versions, changelogs and the deleted changesets, and commit it as `chore: version packages`.
-3. **Merge to `main`.** Open a PR from `dev`. CI runs build, typecheck, tests, publint, are-the-types-wrong and markdownlint, and lints the workflows. Merge when green.
+3. **Merge the Version Packages PR.** Push the branch and open a PR into `main`. CI runs every check in `scripts/check-ci.sh` and lints the workflows. The owner merges it when green.
 4. **Publish.** From a clean checkout of `main` that matches `origin/main`:
 
    ```sh
@@ -67,7 +69,7 @@ change + changeset ──▶ dev
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | `ERR_PNPM_OTP_NON_INTERACTIVE` | Publishing from a non-interactive shell | Run it in your own terminal |
-| `publish.mjs` skips every package | The versions on `main` are already on npm: step 2 was skipped, or its commit has not reached `main` | Version on `dev` and merge it first |
+| `publish.mjs` skips every package | The versions on `main` are already on npm: step 2 was skipped, or its PR has not merged | Version on `chore/version-packages` and merge it first |
 | `pnpm install` in a miniapp gets `404` right after a publish | npm's install metadata (`application/vnd.npm.install-v1+json`) lags the full document by a few minutes | Wait and retry |
 
 ## Related
