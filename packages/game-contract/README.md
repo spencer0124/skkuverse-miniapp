@@ -8,7 +8,7 @@ vitest, which runs the pages, does not.
 Run it from the repository root, the folder that holds `deploy.config.json`, after the games are built:
 
 ```sh
-pnpm add -D @skkuverse/game-contract
+pnpm add -Dw @skkuverse/game-contract
 pnpm exec game-contract                 # every game under games/
 pnpm exec game-contract <id>...         # the games named
 pnpm exec game-contract --entry <module> --html <index.html> [--player <module>] [--name <name>]

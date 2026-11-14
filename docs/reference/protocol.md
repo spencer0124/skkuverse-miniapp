@@ -3,7 +3,7 @@ title: Miniapp Bridge Protocol
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-10-22
+last-updated: 2026-11-12
 audience: public
 ---
 
@@ -13,7 +13,7 @@ audience: public
 
 ## Overview
 
-A miniapp is a web page the app opens in a `react-native-webview`. The two sides agree on three things, all defined in `packages/miniapp/src/protocol/`. That module has no DOM, no React and no dependencies, so the app and skkuverse-server import it from npm and nobody keeps a copy.
+A miniapp is a web page the app opens in a `react-native-webview`. The two sides agree on three things, all defined in `packages/miniapp/src/protocol/`. That module has no DOM, no React and no dependencies, so the app imports it from npm. skkuverse-server is CommonJS and the package is ESM-only, so the server keeps a hand-copied manifest parser instead.
 
 | Part | File | What it defines |
 | --- | --- | --- |
@@ -109,7 +109,7 @@ A miniapp declares the shell the app draws around it in `public/skkuverse.json`,
 | `statusBar` | `dark`, `light` | `dark` | Status bar icon colour |
 | `background` | `#RRGGBB` | `#FFFFFF` | Painted behind the page while it loads and on overscroll |
 
-skkuverse-server fetches the manifest of every first-party miniapp and merges it into `GET /miniapps/:id`. The app therefore knows the shell before it creates the WebView, and the first frame is already right. The merge order is default, then the registry entry, then the manifest. The registry still owns identity: the start URL, the name and the verified badge. A manifest can only change presentation. A change takes up to about ten minutes to reach users, through the server's cache and then the response cache.
+skkuverse-server fetches the manifest of every first-party miniapp and merges it into `GET /miniapps/:id`. The app therefore knows the shell before it creates the WebView, and the first frame is already right. The merge order is default, then the registry entry, then the manifest. The registry still owns identity: the start URL, the name and the verified badge. A manifest can only change presentation. A manifest change can take up to about ten minutes to reach users.
 
 `shell.set` changes `header`, `statusBar` and `background` during a session, for example to go full-bleed for a game or switch to light icons over a dark scene. `bar` changes the layout, so only the manifest sets it.
 
@@ -156,7 +156,7 @@ Paint the background edge to edge and keep content inside `--sv-inset-*`. The CS
 
 A game is a page on its own origin, `https://<id>.game.skkuverse.com`, that the app hosts in its game screen rather than the mini-app shell. It shares this envelope, the host object and the viewport, and nothing that grants trust: the app grants a game origin `GAME_NOTIFY_METHODS` and nothing else, and grants a miniapp origin none of them. The app hosts games over this channel only, never the previous one (`window.__host` with `game:*` and `host:*` messages), and drops a message from it.
 
-The page owns gameplay. The host owns everything a run is worth: the best score, revives, sign-in and the leaderboard. So the page reports what happened and the host tells it what to do next. A ranked score is validated by the server, never trusted from `game.over`.
+The page owns gameplay. The host owns everything a run is worth: the best score, revives, sign-in and the leaderboard. So the page reports what happened and the host tells it what to do next. A ranked result is verified outside the page, never trusted from `game.over`.
 
 ### Game methods
 
@@ -171,7 +171,7 @@ All are notifications from the page.
 | `game.haptic` | `{ style }`: one of `GameHapticStyle`'s seven | `haptic()` |
 | `game.over` | `{ score, ticks, hit, revives, revivesLeft, validator?, stats?, telemetry? }` | `over()` |
 
-A rectangle is `{ x, y, width, height }` in CSS pixels, relative to the web view. `game.over` is rebuilt from its declared fields only, since its score is what gets submitted: `score`, `ticks`, `revives` and `revivesLeft` are safe non-negative integers, and `hit` is the game's own word for what ended the run, or `null`. `validator` is the version a ranked page was built for, `<gameId>@<n>`; the server accepts only versions it knows. `stats` are figures the result shows and `telemetry` is evidence for judging a score; neither is submitted. A malformed `rect` on `game.ready`, or a malformed `validator`, `stats` or `telemetry`, is dropped alone and the message kept. The limits are in `messages.ts`, and a test pins the largest `game.over` inside the message limit.
+A rectangle is `{ x, y, width, height }` in CSS pixels, relative to the web view. `game.over` is rebuilt from its declared fields only, since its score is what gets submitted: `score`, `ticks`, `revives` and `revivesLeft` are safe non-negative integers, and `hit` is the game's own word for what ended the run, or `null`. `validator` is the version a ranked page was built for, `<gameId>@<n>`. `stats` are figures the result shows and `telemetry` describes how the run was played; neither is submitted. A malformed `rect` on `game.ready`, or a malformed `validator`, `stats` or `telemetry`, is dropped alone and the message kept. The limits are in `messages.ts`, and a test pins the largest `game.over` inside the message limit.
 
 `game.haptic` is a game's one haptic channel. A miniapp's `haptic.impact` keeps its three styles.
 
@@ -246,7 +246,7 @@ A canvas sized in script takes the same numbers from `onViewport`, once the host
 
 - `createFakeHost()` stands in for the game host. It runs the real `hostBootstrapScript`, records what the page posts, answers `game.ready` with `game.init`, and sends events (`pause()`, `revive()` and the rest). It needs a `window`, from a browser, jsdom or a test's own stub. It runs the bootstrap with `new Function`, so it cannot run under the production game headers.
 - `checkGameContract(host.log)` and `assertGameContract(host.log)` hold a page to the contract and name each rule it broke: `every-message-parses`, `first-message-ready` (`game.ready` comes first), `no-start-before-init`, `start-before-over`, and `one-over-per-run` (one `game.over` per run, and one more after each `game.revive`).
-- `BOUND_FIXTURES` are the pinned bound points of the ranked games, which the games' bound tests and the server's validator tests both assert. They are also published as plain JSON, `@skkuverse/miniapp/fixtures/bounds.json`, for a CommonJS consumer: `require` it, or `import` it `with { type: 'json' }` from an ES module.
+- `BOUND_FIXTURES` are the pinned bound points of the ranked games, which the games' bound tests and tests outside this repository both assert. They are also published as plain JSON, `@skkuverse/miniapp/fixtures/bounds.json`, for a CommonJS consumer: `require` it, or `import` it `with { type: 'json' }` from an ES module.
 
 ## Outside the app
 

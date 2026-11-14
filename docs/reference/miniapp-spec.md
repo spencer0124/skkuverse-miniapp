@@ -3,7 +3,7 @@ title: Miniapp Spec
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-10
+last-updated: 2026-11-14
 audience: public
 ---
 
@@ -17,7 +17,7 @@ skkuverse hosts every miniapp and every game itself. Each hands over a package, 
 
 Each rule has an ID, a kind and the packages it applies to. The kind says who enforces it:
 
-- **checked**: `check` enforces it. The implementation is `packages/cli/src/check.ts` in this repository, and each failure prints the rule ID.
+- **checked**: `check` enforces it. The implementation is `packages/cli/src/check.ts` in this repository. Each failure prints the rule ID, and `check --json` adds the heading of this document that defines the rule.
 - **review**: the operator reads the code for it before a first release and when a release touches it.
 
 The **For** column says which packages a rule applies to: `app` for a miniapp, `game` for a game, `both` for either. A rule for one is never checked against the other.
@@ -57,7 +57,7 @@ apps/<id>/
 
 | Rule | Kind | For | Requirement |
 | --- | --- | --- | --- |
-| S1 | checked | app | Every file in the tree above exists (`REQUIRED_FILES`) |
+| S1 | checked | app | Every file in the tree above exists (`REQUIRED_FILES`), and `package.json` is a JSON object |
 | S2 | checked | app | The stack is Vite, React and TypeScript: the package depends on `REQUIRED_DEPENDENCIES`. The templates take versions from the workspace catalog (`pnpm-workspace.yaml`) of the repository they are scaffolded into, rather than per package |
 | S3 | checked | both | `package.json` defines `REQUIRED_SCRIPTS` |
 | S4 | checked | both | The **installed** `@skkuverse/miniapp` is at least `SDK_FLOOR`. The check reads the installed copy rather than the declared range, because a `0.x` caret never crosses a minor and `^0.2.1` silently stays below `0.3.0` |
@@ -101,7 +101,7 @@ A miniapp may call a backend of its own. skkuverse hosts the static page, not th
 | --- | --- | --- | --- |
 | N4 | review | app | The backend URL is absolute and comes from a `VITE_*` variable in a committed `.env.production`, which holds public values only. The backend allows the miniapp's origin through CORS. Authentication uses a token, not a cookie, because the iOS web view blocks third-party cookies |
 | B1 | checked | app | **First-party only.** A miniapp whose `deploy.config.json` entry declares `"backend": "functions"` keeps a Pages Functions backend in `functions/` with its `wrangler.toml`, served on its own origin under `/api/*` and deployed in the same `ship`. A `functions/` directory without that declaration fails the check |
-| G3 | checked | game | **No backend.** A game has no `functions/` directory and no `backend` declaration, and calls no server. A ranked result is validated by the app's own server functions, never by anything the game ships |
+| G3 | checked | game | **No backend.** A game has no `functions/` directory and no `backend` declaration, and calls no server. A ranked result is verified outside the page, never by anything the game ships |
 
 ## What the platform writes
 
@@ -130,6 +130,8 @@ A game's CSP is defence in depth, not the boundary against whoever can deploy it
 ## Changing the spec
 
 A new rule lands here and in `check.ts` together, and the existing miniapps are brought into line in the same change. A rule only a reviewer can judge is marked review rather than left out.
+
+`packages/cli/test/spec-coverage.test.ts` fails when this document and the checker disagree. Every checked rule has to be raised by the checker, asserted by a test, and listed in `RULE_SECTIONS` in `check.ts` under the heading its table sits in. A rule marked review is not in the checker, and a rule in the checker is marked checked here. Renaming a heading that holds a rule means updating `RULE_SECTIONS`, because `check --json` links to the heading.
 
 ## Related
 

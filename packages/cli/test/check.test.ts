@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
-import { checkApp, compareVersions, type CheckTarget, type RuleId } from '../src/check.ts';
+import { checkApp, compareVersions, MAX_FILE_BYTES, MAX_FILES, type CheckTarget, type RuleId } from '../src/check.ts';
+import { toJson } from '../src/report.ts';
 
 const scratch = mkdtempSync(join(tmpdir(), 'miniapp-cli-test-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -126,6 +127,36 @@ describe('checkApp', () => {
     assert.deepEqual(rules(target('a', { 'dist/assets/logo.png': '' })), ['O3']);
   });
 
+  describe('O4: the build stays within the Pages limits', () => {
+    /** A conforming miniapp whose dist/data/ the callback fills. */
+    const withData = (fill: (data: string) => void) => {
+      const t = target('a');
+      const data = join(t.dir, 'dist', 'data');
+      mkdirSync(data);
+      fill(data);
+      return t;
+    };
+
+    it('fails a file over the size limit, and passes one at it', () => {
+      const sized = (bytes: number) =>
+        withData((data) => {
+          writeFileSync(join(data, 'big.bin'), '');
+          truncateSync(join(data, 'big.bin'), bytes);
+        });
+      assert.deepEqual(rules(sized(MAX_FILE_BYTES)), []);
+      const over = checkApp(sized(MAX_FILE_BYTES + 1));
+      assert.deepEqual(over.map((f) => f.rule), ['O4']);
+      assert.match(over[0]!.message, /dist\/data\/big\.bin/);
+    });
+
+    it('fails a build with more files than the limit', () => {
+      const crowded = withData((data) => {
+        for (let n = 0; n <= MAX_FILES; n++) writeFileSync(join(data, String(n)), '');
+      });
+      assert.deepEqual(rules(crowded), ['O4']);
+    });
+  });
+
   it('H1: viewport-fit, lang, scripts and handlers', () => {
     const noFit = GOOD_HTML.replace(', viewport-fit=cover', '');
     assert.deepEqual(rules(target('a', { 'dist/index.html': noFit })), ['H1']);
@@ -168,5 +199,37 @@ describe('compareVersions', () => {
     assert.equal(compareVersions('0.2.9', '0.3.0'), -1);
     assert.equal(compareVersions('0.10.0', '0.3.0'), 1);
     assert.equal(compareVersions('0.3.0-beta.1', '0.3.0'), -1);
+  });
+});
+
+describe('toJson', () => {
+  it('names the package, its kind, the rule, the level, the message and the spec heading of a finding', () => {
+    const dropReact = JSON.stringify({
+      scripts: { dev: 'vite', build: 'vite build', typecheck: 'tsc --noEmit' },
+      dependencies: { '@skkuverse/miniapp': '^0.4.0', 'react-dom': '^19' },
+      devDependencies: { vite: '^6', typescript: '^5' },
+    });
+    assert.deepEqual(toJson({ id: 'club', kind: 'app', findings: checkApp(target('club', { 'package.json': dropReact })) }), [
+      {
+        id: 'club',
+        kind: 'app',
+        rule: 'S2',
+        level: 'error',
+        message: 'package.json does not depend on react',
+        spec: 'docs/reference/miniapp-spec.md#package',
+      },
+    ]);
+  });
+
+  it('keeps a warning a warning, so a host exception reads as allowed', () => {
+    const findings = checkApp(target('a', {}, { project: 'p', host: 'x.example', hostReason: 'legacy' }));
+    assert.deepEqual(
+      toJson({ id: 'a', kind: 'app', findings }).map((f) => [f.rule, f.level, f.spec]),
+      [['R4', 'warn', 'docs/reference/miniapp-spec.md#identity']],
+    );
+  });
+
+  it('is empty for a package that passes', () => {
+    assert.deepEqual(toJson({ id: 'good', kind: 'app', findings: checkApp(target('good')) }), []);
   });
 });

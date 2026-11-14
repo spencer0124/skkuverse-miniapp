@@ -11,16 +11,18 @@ import { parseArgs } from 'node:util';
 import { checkApp, checkIdNamespace } from './check.ts';
 import { findRoot, loadConfig, namedRoot, parseKind } from './config.ts';
 import { scaffold } from './new.ts';
-import { report } from './report.ts';
-import { checkRepo } from './repo.ts';
+import { report, reportJson } from './report.ts';
+import { checkRepo, type PackageReport } from './repo.ts';
 import { ship } from './ship.ts';
 
 const USAGE = `usage: miniapp-cli <command> [--root <path>]
 
-  check [<id>...] [--kind app|game]           check every package, or the ones named
-  check --dir <path> --id <id> [--kind game]  check a package outside apps/ and games/
-  new [--kind game] <id>                      scaffold apps/<id>, or games/<id> for a game
-  ship <id> [--preview]                       build, check and deploy
+  check [<id>...] [--kind app|game] [--json]           check every package, or the ones named
+  check --dir <path> --id <id> [--kind game] [--json]  check a package outside apps/ and games/
+  new [--kind game] <id>                               scaffold apps/<id>, or games/<id> for a game
+  ship <id> [--preview]                                build, check and deploy
+
+check --json prints every finding as one JSON array on stdout, and errors on stderr.
 
 The repository is the nearest folder at or above the working directory that
 holds deploy.config.json, or the folder --root names.`;
@@ -37,6 +39,7 @@ function main(argv: string[]): number {
     options: {
       dir: { type: 'string' },
       id: { type: 'string' },
+      json: { type: 'boolean', default: false },
       kind: { type: 'string' },
       preview: { type: 'boolean', default: false },
       root: { type: 'string' },
@@ -44,20 +47,23 @@ function main(argv: string[]): number {
   });
   const root = () => (values.root === undefined ? findRoot(process.cwd()) : namedRoot(values.root));
   const kind = values.kind === undefined ? undefined : parseKind(values.kind);
+  if (values.json && (command === 'new' || command === 'ship')) throw new Error('--json is only for check');
 
   switch (command) {
     case 'check': {
+      const reports: PackageReport[] = [];
       if (values.dir !== undefined) {
         if (values.id === undefined) throw new Error('--dir needs --id');
         const dir = resolve(values.dir);
         const k = kind ?? 'app';
         const findings = checkApp({ id: values.id, dir, kind: k, config: null });
         if (k === 'game') findings.push(...checkIdNamespace(root(), values.id, dir, loadConfig(root())));
-        return report(values.id, findings) ? 0 : 1;
+        reports.push({ id: values.id, kind: k, findings });
+      } else {
+        const ids = positionals.length > 0 ? positionals : undefined;
+        reports.push(...checkRepo(root(), { ids, kind }));
       }
-      let ok = true;
-      const ids = positionals.length > 0 ? positionals : undefined;
-      for (const { id, findings } of checkRepo(root(), { ids, kind })) ok = report(id, findings) && ok;
+      const ok = values.json ? reportJson(reports) : reports.map(({ id, findings }) => report(id, findings)).every(Boolean);
       return ok ? 0 : 1;
     }
     case 'ship': {
