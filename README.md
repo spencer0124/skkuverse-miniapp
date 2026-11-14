@@ -80,7 +80,7 @@ it('keeps the game contract for one run', async () => {
 To hold a built game to the same contract without writing a test, run `@skkuverse/game-contract` from the repository root after the build:
 
 ```sh
-pnpm add -D @skkuverse/game-contract
+pnpm add -Dw @skkuverse/game-contract
 pnpm exec game-contract            # every game under games/
 pnpm exec game-contract <id>       # one game
 ```
