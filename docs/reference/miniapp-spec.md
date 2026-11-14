@@ -3,7 +3,7 @@ title: Miniapp Spec
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-11
+last-updated: 2026-11-14
 audience: public
 ---
 
@@ -101,7 +101,7 @@ A miniapp may call a backend of its own. skkuverse hosts the static page, not th
 | --- | --- | --- | --- |
 | N4 | review | app | The backend URL is absolute and comes from a `VITE_*` variable in a committed `.env.production`, which holds public values only. The backend allows the miniapp's origin through CORS. Authentication uses a token, not a cookie, because the iOS web view blocks third-party cookies |
 | B1 | checked | app | **First-party only.** A miniapp whose `deploy.config.json` entry declares `"backend": "functions"` keeps a Pages Functions backend in `functions/` with its `wrangler.toml`, served on its own origin under `/api/*` and deployed in the same `ship`. A `functions/` directory without that declaration fails the check |
-| G3 | checked | game | **No backend.** A game has no `functions/` directory and no `backend` declaration, and calls no server. A ranked result is validated by the app's own server functions, never by anything the game ships |
+| G3 | checked | game | **No backend.** A game has no `functions/` directory and no `backend` declaration, and calls no server. A ranked result is verified outside the page, never by anything the game ships |
 
 ## What the platform writes
 
