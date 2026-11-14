@@ -40,3 +40,5 @@ CI also runs `pnpm test` on Node 22.13.0, the lowest version any package's `engi
 - Write code, comments, docs and commit messages in English. Use conventional commit subjects, such as `fix(cli): …`.
 
 By contributing, you agree that your contribution is licensed under the [Apache License 2.0](LICENSE).
+
+Throwaway line for the V3 stack probe, upper layer. Do not merge.
