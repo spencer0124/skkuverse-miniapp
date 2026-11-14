@@ -7,6 +7,7 @@
 .github/CODEOWNERS
 .github/dependabot.yml
 scripts/publish.mjs
+scripts/check-ci.sh
 .changeset/config.json
 pnpm-workspace.yaml
 .npmrc

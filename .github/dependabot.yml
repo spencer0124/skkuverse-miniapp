@@ -1,5 +1,5 @@
 # Two lanes. github-actions: one grouped version-update pull request a month
-# into dev, each pin rewritten with its new version comment. npm: security
+# into main, each pin rewritten with its new version comment. npm: security
 # updates only, which GitHub opens against the default branch (main) whatever
 # `target-branch` says, so that entry sets none; version updates stay off
 # because dependencies are bumped by hand, with a changeset when a published
@@ -8,7 +8,7 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
-    target-branch: dev
+    target-branch: main
     schedule:
       interval: monthly
     # WHY: a release younger than 5 days is not proposed, so a compromised one has time to be caught and pulled.
