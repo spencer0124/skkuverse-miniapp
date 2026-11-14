@@ -48,7 +48,7 @@ pnpm exec miniapp-cli check club --json
 | `rule` | The rule ID, such as `S2`. |
 | `level` | `error` fails the check. `warn` is an exception the spec allows, such as a host exception with a reason (R4). |
 | `message` | What is wrong, as the check prints it without `--json`. |
-| `spec` | The heading of the spec that defines the rule, as a path in the [skkuverse-miniapp repository](https://github.com/skkuverse/skkuverse-miniapp) and an anchor. The row with the `rule` ID is in that section's table. |
+| `spec` | The heading of the spec that defines the rule, as a path in the [skkuverse-miniapp repository](https://github.com/spencer0124/skkuverse-miniapp) and an anchor. The row with the `rule` ID is in that section's table. |
 
 ## What `new` and `ship` need from the repository
 
