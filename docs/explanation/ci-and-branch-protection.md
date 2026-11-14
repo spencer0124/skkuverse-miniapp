@@ -3,7 +3,7 @@ title: CI and Branch Protection
 type: explanation
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 audience: public
 ---
 
@@ -81,7 +81,7 @@ The gate has three known limits. The approved head is the head GitHub had when i
 
 ## Supply chain
 
-- **Release age.** `pnpm-workspace.yaml` sets `minimumReleaseAge` to 7200 minutes, so an install takes no release younger than 5 days. `@skkuverse/*` is excluded, so a release of these packages installs as soon as it is published. Dependabot's version updates for actions wait the same 5 days (`cooldown` in `.github/dependabot.yml`).
+- **Release age.** An install takes no release younger than `minimumReleaseAge` in `pnpm-workspace.yaml`. `@skkuverse/*` is excluded, so a release of these packages installs as soon as it is published. Dependabot's version updates for actions wait the same period, set by `cooldown` in `.github/dependabot.yml`.
 - **Install scripts.** pnpm runs a dependency's install script only when `allowBuilds` names it. Only `esbuild` is named.
 - **Advisories.** `overrides` in `pnpm-workspace.yaml` holds `esbuild`, `katex` and `re2js` on fixed releases, each with the advisory it closes and the condition for removing it.
 - **Dependabot.** Action pins get one grouped pull request a month into `dev`. npm gets security updates only, which GitHub opens against `main`. Dependencies are otherwise bumped by hand, with a changeset when a published package changes.
