@@ -1,0 +1,25 @@
+{
+  "name": "stage-timetable-example",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.7"
+  },
+  "dependencies": {
+    "@skkuverse/miniapp": "0.4.2",
+    "@skkuverse/ui": "0.1.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}
