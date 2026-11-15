@@ -16,7 +16,7 @@
     "release": "turbo run build && node scripts/publish.mjs",
     "lint:md": "markdownlint-cli2",
     "knip": "knip",
-    "docs:gen": "turbo run build && pnpm --filter repo-checks docs:gen",
+    "docs:gen": "turbo run build --filter=repo-checks^... && pnpm --filter repo-checks docs:gen",
     "check:ci": "bash scripts/check-ci.sh"
   },
   "devDependencies": {

@@ -131,7 +131,7 @@ function apply(writes) {
 
 export const report = (stale, unfixable) => `${STALE}\n${[...stale, ...unfixable].map((line) => `  ${line}`).join('\n')}`;
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+async function main() {
   const { writes, stale, unfixable } = await plan();
   if (process.argv.includes('--check')) {
     if (stale.length + unfixable.length > 0) {
@@ -144,5 +144,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       console.error(`The generator cannot fix these. Edit the doc.\n${unfixable.map((line) => `  ${line}`).join('\n')}`);
       process.exitCode = 1;
     }
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  try {
+    await main();
+  } catch (error) {
+    console.error(`docs-gen stopped: ${error instanceof Error ? error.message : error}`);
+    process.exitCode = 1;
   }
 }
