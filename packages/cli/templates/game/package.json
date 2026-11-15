@@ -13,6 +13,7 @@
     "@skkuverse/miniapp": "catalog:"
   },
   "devDependencies": {
+    "@skkuverse/vite-plugin-miniapp": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:"
   }

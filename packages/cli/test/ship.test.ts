@@ -118,6 +118,18 @@ describe('ship', () => {
     }
   });
 
+  it('refuses to stage a build that holds the vite dev host, naming the file and the option', () => {
+    const dist = join(mkdtempSync(join(scratch, 'dist-')), 'dist');
+    write(dist, { 'index.html': '<!doctype html>', 'assets/skkuverse-dev-host-AbCd1234.js': 'window.__SKKUVERSE_DEV_HOST__ = {};' });
+    const site = join(mkdtempSync(join(scratch, 'stage-')), 'site');
+    assert.throws(
+      () => stageSite(dist, site, platformFiles('app')),
+      (error: Error) =>
+        error.message.includes(join(dist, 'assets', 'skkuverse-dev-host-AbCd1234.js')) && error.message.includes("inject: 'always'"),
+    );
+    assert.ok(!existsSync(site));
+  });
+
   describe('the production guard', () => {
     /**
      * A git repository on `main` holding one registered miniapp, with stand-ins

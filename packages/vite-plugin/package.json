@@ -1,0 +1,50 @@
+{
+  "name": "@skkuverse/vite-plugin-miniapp",
+  "version": "0.0.0",
+  "description": "A Vite plugin that gives `vite dev` a host, so a miniapp or game page runs the same in-app code path it runs inside the skkuverse app.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "homepage": "https://spencer0124.github.io/skkuverse-miniapp/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spencer0124/skkuverse-miniapp.git",
+    "directory": "packages/vite-plugin"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "publint && attw --pack . --profile esm-only",
+    "test": "vitest run --typecheck"
+  },
+  "dependencies": {
+    "@skkuverse/miniapp": "workspace:^"
+  },
+  "peerDependencies": {
+    "vite": "^6.4.0 || ^7.0.0 || ^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -112,6 +112,8 @@ A miniapp may call a backend of its own. skkuverse hosts the static page, not th
 - `_headers`: a Content Security Policy restricting scripts to the miniapp's own origin, and an immutable cache rule for `/assets/*`.
 - `_redirects`: the single-page fallback to `index.html`.
 
+`ship` refuses to stage a `dist/` that holds the vite dev host, the text `__SKKUVERSE_DEV_HOST__` that `skkuverseDevHost({ inject: 'always' })` writes, and names the file.
+
 The CSP restricts scripts only. Styles stay open because miniapps load the Tossface stylesheet from a CDN and `@skkuverse/ui` injects an inline `<style>`. The risk worth closing is code that changes after review, and that means scripts.
 
 A game gets the game headers instead, from the same file:

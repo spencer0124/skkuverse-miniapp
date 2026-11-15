@@ -53,6 +53,7 @@ Three things used to be copied into every miniapp: the design system, the bridge
 | `@skkuverse/miniapp-cli` | `check`, `new` and `ship`: the checker of the miniapp spec, the scaffold templates and the deploy | `packages/cli` |
 | `@skkuverse/game-contract` | Plays a built game against the fake host and holds it to the game protocol contract | `packages/game-contract` |
 | `@skkuverse/miniapp-contract` | Opens a built miniapp in Chromium under the production headers and judges the spec's runtime rules N1 to N4 | `packages/miniapp-contract` |
+| `@skkuverse/vite-plugin-miniapp` | A Vite plugin that gives `vite dev` a host, so a page runs its in-app code path and the terminal shows its messages | `packages/vite-plugin` |
 | Mini-app shell | Injection, the message dispatcher, chrome and viewport | skkuverse-app `apps/mobile/app/mini-app.tsx` |
 | Registry | Identity, start URL, and the merged shell | skkuverse-server `src/miniapps` |
 
@@ -66,7 +67,7 @@ Three things used to be copied into every miniapp: the design system, the bridge
 
 ### Outside the app
 
-Opened in a plain browser, the page finds no `window.skkuverse`. `MiniappRoot` renders a full-screen "open in the skkuverse app" page linking to the universal link `https://skkuverse.com/p/m/<id>`, unless the miniapp declares `browser="allow"`. SDK functions still work: each one becomes a no-op or a browser fallback.
+Opened in a plain browser, the page finds no `window.skkuverse`. `MiniappRoot` renders a full-screen "open in the skkuverse app" page linking to the universal link `https://skkuverse.com/p/m/<id>`, unless the miniapp declares `browser="allow"`. SDK functions still work: each one becomes a no-op or a browser fallback. `vite dev` is the exception: `@skkuverse/vite-plugin-miniapp` installs a host there, so the page takes the code path it takes in the app.
 
 ## Rationale and trade-offs
 

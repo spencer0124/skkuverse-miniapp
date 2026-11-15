@@ -14,7 +14,7 @@
  * package directory. A game never does (G3).
  */
 import { spawnSync, type SpawnSyncOptions } from 'node:child_process';
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { checkApp, checkIdNamespace } from './check.ts';
@@ -63,8 +63,25 @@ export function planDeploy(root: string, id: string): DeployPlan {
   };
 }
 
-/** Copies `dist/` to `site` and writes the platform files in. */
+/** The text `@skkuverse/vite-plugin-miniapp` writes into its dev host, so a build that holds it ships one. */
+const DEV_HOST_SENTINEL = '__SKKUVERSE_DEV_HOST__';
+
+function devHostFile(dist: string): string | undefined {
+  return readdirSync(dist, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => join(entry.parentPath, entry.name))
+    .find((file) => readFileSync(file).includes(DEV_HOST_SENTINEL));
+}
+
+/** Copies `dist/` to `site` and writes the platform files in. Refuses a build that holds the vite dev host. */
 export function stageSite(dist: string, site: string, files: DeployPlan['files']): void {
+  const leaked = devHostFile(dist);
+  if (leaked !== undefined) {
+    throw new Error(
+      `${leaked} holds the vite dev host (${DEV_HOST_SENTINEL}), so this build was made with skkuverseDevHost({ inject: 'always' }). ` +
+        "That build is for vite preview and browser tests. Remove inject: 'always' from vite.config.ts and ship again.",
+    );
+  }
   cpSync(dist, site, { recursive: true });
   for (const [name, content] of Object.entries(files)) writeFileSync(join(site, name), content);
 }
