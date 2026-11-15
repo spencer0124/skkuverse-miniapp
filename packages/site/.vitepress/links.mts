@@ -7,7 +7,7 @@ import { normalizeIdentifier } from 'micromark-util-normalize-identifier';
 
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
-const isRelative = (href: string) => href !== '' && !href.startsWith('#') && !href.startsWith('/') && !SCHEME.test(href);
+const isRelative = (href: string) => href !== '' && !/^[#?/]/.test(href) && !SCHEME.test(href);
 
 export const isPublishedPage = (rel: string) =>
   rel === 'README.md' ||
@@ -33,22 +33,42 @@ export interface RepoLink {
   pkg: string | undefined;
 }
 
+const decodeValidEscapes = (target: string) =>
+  target.replace(/(?:%[0-9a-f]{2})+/gi, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run;
+    }
+  });
+
+function resolveHref(fromRel: string, href: string) {
+  const [target, ...rest] = href.split(/(?=[#?])/);
+  const rel = path.posix.normalize(path.posix.join(path.posix.dirname(fromRel), decodeValidEscapes(target)));
+  return { rel, suffix: rest.join(''), outside: rel === '..' || rel.startsWith('../') };
+}
+
 /** The repository file a relative link points at, or undefined when it is not a relative link to an existing file. */
 export function repoLinkOf(repoRoot: string, fromRel: string, href: string): RepoLink | undefined {
   if (!isRelative(href)) return undefined;
-  const [target, ...rest] = href.split(/(?=[#?])/);
-  const rel = path.posix.normalize(path.posix.join(path.posix.dirname(fromRel), decodeURI(target)));
-  if (rel.startsWith('..') || !existsSync(path.join(repoRoot, rel))) return undefined;
+  const { rel, suffix, outside } = resolveHref(fromRel, href);
+  if (outside || !existsSync(path.join(repoRoot, rel))) return undefined;
   return {
     rel,
-    suffix: rest.join(''),
+    suffix,
     isDir: statSync(path.join(repoRoot, rel)).isDirectory(),
     pkg: /^packages\/([^/]+)(?:\/(?:README\.md)?)?$/.exec(rel)?.[1],
   };
 }
 
-export const githubUrl = (repoUrl: string, link: RepoLink) =>
-  `${repoUrl}/${link.isDir ? 'tree' : 'blob'}/main/${encodeURI(link.rel.replace(/\/$/, ''))}${link.suffix}`;
+// WHY: encodeURI leaves # and ? as they are, and in a path they would start a fragment or a query.
+const encodePath = (rel: string) => encodeURI(rel).replace(/[#?]/g, encodeURIComponent);
+
+export function githubUrl(repoUrl: string, link: RepoLink): string {
+  const rel = link.rel.replace(/\/$/, '');
+  if (rel === '.') return repoUrl + link.suffix;
+  return `${repoUrl}/${link.isDir ? 'tree' : 'blob'}/main/${encodePath(rel)}${link.suffix}`;
+}
 
 interface Destination {
   start: number;
@@ -62,19 +82,23 @@ const DESTINATIONS = new Set(['resourceDestinationString', 'definitionDestinatio
 // with no search for it. Container prefixes, escapes, entities and table cells are the parser's business.
 function destinations(text: string): Destination[] {
   const events = postprocess(parse({ extensions: [gfmTable()] }).document().write(preprocess()(text, undefined, true)));
+  // WHY: micromark skips a leading byte order mark, so its offsets count from the character after it.
+  const bom = text.startsWith('\uFEFF') ? 1 : 0;
   const labels = new Set<string>();
   const found: Destination[] = [];
   let repeat = false;
   for (const [kind, token] of events) {
     if (kind !== 'enter') continue;
-    const raw = text.slice(token.start.offset, token.end.offset);
+    const start = token.start.offset + bom;
+    const end = token.end.offset + bom;
+    const raw = text.slice(start, end);
     if (token.type === 'definitionLabelString') {
       // CommonMark keeps the first definition of a label, so a repeat links nothing and is left as written.
       const label = normalizeIdentifier(raw);
       repeat = labels.has(label);
       labels.add(label);
     } else if (DESTINATIONS.has(token.type) && !(token.type === 'definitionDestinationString' && repeat)) {
-      found.push({ start: token.start.offset, end: token.end.offset, href: decodeString(raw) });
+      found.push({ start, end, href: decodeString(raw) });
     }
   }
   return found;
@@ -133,14 +157,15 @@ export function rewriteMarkdownOutputs({ repoRoot, repoUrl, siteUrl, outDir }: L
   const target = (source: string, copyPath: string | undefined) => (href: string) => {
     const link = repoLinkOf(repoRoot, source, href);
     if (!link) {
-      if (isRelative(href)) throw new Error(`${source}: cannot rewrite the link ${href}, which names no file in this repository`);
-      return undefined;
+      if (!isRelative(href)) return undefined;
+      const why = resolveHref(source, href).outside ? 'points outside this repository' : 'names no file in this repository';
+      throw new Error(`${source}: cannot rewrite the link ${href}, which ${why}`);
     }
     let published: string | undefined;
     if (link.pkg) published = `packages/${link.pkg}.md`;
     else if (link.rel !== 'README.md' && isPublishedPage(link.rel)) published = link.rel;
     if (!published) return githubUrl(repoUrl, link);
-    const to = copyPath ? path.posix.relative(path.posix.dirname(copyPath), published) : `${siteUrl}${published}`;
+    const to = copyPath ? encodePath(path.posix.relative(path.posix.dirname(copyPath), published)) : siteUrl + encodePath(published);
     return to + link.suffix;
   };
 
