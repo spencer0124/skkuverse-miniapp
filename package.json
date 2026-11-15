@@ -15,7 +15,8 @@
     "changeset": "changeset",
     "release": "turbo run build && node scripts/publish.mjs",
     "lint:md": "markdownlint-cli2",
-    "knip": "knip"
+    "knip": "knip",
+    "check:ci": "bash scripts/check-ci.sh"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

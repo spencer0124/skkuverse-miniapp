@@ -1,0 +1,27 @@
+{
+  "bypass_actors": [
+    {
+      "actor_id": 5,
+      "actor_type": "RepositoryRole",
+      "bypass_mode": "always"
+    }
+  ],
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": [
+        "refs/heads/main"
+      ]
+    }
+  },
+  "enforcement": "active",
+  "name": "owner-updates",
+  "rules": [
+    {
+      "type": "update"
+    }
+  ],
+  "source": "spencer0124/skkuverse-miniapp",
+  "source_type": "Repository",
+  "target": "branch"
+}

@@ -1,0 +1,24 @@
+{
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": [
+        "refs/heads/dev"
+      ]
+    }
+  },
+  "enforcement": "active",
+  "name": "dev",
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    }
+  ],
+  "source": "spencer0124/skkuverse-miniapp",
+  "source_type": "Repository",
+  "target": "branch"
+}

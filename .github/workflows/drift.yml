@@ -1,0 +1,30 @@
+name: Drift
+
+# WHY: no workflow event fires when a ruleset changes (branch_protection_rule covers classic branch protection only),
+# so a daily run compares the live rulesets with .github/rulesets.
+on:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/rulesets/**
+      - .github/workflows/drift.yml
+
+permissions: {}
+
+jobs:
+  rulesets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compare the live rulesets with .github/rulesets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: bash .github/rulesets/compare.sh "$REPO"

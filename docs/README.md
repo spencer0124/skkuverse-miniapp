@@ -3,7 +3,7 @@ title: Docs Index & Conventions
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-12
+last-updated: 2026-11-14
 audience: public
 ---
 
@@ -58,13 +58,13 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 | Document | Summary |
 | --- | --- |
 | [architecture.md](explanation/architecture.md) | How the packages, the app's mini-app shell and the server registry fit together, and why |
-| [ci-and-branch-protection.md](explanation/ci-and-branch-protection.md) | What CI runs, the rulesets on `dev` and `main`, the supply-chain settings and the release path, and what is still checked only locally |
+| [ci-and-branch-protection.md](explanation/ci-and-branch-protection.md) | What CI runs, the rulesets and the files that record them, the supply-chain settings and the release path, and what is still checked only locally |
 
 ### decisions
 
 | Document | Status |
 | --- | --- |
-| [0001-sdk-distribution.md](decisions/0001-sdk-distribution.md) | accepted (amended 2026-09-26: local publishing; 2026-11-10: local versioning) |
+| [0001-sdk-distribution.md](decisions/0001-sdk-distribution.md) | accepted (amended 2026-09-26: local publishing; 2026-11-10: local versioning; 2026-11-14: versioning on a branch off `main`) |
 | [0002-miniapp-protocol-shell-viewport.md](decisions/0002-miniapp-protocol-shell-viewport.md) | accepted |
 | [0003-spec-checker-in-this-repository.md](decisions/0003-spec-checker-in-this-repository.md) | accepted |
 

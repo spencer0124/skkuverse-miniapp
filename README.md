@@ -110,10 +110,7 @@ Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Releasing
 
-Add a changeset with each change (`pnpm changeset`). To release, run `pnpm changeset version`
-on `dev`, commit, merge `dev` into `main` through a PR, then publish from `main` with
-`node scripts/publish.mjs`. Both steps are local: CI cannot publish
-([npm/cli#9969](https://github.com/npm/cli/issues/9969)). The whole procedure is in
+Add a changeset with each change (`pnpm changeset`). The release procedure is in
 [how-to/release-packages.md](docs/how-to/release-packages.md).
 
 ## License
