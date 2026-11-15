@@ -15,6 +15,7 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@skkuverse/vite-plugin-miniapp": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
