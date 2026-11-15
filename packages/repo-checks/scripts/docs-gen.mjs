@@ -30,7 +30,7 @@ const MODULES = {
   'tokens/src': '@skkuverse/tokens',
 };
 
-async function renderApi(out) {
+export async function renderApi(out) {
   const app = await Application.bootstrapWithPlugins({
     options: path.join(root, 'packages/repo-checks/typedoc.json'),
     tsconfig: path.join(root, 'packages/repo-checks/tsconfig.typedoc.json'),
@@ -57,6 +57,9 @@ async function renderApi(out) {
   app.validate(project);
   if (app.logger.hasErrors() || app.logger.hasWarnings()) throw new Error('TypeDoc reported a problem, listed above');
   await app.generateOutputs(project);
+  // TypeDoc logs a failed page write and goes on, so a partial tree would otherwise look like a finished one, and plan()
+  // would schedule the missing pages for deletion.
+  if (app.logger.hasErrors()) throw new Error('TypeDoc could not write the API reference, listed above');
 }
 
 /**
@@ -101,12 +104,13 @@ export async function plan({ read = (file) => fs.readFileSync(path.join(root, fi
     }
   }
 
-  for (const { file, check } of verifiers) for (const problem of check()) unfixable.push(`${file}: ${problem}`);
+  for (const { file, check } of verifiers) for (const problem of check(read)) unfixable.push(`${file}: ${problem}`);
 
   if (!api) return { writes, stale, unfixable };
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-gen-'));
   try {
     await renderApi(scratch);
+    if (!fs.existsSync(path.join(scratch, 'README.md'))) throw new Error('TypeDoc wrote no README.md, which the docs index links to');
     const fresh = new Map([...readTree(scratch)].map(([name, text]) => [name, unfence(name, text)]));
     const onDisk = readTree(path.join(root, API_DIR));
     const removed = [...onDisk.keys()].filter((name) => !fresh.has(name));
@@ -147,31 +151,38 @@ export async function check(options) {
   return stale.length + unfixable.length > 0 ? report(stale, unfixable) : null;
 }
 
-async function main(args) {
+/** Runs the command and returns its exit code. */
+export async function run(args, options) {
   const unknown = args.filter((arg) => arg !== '--check');
   if (unknown.length > 0) throw new Error(`unknown argument ${unknown.join(' ')}. The only option is --check.`);
   if (args.includes('--check')) {
-    const message = await check();
-    if (message !== null) {
-      console.error(message);
-      process.exitCode = 1;
-    }
-    return;
+    const message = await check(options);
+    if (message === null) return 0;
+    console.error(message);
+    return 1;
   }
-  const { writes, unfixable } = await plan();
+  const { writes, unfixable } = await plan(options);
   apply(writes);
-  if (unfixable.length > 0) {
-    console.error(report([], unfixable));
-    process.exitCode = 1;
-  }
+  if (unfixable.length === 0) return 0;
+  console.error(report([], unfixable));
+  return 1;
 }
 
 // Compare real paths as URLs: a space, a non-ASCII letter, `#` or `%` in the path, or a symlink, would otherwise make
-// the two differ and the script exit 0 without running.
-const entry = process.argv[1] === undefined ? undefined : pathToFileURL(fs.realpathSync(process.argv[1])).href;
-if (import.meta.url === entry) {
+// the two differ and the script exit 0 without running. A process whose argv[1] is no file, such as one that imports
+// this module, is not the entry.
+function entryUrl() {
+  if (process.argv[1] === undefined) return undefined;
   try {
-    await main(process.argv.slice(2));
+    return pathToFileURL(fs.realpathSync(process.argv[1])).href;
+  } catch {
+    return undefined;
+  }
+}
+
+if (import.meta.url === entryUrl()) {
+  try {
+    process.exitCode = await run(process.argv.slice(2));
   } catch (error) {
     console.error(`docs-gen stopped: ${error instanceof Error ? error.message : error}`);
     process.exitCode = 1;

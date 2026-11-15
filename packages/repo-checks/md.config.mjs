@@ -211,7 +211,7 @@ function docsIndex(folder) {
     );
   }
   const rows = names.map((name) => [link(name), leadQuote(readText(`docs/${folder}/${name}`))]);
-  if (folder === 'reference' && fs.existsSync(path.join(dir, 'api/README.md'))) {
+  if (folder === 'reference') {
     rows.push([`[api/README.md](reference/api/README.md)`, 'The API of every package entry point, generated from the TypeScript source by TypeDoc']);
   }
   return table(['Document', 'Summary'], rows);
@@ -222,10 +222,11 @@ export const transforms = {
     const [list, owner] = kind === 'game' ? ['GAME_NOTIFY_METHODS', 'GameNotifyMethods'] : ['NOTIFY_METHODS', 'MiniappNotifyMethods'];
     const senders = methodSenders(kind === 'game' ? GAME_BOOT : SDK_DIR);
     return table(
-      ['Method', 'Params', 'SDK', 'Notes'],
+      ['Method', 'Params', kind === 'game' ? 'Sent by' : 'SDK', 'Notes'],
       methodRows(list, owner, (name, member) => {
         const sent = senders.get(name);
-        if (sent === undefined) throw new Error(`${name} is granted but no function in ${kind === 'game' ? GAME_BOOT : SDK_DIR} calls notify('${name}', ...). Add the sender, or drop the grant.`);
+        const where = kind === 'game' ? GAME_BOOT : SDK_DIR;
+        if (sent === undefined) throw new Error(`${name} is granted but no function in ${where} calls notify('${name}', ...). Add the sender, or drop the grant.`);
         return [code(name), member.params === 'none' ? 'none' : code(member.params), sent.map(code).join(', '), member.doc];
       }),
     );
@@ -342,8 +343,8 @@ export const transforms = {
 export const verifiers = [
   {
     file: 'packages/cli/README.md',
-    check() {
-      const text = readText('packages/cli/README.md');
+    check(read = readText) {
+      const text = read('packages/cli/README.md');
       const section = text.split('| Field | Value |')[1];
       if (section === undefined) return ['the `check --json` field table is gone'];
       const listed = [...section.split('\n\n')[0].matchAll(/^\| `([a-z]+)` \|/gm)].map((match) => match[1]);
@@ -353,13 +354,17 @@ export const verifiers = [
   },
   {
     file: 'docs/explanation/architecture.md',
-    check() {
-      const text = readText('docs/explanation/architecture.md');
+    check(read = readText) {
+      const text = read('docs/explanation/architecture.md');
       const miniapp = readJson('packages/miniapp/package.json');
       const subpaths = Object.keys(miniapp.exports).filter((key) => key !== '.' && !key.endsWith('.json')).map((key) => `${miniapp.name}${key.slice(1)}`);
       const names = [...published().map(({ manifest }) => manifest.name), ...subpaths];
       const rows = text.split('\n');
-      return names.filter((name) => !rows.some((row) => row.startsWith(`| \`${name}\` |`))).map((name) => `the piece table has no row for ${name}`);
+      const listed = rows.map((row) => /^\| `(@skkuverse\/[^`]+)` \|/.exec(row)?.[1]).filter((name) => name !== undefined);
+      return [
+        ...names.filter((name) => !listed.includes(name)).map((name) => `the piece table has no row for ${name}`),
+        ...listed.filter((name) => !names.includes(name)).map((name) => `the piece table has a row for ${name}, which is no package or entry point`),
+      ];
     },
   },
   {

@@ -10,8 +10,8 @@ export const root = path.join(import.meta.dirname, '../../..');
 
 const programs = new Map();
 
-function program(file) {
-  const abs = path.join(root, file);
+function program(file, base = root) {
+  const abs = path.join(base, file);
   if (!programs.has(abs)) {
     const created = ts.createProgram([abs], {
       target: ts.ScriptTarget.ES2022,
@@ -175,10 +175,10 @@ function parsed(file) {
   return ts.createSourceFile(file, readText(file), ts.ScriptTarget.ES2022, true);
 }
 
-function sourceFiles(spec) {
+function sourceFiles(spec, base) {
   if (!spec.endsWith('/')) return [spec];
   return fs
-    .readdirSync(path.join(root, spec))
+    .readdirSync(path.join(base, spec))
     .filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'))
     .sort()
     .map((name) => `${spec}${name}`);
@@ -186,53 +186,106 @@ function sourceFiles(spec) {
 
 const memberName = (node) => (node.name !== undefined && (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name)) ? node.name.text : undefined);
 
-/** The function a call sits in, as the page author calls it: an object method, or the nearest top-level function. */
-function enclosingFunction(node) {
-  for (let up = node.parent; up !== undefined; up = up.parent) {
-    if (ts.isMethodDeclaration(up) && ts.isObjectLiteralExpression(up.parent)) return { name: memberName(up) };
-    if (ts.isPropertyAssignment(up) && ts.isObjectLiteralExpression(up.parent) && (ts.isFunctionExpression(up.initializer) || ts.isArrowFunction(up.initializer))) return { name: memberName(up) };
-    if (ts.isFunctionDeclaration(up) && ts.isSourceFile(up.parent) && up.name !== undefined) {
-      return { name: up.name.text, exported: up.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true };
+const isFunctionValue = (node) => node !== undefined && (ts.isArrowFunction(node) || ts.isFunctionExpression(node));
+
+/** The top-level functions of a file: `function f` and `const f = () => ...`, with whether the file exports each. */
+function topLevelFunctions(source, checker) {
+  const exportedNames = new Set();
+  for (const statement of source.statements) {
+    if (ts.isExportDeclaration(statement) && statement.moduleSpecifier === undefined && statement.exportClause !== undefined && ts.isNamedExports(statement.exportClause)) {
+      for (const element of statement.exportClause.elements) exportedNames.add((element.propertyName ?? element.name).text);
     }
+  }
+  const hasExport = (node) => ts.canHaveModifiers(node) && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
+  const found = new Map();
+  for (const statement of source.statements) {
+    if (ts.isFunctionDeclaration(statement) && statement.name !== undefined) {
+      found.set(statement, { name: statement.name.text, symbol: checker.getSymbolAtLocation(statement.name), exported: hasExport(statement) || exportedNames.has(statement.name.text) });
+    }
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (!ts.isIdentifier(declaration.name) || !isFunctionValue(declaration.initializer)) continue;
+        found.set(declaration, { name: declaration.name.text, symbol: checker.getSymbolAtLocation(declaration.name), exported: hasExport(statement) || exportedNames.has(declaration.name.text) });
+      }
+    }
+  }
+  return found;
+}
+
+/** The top-level functions each top-level function calls, resolved by symbol so a local of the same name is not mistaken for one. */
+function callGraph(tops, checker) {
+  const bySymbol = new Map([...tops].map(([node, top]) => [top.symbol, node]));
+  const edges = new Map();
+  for (const node of tops.keys()) {
+    const callees = new Set();
+    const visit = (child) => {
+      if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) {
+        const target = bySymbol.get(checker.getSymbolAtLocation(child.expression));
+        if (target !== undefined) callees.add(target);
+      }
+      ts.forEachChild(child, visit);
+    };
+    visit(node);
+    edges.set(node, callees);
+  }
+  return edges;
+}
+
+/** Where a call sits: an object method of a typed object, or the top-level function around it. `undefined` when docs-gen has no name for it. */
+function enclosingFunction(node, tops, checker) {
+  for (let up = node.parent; up !== undefined; up = up.parent) {
+    const isMethod = ts.isMethodDeclaration(up) && ts.isObjectLiteralExpression(up.parent);
+    const isProperty = ts.isPropertyAssignment(up) && ts.isObjectLiteralExpression(up.parent) && isFunctionValue(up.initializer);
+    if (isMethod || isProperty) {
+      const owner = checker.getContextualType(up.parent)?.symbol?.name;
+      return { member: owner === undefined ? `${memberName(up)}()` : `${owner}.${memberName(up)}()` };
+    }
+    if (tops.has(up)) return { top: up };
   }
   return undefined;
 }
 
-/** The exported top-level functions of a file whose body calls `name`, which is how a private helper's callers are found. */
-function exportedCallersOf(source, name) {
-  const callers = [];
-  for (const statement of source.statements) {
-    if (!ts.isFunctionDeclaration(statement) || statement.name === undefined || !statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) continue;
-    let calls = false;
-    const visit = (node) => {
-      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === name) calls = true;
-      ts.forEachChild(node, visit);
-    };
-    visit(statement);
-    if (calls) callers.push(statement.name.text);
-  }
-  return callers;
-}
-
 /**
  * The page-side functions that send each wire method: every `notify('<method>', ...)` call in the files, named by the
- * function it sits in, or by the exported functions that call it when it sits in a private helper. `spec` is a file,
- * or a folder ending in a slash for every `.ts` file in it.
+ * exported function it sits in, by the exported functions that reach it through private helpers, or `Type.method()` for
+ * an object method. A `notify` in a place docs-gen cannot name is an error. `spec` is a file, or a
+ * folder ending in a slash for every `.ts` file in it.
  */
-export function methodSenders(spec) {
+export function methodSenders(spec, base = root) {
   const found = new Map();
-  for (const file of sourceFiles(spec)) {
-    const source = parsed(file);
+  for (const file of sourceFiles(spec, base)) {
+    const { source, checker } = program(file, base);
+    const tops = topLevelFunctions(source, checker);
+    const edges = callGraph(tops, checker);
+    const reaches = (from, target) => {
+      const seen = new Set();
+      const walk = (node) => {
+        if (node === target) return true;
+        if (seen.has(node)) return false;
+        seen.add(node);
+        return [...edges.get(node)].some((callee) => !tops.get(callee).exported && walk(callee));
+      };
+      return walk(from);
+    };
     const visit = (node) => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'notify' && node.arguments[0] !== undefined && ts.isStringLiteralLike(node.arguments[0])) {
-        const where = enclosingFunction(node);
-        const names = where === undefined ? [] : where.exported === false ? exportedCallersOf(source, where.name) : [where.name];
+        const where = enclosingFunction(node, tops, checker);
+        const names = [];
+        if (where?.member !== undefined) names.push(where.member);
+        if (where?.top !== undefined) {
+          for (const [candidate, top] of tops) if (top.exported && reaches(candidate, where.top)) names.push(`${top.name}()`);
+        }
         const method = node.arguments[0].text;
-        found.set(method, [...new Set([...(found.get(method) ?? []), ...names.map((name) => `${name}()`)])]);
+        found.set(method, [...new Set([...(found.get(method) ?? []), ...names])]);
       }
       ts.forEachChild(node, visit);
     };
     visit(source);
+  }
+  for (const [method, names] of found) {
+    if (names.length === 0) {
+      throw new Error(`notify('${method}', ...) in ${spec} sits in a function docs-gen cannot name. Move the call into an exported function, a private function an exported one calls, or a method of a typed object.`);
+    }
   }
   return found;
 }

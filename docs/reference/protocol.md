@@ -168,14 +168,14 @@ All are notifications from the page.
 
 <!-- docs-gen:begin method-table kind=game -->
 
-| Method | Params | SDK | Notes |
+| Method | Params | Sent by | Notes |
 | --- | --- | --- | --- |
 | `game.ready` | `{ rect? }` | `bootGame()` | The page can be shown |
-| `game.start` | none | `start()` | A run began |
-| `game.phase` | `{ phase: 'ready' \| 'running' \| 'paused' \| 'crashed' }` | `phase()` | - |
-| `game.layout` | `{ rect }` | `layout()` | A rectangle the host draws over moved, after a resize for example |
-| `game.haptic` | `{ style: 'light' \| 'medium' \| 'heavy' \| 'soft' \| 'rigid' \| 'error' \| 'success' }` | `haptic()` | - |
-| `game.over` | `{ score, ticks, hit, revives, revivesLeft, validator?, stats?, telemetry? }` | `over()` | - |
+| `game.start` | none | `GameClient.start()` | A run began |
+| `game.phase` | `{ phase: 'ready' \| 'running' \| 'paused' \| 'crashed' }` | `GameClient.phase()` | - |
+| `game.layout` | `{ rect }` | `GameClient.layout()` | A rectangle the host draws over moved, after a resize for example |
+| `game.haptic` | `{ style: 'light' \| 'medium' \| 'heavy' \| 'soft' \| 'rigid' \| 'error' \| 'success' }` | `GameClient.haptic()` | - |
+| `game.over` | `{ score, ticks, hit, revives, revivesLeft, validator?, stats?, telemetry? }` | `GameClient.over()` | - |
 
 <!-- docs-gen:end method-table -->
 
