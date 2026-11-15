@@ -1,0 +1,22 @@
+---
+title: "@skkuverse/ui Shadow (function)"
+type: reference
+status: accepted
+owner: zoyoong124@gmail.com
+last-updated: 2026-11-15
+audience: public
+---
+
+# Function: Shadow()
+
+> **Shadow**(`__namedParameters`): `Element`
+
+## Parameters
+
+### \_\_namedParameters
+
+[`ShadowProps`](../interfaces/ShadowProps.md)
+
+## Returns
+
+`Element`

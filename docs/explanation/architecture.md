@@ -36,7 +36,7 @@ Three things used to be copied into every miniapp: the design system, the bridge
  │ SDK calls ───────┼──▶│ parseMessage → dispatch  │   │ registry details      │
  │                  │◀──┼─ hostDeliverScript       │◀──┤ + page's manifest     │
  │ public/          │   │ hostBootstrapScript      │   │   (shell merged)      │
- │  skkuverse.json ─┼───┼──────────────────────────┼──▶│ fetched every 5 min   │
+ │  skkuverse.json ─┼───┼──────────────────────────┼──▶│ fetched, then cached  │
  └──────────────────┘   └──────────────────────────┘   └───────────────────────┘
 ```
 
@@ -46,6 +46,8 @@ Three things used to be copied into every miniapp: the design system, the bridge
 | `@skkuverse/ui` | The web port of the SKKU Design System | `packages/ui` |
 | `@skkuverse/miniapp/protocol` | The wire contract: messages, parser, shell manifest, viewport, and the scripts the app injects | `packages/miniapp/src/protocol` |
 | `@skkuverse/miniapp` | The page-side SDK: every function safe to call anywhere | `packages/miniapp/src/sdk`, `transport.ts` |
+| `@skkuverse/miniapp/game` | `bootGame` and the page guard, what a game page boots through | `packages/miniapp/src/game` |
+| `@skkuverse/miniapp/testing` | The fake game host, the game contract and the bound fixtures, for tests | `packages/miniapp/src/testing` |
 | `@skkuverse/miniapp/react` | `MiniappRoot` and hooks | `packages/miniapp/src/react` |
 | `@skkuverse/miniapp/react/ui` | SDS-styled components such as `MapButton` | `packages/miniapp/src/react/ui` |
 | `@skkuverse/miniapp-cli` | `check`, `new` and `ship`: the checker of the miniapp spec, the scaffold templates and the deploy | `packages/cli` |
@@ -67,7 +69,7 @@ Opened in a plain browser, the page finds no `window.skkuverse`. `MiniappRoot` r
 
 ## Rationale and trade-offs
 
-**The contract is a module, not a copy.** `packages/miniapp/src/protocol` has no DOM, no React and no dependencies, so the app imports the same parser and injection scripts the SDK was tested against. The server is the exception. It is CommonJS and the package is ESM-only, so it keeps a copy of the manifest parser, pinned by mirrored tests.
+**The contract is a module, not a copy.** `packages/miniapp/src/protocol` has no DOM, no React and no dependencies, so the app imports the same parser and injection scripts the SDK was tested against. The server is the exception. It is CommonJS, and `./protocol` has a `default` export condition so that it can `require` the module, but it has not switched to it yet. It keeps a copy of the manifest parser, pinned by mirrored tests.
 
 **The app injects its runtime.** What `receive` does and which CSS variables exist are defined in `host.ts`, beside the types. The app only chooses the values. Because the object is frozen before the page runs, a page cannot replace or wrap the channel.
 

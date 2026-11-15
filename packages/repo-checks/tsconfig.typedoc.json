@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["../miniapp/src", "../ui/src", "../tokens/src"]
+}

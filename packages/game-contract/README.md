@@ -1,8 +1,7 @@
 # @skkuverse/game-contract
 
 Plays a built skkuverse game against the fake host from `@skkuverse/miniapp/testing` and
-fails when the page breaks a rule of the game protocol contract. It needs Node 22.13 or later
-in the 22 line, Node 24, or Node 26 or later. It does not support Node 23 or 25, because
+fails when the page breaks a rule of the game protocol contract. It needs <!-- docs-gen:begin engines package=game-contract -->Node 22.13 or later in the 22 line, Node 24, or Node 26 or later<!-- docs-gen:end engines -->. It does not support Node 23 or 25, because
 vitest, which runs the pages, does not.
 
 Run it from the repository root, the folder that holds `deploy.config.json`, after the games are built:
@@ -23,7 +22,7 @@ The command ends with one of three exit codes:
 - `0` when every page keeps the contract, and after `--help` or `-h`.
 - `1` when a page breaks a rule of the contract. The command names each rule the page
   broke, such as `one-over-per-run`, and prints `broke the game contract`. The runner's own
-  rules, `host-found`, `run-starts`, `run-ends` and `revive-capped`, are verdicts too, so a
+  rules, <!-- docs-gen:begin runner-rules -->`host-found`, `run-starts`, `run-ends` and `revive-capped`<!-- docs-gen:end runner-rules -->, are verdicts too, so a
   game without the player it needs reads as a broken contract. It also exits 1 on a usage
   error, before any page is played: no `deploy.config.json` in the folder, a game that is not
   built, a built `index.html` that loads no module script, `--entry` without a value, `--entry` without `--html`, an option it
@@ -32,8 +31,8 @@ The command ends with one of three exit codes:
   checked`, and the error printed above that line says what went wrong. That happens when
   vitest fails to start, or when the page or its player fails to load or throws. A throw in
   an event listener or a timer counts, and so does a promise rejection that nothing handles.
-  It also happens when a run passes the two-minute test timeout, and when a session still
-  runs after three minutes, as one with a page stuck in a loop does. The command kills that
+  It also happens when a run passes the <!-- docs-gen:begin minutes name=test-timeout form=adjective -->two-minute<!-- docs-gen:end minutes --> test timeout, and when a session still
+  runs after <!-- docs-gen:begin minutes name=session-timeout -->three minutes<!-- docs-gen:end minutes -->, as one with a page stuck in a loop does. The command kills that
   session. To change the limit, set `GAME_CONTRACT_SESSION_TIMEOUT_MS` to a number of
   milliseconds.
 

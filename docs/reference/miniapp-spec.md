@@ -22,6 +22,8 @@ Each rule has an ID, a kind and the packages it applies to. The kind says who en
 
 The **For** column says which packages a rule applies to: `app` for a miniapp, `game` for a game, `both` for either. A rule for one is never checked against the other.
 
+<!-- docs-gen:begin spec-rule-count -->The spec holds 24 rules: 20 are checked and 4 are for review.<!-- docs-gen:end spec-rule-count -->
+
 Numeric limits are not repeated here. Each rule names the file that owns its value.
 
 ## Kinds

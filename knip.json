@@ -11,7 +11,12 @@
   "workspaces": {
     "packages/repo-checks": {
       "entry": ["test/*.test.mjs"],
-      "ignoreDependencies": ["@skkuverse/miniapp", "@skkuverse/ui", "@skkuverse/tokens"]
+      "ignoreDependencies": [
+        "@skkuverse/miniapp",
+        "@skkuverse/ui",
+        "@skkuverse/tokens",
+        "@skkuverse/miniapp-cli"
+      ]
     },
     "packages/game-contract": {
       "vitest": false,

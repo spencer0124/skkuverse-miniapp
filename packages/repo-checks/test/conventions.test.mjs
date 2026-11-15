@@ -6,7 +6,8 @@
  * The vendored file is a byte-for-byte copy of the public skkuverse-server file
  * `.github/contract-tools/exported/lint_conventions.py` at commit c397e2317e7cdde244163cba82900c839e06f700
  * (sha256 d4a90b8ea4169d369ec96747f81f4c782fccc2248ebf63f618df53e091f14ab3). It carries no header of its own, so
- * `shasum -a 256` of the two files still compares. This repository owns the copy and edits it here.
+ * `shasum -a 256` of the two files still compares, and the copy must stay byte-identical. A fix to it goes to the
+ * server's file first, and the fixed file is copied back here whole. Nobody edits it here.
  *
  * Each negative case builds its own tree in a temporary folder and runs the checker on that, so a failing case
  * never touches this repository.

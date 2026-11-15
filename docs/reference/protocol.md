@@ -44,24 +44,28 @@ Page to app goes through `window.ReactNativeWebView.postMessage(JSON)`. App to p
 | Response | app → page | `{ id, ok: true, result }` or `{ id, ok: false, error: { code, message } }` |
 | Event | app → page | `{ event, data }` |
 
-Error codes are `unsupported`, `denied`, `cancelled`, `timeout` and `failed`.
+Error codes are <!-- docs-gen:begin error-codes -->`unsupported`, `denied`, `cancelled`, `timeout` and `failed`<!-- docs-gen:end error-codes -->.
 
 ### Methods
 
 These are a miniapp's methods, the ones `NOTIFY_METHODS` lists. A game's are under [Games](#games).
 
-| Method | Kind | Params | SDK |
-| --- | --- | --- | --- |
-| `haptic.impact` | notification | `{ style: 'light' \| 'medium' \| 'heavy' }` | `haptic()` |
-| `link.open` | notification | `{ url, appUrl? }` | `openUrl()`, `handleLinkClick()` |
-| `map.openPlace` | notification | `{ place }` | `openMapPlace()` |
-| `miniapp.open` | notification | `{ target }` | `openMiniapp()` |
-| `share.open` | notification | `{ url, text? }` | `share()` |
-| `analytics.track` | notification | `{ event, params? }` | `track()` |
-| `app.ready` | notification | none | `ready()` |
-| `shell.set` | notification | `ShellPatch` | `setShell()` |
+<!-- docs-gen:begin method-table kind=miniapp -->
 
-No request method exists yet. The channel is implemented and tested, so the first request method is an entry in the table rather than a protocol change.
+| Method | Params | SDK | Notes |
+| --- | --- | --- | --- |
+| `haptic.impact` | `{ style: 'light' \| 'medium' \| 'heavy' }` | `haptic()` | - |
+| `link.open` | `{ url, appUrl? }` | `openUrl()`, `handleLinkClick()` | Open a URL outside the page |
+| `map.openPlace` | `{ place }` | `openMapPlace()` | Close the page and open the campus map on `place` (`[<kind>:]<placeId>`) |
+| `miniapp.open` | `{ target }` | `openMiniapp()` | Open another registered miniapp: `<id>[/path]` |
+| `share.open` | `{ url, text? }` | `share()` | Open the app's share sheet on `url`, with `text` as the message above it |
+| `analytics.track` | `{ event, params? }` | `track()` | - |
+| `app.ready` | none | `ready()` | The page has rendered |
+| `shell.set` | `{ header?: 'opaque' \| 'overlay', statusBar?: 'light' \| 'dark', background? }` | `setShell()` | - |
+
+<!-- docs-gen:end method-table -->
+
+<!-- docs-gen:begin request-methods -->No request method exists yet<!-- docs-gen:end request-methods -->. The channel is implemented and tested, so the first request method is an entry in the table rather than a protocol change.
 
 `link.open` tries `appUrl` first and falls back to `url` only when nothing on the device handles the scheme. An app that takes the scheme but ignores its path never reaches `url`: Instagram opens its home feed for `instagram://p/<shortcode>`. Leave `appUrl` off for a site whose https links its app already claims, Instagram included. The app hands the https address to the OS, which opens it in that app or in the browser.
 
@@ -109,7 +113,7 @@ A miniapp declares the shell the app draws around it in `public/skkuverse.json`,
 | `statusBar` | `dark`, `light` | `dark` | Status bar icon colour |
 | `background` | `#RRGGBB` | `#FFFFFF` | Painted behind the page while it loads and on overscroll |
 
-skkuverse-server fetches the manifest of every first-party miniapp and merges it into `GET /miniapps/:id`. The app therefore knows the shell before it creates the WebView, and the first frame is already right. The merge order is default, then the registry entry, then the manifest. The registry still owns identity: the start URL, the name and the verified badge. A manifest can only change presentation. A manifest change can take up to about ten minutes to reach users.
+skkuverse-server fetches the manifest of every first-party miniapp and merges it into `GET /miniapps/:id`. The app therefore knows the shell before it creates the WebView, and the first frame is already right. The merge order is default, then the registry entry, then the manifest. The registry still owns identity: the start URL, the name and the verified badge. A manifest can only change presentation. A manifest change reaches users after the server's caches expire, and skkuverse-server's `docs/reference/miniapps-api.md` states for how long.
 
 `shell.set` changes `header`, `statusBar` and `background` during a session, for example to go full-bleed for a game or switch to light icons over a dark scene. `bar` changes the layout, so only the manifest sets it.
 
@@ -162,29 +166,38 @@ The page owns gameplay. The host owns everything a run is worth: the best score,
 
 All are notifications from the page.
 
-| Method | Params | `GameClient` |
-| --- | --- | --- |
-| `game.ready` | `{ rect? }`: where the host may anchor its title | sent by `bootGame` |
-| `game.start` | none | `start()` |
-| `game.phase` | `{ phase: 'ready' \| 'running' \| 'paused' \| 'crashed' }` | `phase()` |
-| `game.layout` | `{ rect }`: a rectangle the host draws over moved | `layout()` |
-| `game.haptic` | `{ style }`: one of `GameHapticStyle`'s seven | `haptic()` |
-| `game.over` | `{ score, ticks, hit, revives, revivesLeft, validator?, stats?, telemetry? }` | `over()` |
+<!-- docs-gen:begin method-table kind=game -->
+
+| Method | Params | Sent by | Notes |
+| --- | --- | --- | --- |
+| `game.ready` | `{ rect? }` | `bootGame()` | The page can be shown |
+| `game.start` | none | `GameClient.start()` | A run began |
+| `game.phase` | `{ phase: 'ready' \| 'running' \| 'paused' \| 'crashed' }` | `GameClient.phase()` | - |
+| `game.layout` | `{ rect }` | `GameClient.layout()` | A rectangle the host draws over moved, after a resize for example |
+| `game.haptic` | `{ style: 'light' \| 'medium' \| 'heavy' \| 'soft' \| 'rigid' \| 'error' \| 'success' }` | `GameClient.haptic()` | - |
+| `game.over` | `{ score, ticks, hit, revives, revivesLeft, validator?, stats?, telemetry? }` | `GameClient.over()` | - |
+
+<!-- docs-gen:end method-table -->
 
 A rectangle is `{ x, y, width, height }` in CSS pixels, relative to the web view. `game.over` is rebuilt from its declared fields only, since its score is what gets submitted: `score`, `ticks`, `revives` and `revivesLeft` are safe non-negative integers, and `hit` is the game's own word for what ended the run, or `null`. `validator` is the version a ranked page was built for, `<gameId>@<n>`. `stats` are figures the result shows and `telemetry` describes how the run was played; neither is submitted. A malformed `rect` on `game.ready`, or a malformed `validator`, `stats` or `telemetry`, is dropped alone and the message kept. The limits are in `messages.ts`, and a test pins the largest `game.over` inside the message limit.
 
-`game.haptic` is a game's one haptic channel. A miniapp's `haptic.impact` keeps its three styles.
+`game.haptic` is a game's one haptic channel, with <!-- docs-gen:begin haptic-count kind=game -->seven<!-- docs-gen:end haptic-count --> styles. A miniapp's `haptic.impact` keeps its <!-- docs-gen:begin haptic-count kind=miniapp -->three<!-- docs-gen:end haptic-count -->.
 
 ### Game events
 
-| Event | Data | Handler |
-| --- | --- | --- |
-| `game.init` | `{ gameProtocol, hi, sound }` | `onInit` |
-| `game.pause`, `game.resume` | none | `onPause`, `onResume` |
-| `game.sound` | `{ on }` | `onSound` |
-| `game.reset` | none: back to the title, with no run started | `onReset` |
-| `game.restart` | none: a new run straight away | `onRestart` |
-| `game.revive` | none: continue the crashed run, sent only after a rewarded ad paid out | `onRevive` |
+<!-- docs-gen:begin event-table -->
+
+| Event | Data | Handler | Notes |
+| --- | --- | --- | --- |
+| `game.init` | `{ gameProtocol, hi, sound }` | `onInit` | - |
+| `game.pause` | none | `onPause` | Stop the run's clock and its audio |
+| `game.resume` | none | `onResume` | - |
+| `game.sound` | `{ on }` | `onSound` | The player's sound setting changed |
+| `game.reset` | none | `onReset` | Back to the title, with no run started: the player closed the result |
+| `game.restart` | none | `onRestart` | Start a new run straight away |
+| `game.revive` | none | `onRevive` | Continue the crashed run: sent only after a rewarded ad paid out |
+
+<!-- docs-gen:end event-table -->
 
 A page obeys every event. Pause stops the run's clock and its audio, sound off silences all of the page's audio, and reset returns to the title. A page never pauses or mutes itself on a visibility or focus change; it may count them as telemetry.
 
@@ -264,8 +277,20 @@ A canvas sized in script takes the same numbers from `onViewport`, once the host
 `@skkuverse/miniapp/testing` is for tests, never for a page:
 
 - `createFakeHost()` stands in for the game host. It runs the real `hostBootstrapScript`, records what the page posts, answers `game.ready` with `game.init`, and sends events (`pause()`, `revive()` and the rest). It needs a `window`, from a browser, jsdom or a test's own stub. It runs the bootstrap with `new Function`, so it cannot run under the production game headers.
-- `checkGameContract(host.log)` and `assertGameContract(host.log)` hold a page to the contract and name each rule it broke: `every-message-parses`, `first-message-ready` (`game.ready` comes first), `no-start-before-init`, `start-before-over`, and `one-over-per-run` (one `game.over` per run, and one more after each `game.revive`).
+- `checkGameContract(host.log)` and `assertGameContract(host.log)` hold a page to the contract and name each rule it broke, listed below.
 - `BOUND_FIXTURES` are the pinned bound points of the ranked games, which the games' bound tests and tests outside this repository both assert. They are also published as plain JSON, `@skkuverse/miniapp/fixtures/bounds.json`, for a CommonJS consumer: `require` it, or `import` it `with { type: 'json' }` from an ES module.
+
+The contract's rules, by the name `checkGameContract` reports:
+
+<!-- docs-gen:begin contract-rules -->
+
+- `every-message-parses`: each message parses as a `game.*` notification.
+- `first-message-ready`: the first message is `game.ready`.
+- `no-start-before-init`: no `game.start` before the host sent `game.init`.
+- `start-before-over`: every `game.over` belongs to a run that `game.start` began.
+- `one-over-per-run`: at most one `game.over` per run, and one more after each `game.revive`.
+
+<!-- docs-gen:end contract-rules -->
 
 ## Outside the app
 

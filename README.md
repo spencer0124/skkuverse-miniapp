@@ -8,13 +8,17 @@
 The SDK, the design system and the tools for skkuverse miniapps, the small Vite and React pages that run inside the skkuverse app.
 Each tool ends in a check that can fail, so a person or an LLM can prove that a change works before it ships.
 
+<!-- docs-gen:begin package-table -->
+
 | Package | What it is |
 | --- | --- |
-| [`@skkuverse/miniapp`](packages/miniapp) | Bridge protocol, SDK, React bindings, and a fake host for tests |
-| [`@skkuverse/miniapp-cli`](packages/cli) | `check` against the [miniapp spec](docs/reference/miniapp-spec.md), `new` and `ship` |
-| [`@skkuverse/game-contract`](packages/game-contract) | Plays a built game against the fake host and holds it to the game protocol |
-| [`@skkuverse/ui`](packages/ui) | SKKU Design System for the web: `SDSProvider` and components |
-| [`@skkuverse/tokens`](packages/tokens) | Design tokens, copied from the app and hash-checked |
+| [`@skkuverse/game-contract`](packages/game-contract) | Plays a built skkuverse game page against the SDK fake host and holds it to the game protocol contract. |
+| [`@skkuverse/miniapp`](packages/miniapp) | The skkuverse miniapp SDK: the web↔app bridge protocol, a typed client for it, and React bindings. |
+| [`@skkuverse/miniapp-cli`](packages/cli) | check, new and ship for a repository of skkuverse miniapps and games. |
+| [`@skkuverse/tokens`](packages/tokens) | SKKU Design System tokens for the web: colors, typography, spacing and radius, plus CSS adapters. |
+| [`@skkuverse/ui`](packages/ui) | SKKU Design System (SDS) for the web: providers and components ported from the skkuverse app. |
+
+<!-- docs-gen:end package-table -->
 
 ## In production
 
@@ -59,7 +63,7 @@ Each command below exits with a non-zero code and names what broke. Run the one 
 | A miniapp or a game package | `miniapp-cli check --json` | The package breaks a rule that the [miniapp spec](docs/reference/miniapp-spec.md) marks `checked`. Each finding names its rule ID |
 | What a page sends to the app | A test that installs `createFakeHost()` from `@skkuverse/miniapp/testing` | The test's assertions on `host.log` fail. `checkGameContract(host.log)` names each game protocol rule the page broke |
 | A built game | `game-contract` | A run breaks the game protocol, with the host there from the start or arriving late |
-| This repository | `pnpm check:ci` | A step that CI runs fails: install, build, typecheck, test, package lint, Markdown lint, knip or the owner gate's tests |
+| This repository | `pnpm check:ci` | A step that CI runs fails: <!-- docs-gen:begin ci-steps -->`install`, `build`, `typecheck`, `test`, `lint`, `lint-md`, `knip` and `owner-gate`<!-- docs-gen:end ci-steps --> |
 
 Every TypeScript example in the docs is compiled in CI, so a copied snippet type-checks.
 
@@ -129,7 +133,7 @@ It plays each page twice: once with the host there from the start, and once with
 
 - `@skkuverse/ui` and `@skkuverse/tokens` have no tests. CI builds them, type-checks them and runs publint and are-the-types-wrong on them.
 - No code linter, such as ESLint, runs on the source. `pnpm lint` is publint and are-the-types-wrong, which check what a package publishes.
-- The four token files in `packages/tokens` are copies of skkuverse-app's, and nothing checks that they still match ([why](docs/explanation/ci-and-branch-protection.md#what-ci-does-not-check)).
+- The <!-- docs-gen:begin token-files form=count -->four<!-- docs-gen:end token-files --> token files in `packages/tokens` are copies of skkuverse-app's, and nothing checks that they still match ([why](docs/explanation/ci-and-branch-protection.md#what-ci-does-not-check)).
 - `@skkuverse/miniapp-cli` and `@skkuverse/game-contract` depend on `@skkuverse/miniapp` with a caret on a `0.x` version, which never crosses a minor. Each minor release of the SDK therefore needs a release of both.
 
 ## Developing
@@ -139,7 +143,7 @@ pnpm install
 pnpm check:ci
 ```
 
-`pnpm check:ci` runs `scripts/check-ci.sh`, the same steps in the same order as CI, and stops at the first one that fails.
+`pnpm check:ci` runs `scripts/check-ci.sh`, the same steps in the same order as CI, and stops at the first one that fails. The steps are <!-- docs-gen:begin ci-steps -->`install`, `build`, `typecheck`, `test`, `lint`, `lint-md`, `knip` and `owner-gate`<!-- docs-gen:end ci-steps -->.
 
 To try a change in a miniapp before releasing it, build here, then in the miniapp run
 `pnpm link ../../skkuverse-miniapp/packages/<name>`. Never commit the link.
