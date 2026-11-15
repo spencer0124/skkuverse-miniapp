@@ -41,6 +41,7 @@ This repository is public and publishes <!-- docs-gen:begin package-count -->fiv
 | [`claude.yml`](../../.github/workflows/claude.yml) | An issue or pull request comment that mentions `@claude` from an owner, member or collaborator | `contents: read`, `pull-requests: write`, `issues: write`, `actions: read` | `CLAUDE_CODE_OAUTH_TOKEN`, in the `claude` environment | Answers in the thread, read-only |
 | [`drift.yml`](../../.github/workflows/drift.yml) | Daily, on dispatch, and on pull requests that change `.github/rulesets/` or the workflow | `contents: read` | None | Job `rulesets`, which fails when a live ruleset differs from its file, below |
 | [`owner-gate.yml`](../../.github/workflows/owner-gate.yml) | Pull requests to `main` (`pull_request_target`) | `contents`, `pull-requests`, `issues` and `actions`, all `read` | None | Job `gate`, which fails when a listed file changed without an owner's approval of the current head |
+| [`pages.yml`](../../.github/workflows/pages.yml) | Pushes to `main`, and on dispatch | `build`: `contents: read`, `pages: read`. `deploy`: `pages: write`, `id-token: write` | None | Job `build` builds the docs site and its `llms.txt` and uploads the artifact, then job `deploy` publishes it in the `github-pages` environment |
 
 `ci.yml` has these jobs:
 
