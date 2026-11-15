@@ -10,5 +10,11 @@
   },
   "scripts": {
     "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@skkuverse/miniapp": "workspace:*",
+    "@skkuverse/tokens": "workspace:*",
+    "@skkuverse/ui": "workspace:*",
+    "typescript-docs-verifier": "3.0.2"
   }
 }

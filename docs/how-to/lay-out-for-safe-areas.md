@@ -3,7 +3,7 @@ title: Lay Out For Safe Areas
 type: how-to
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-09-26
+last-updated: 2026-11-15
 audience: internal
 ---
 
@@ -60,11 +60,23 @@ Do not use `env(safe-area-inset-*)` directly. It reads zero on recent Android We
 6. **Check it.** Pass `mockViewport` to `MiniappRoot` in development to see a phone-shaped inset on the desktop:
 
    ```tsx
-   <MiniappRoot id="mukja" dev={import.meta.env.DEV} mockViewport={{
-     safeArea: { top: 47, bottom: 34, left: 0, right: 0 },
-     contentSafeArea: { top: 0, bottom: 66, left: 0, right: 0 },
-     chrome: 'glass',
-   }}>
+   import type { ReactNode } from 'react';
+   import { MiniappRoot } from '@skkuverse/miniapp/react';
+
+   export function Preview({ children }: { children: ReactNode }) {
+     return (
+       <MiniappRoot
+         id="mukja"
+         mockViewport={{
+           safeArea: { top: 47, bottom: 34, left: 0, right: 0 },
+           contentSafeArea: { top: 0, bottom: 66, left: 0, right: 0 },
+           chrome: 'glass',
+         }}
+       >
+         {children}
+       </MiniappRoot>
+     );
+   }
    ```
 
 ## Troubleshooting
