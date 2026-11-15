@@ -1,5 +1,3 @@
-[![The stage timetable example on the fake host: four acts with Star and Share buttons above the log of every message the page sent to the app](./docs/explanation/assets/stage-timetable.png)](https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/)
-
 # skkuverse-miniapp &middot; [![CI](https://github.com/spencer0124/skkuverse-miniapp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/spencer0124/skkuverse-miniapp/actions/workflows/ci.yml?query=branch%3Amain) [![npm](https://img.shields.io/npm/v/@skkuverse/miniapp?logo=npm)](https://www.npmjs.com/package/@skkuverse/miniapp) [![Apache-2.0 License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 
 [Docs](https://spencer0124.github.io/skkuverse-miniapp/) · [llms.txt](https://spencer0124.github.io/skkuverse-miniapp/llms.txt) · [Live demo](https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/)
@@ -50,6 +48,10 @@ createRoot(document.getElementById('root')!).render(
   </MiniappRoot>,
 );
 ```
+
+The [live demo](https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/) is a page built this way. It runs in a browser against the fake host and lists each message the page sends to the app.
+
+<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/"><img width="320" src="./docs/explanation/assets/stage-timetable.png" alt="The stage timetable demo at phone width: four acts with Star and Share buttons, one act starred, above the log of messages the page sent to the fake host, app.ready and haptic.impact"></a>
 
 In a repository laid out as the [CLI README](packages/cli/README.md) describes, the CLI creates, checks and deploys a miniapp:
 
