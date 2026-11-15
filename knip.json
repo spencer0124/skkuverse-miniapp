@@ -9,7 +9,8 @@
   },
   "workspaces": {
     "packages/repo-checks": {
-      "entry": ["test/*.test.mjs"]
+      "entry": ["test/*.test.mjs"],
+      "ignoreDependencies": ["@skkuverse/miniapp", "@skkuverse/ui", "@skkuverse/tokens"]
     },
     "packages/game-contract": {
       "vitest": false,

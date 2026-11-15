@@ -6,9 +6,13 @@ Wrap the page in `SDSProvider` and use the components.
 ```tsx
 import { SDSProvider, Button } from '@skkuverse/ui';
 
-<SDSProvider colorPreference="light">
-  <Button color="primary" onClick={go}>Start</Button>
-</SDSProvider>;
+export function Start({ go }: { go: () => void }) {
+  return (
+    <SDSProvider colorPreference="light">
+      <Button color="primary" onClick={go}>Start</Button>
+    </SDSProvider>
+  );
+}
 ```
 
 Requires React 19.

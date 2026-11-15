@@ -3,7 +3,7 @@ title: Miniapp Bridge Protocol
 type: reference
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-12
+last-updated: 2026-11-15
 audience: public
 ---
 
@@ -13,7 +13,7 @@ audience: public
 
 ## Overview
 
-A miniapp is a web page the app opens in a `react-native-webview`. The two sides agree on three things, all defined in `packages/miniapp/src/protocol/`. That module has no DOM, no React and no dependencies, so the app imports it from npm. skkuverse-server is CommonJS and the package is ESM-only, so the server keeps a hand-copied manifest parser instead.
+A miniapp is a web page the app opens in a `react-native-webview`. The two sides agree on three things, all defined in `packages/miniapp/src/protocol/`. That module has no DOM, no React and no dependencies, so the app imports it from npm. skkuverse-server is CommonJS and `./protocol` has a `default` export condition, so the server can `require` it. It has not switched to it yet, and keeps a hand-copied manifest parser.
 
 | Part | File | What it defines |
 | --- | --- | --- |
@@ -79,7 +79,7 @@ Adding a method means one entry here, one SDK wrapper and one handler in the app
 
 Before the page's own script runs, the app injects `hostBootstrapScript({ capabilities, viewport, origin? })`. It defines:
 
-```ts
+```text
 window.skkuverse = Object.freeze({
   protocol: 1,             // envelope version, not a feature list
   capabilities: [...],     // method names this page may use
@@ -193,6 +193,10 @@ A page obeys every event. Pause stops the run's clock and its audio, sound off s
 `window.skkuverse.protocol` is the envelope's version, `PROTOCOL_VERSION`, shared with miniapps. The game methods have their own, `GAME_PROTOCOL`, which the host sends in `game.init` as `gameProtocol`. A page built for a newer game protocol than the host's leaves out what the host lacks rather than stopping:
 
 ```ts
+import { bootGame } from '@skkuverse/miniapp/game';
+
+let useV2Feature = false;
+
 bootGame({
   onInit(init) {
     useV2Feature = init.gameProtocol >= 2; // off on an older host, never an error
@@ -206,6 +210,21 @@ The server's games registry can also hold a game back from a host that is too ol
 
 ```ts
 import { bootGame } from '@skkuverse/miniapp/game';
+import type { GameOver, Viewport } from '@skkuverse/miniapp/protocol';
+
+declare const loop: {
+  ready(hi: number, sound: boolean): void;
+  pause(): void;
+  resume(): void;
+  reset(): void;
+  restart(): void;
+  revive(): void;
+  fit(viewport: Viewport): void;
+  onRunStart?: () => void;
+  onCrash?: (result: Omit<GameOver, 'validator'>) => void;
+};
+declare function setSoundOn(on: boolean): void;
+declare function unlockSound(): void;
 
 const game = bootGame({
   onInit: ({ hi, sound }) => loop.ready(hi, sound),

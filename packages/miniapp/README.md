@@ -4,10 +4,15 @@ The SDK a skkuverse miniapp uses to talk to the skkuverse app. Every function is
 to call anywhere: outside the app it is a no-op or a browser fallback.
 
 ```tsx
+import { createRoot } from 'react-dom/client';
 import { MiniappRoot } from '@skkuverse/miniapp/react';
 
-createRoot(el).render(
-  <MiniappRoot id="mukja" dev={import.meta.env.DEV}>
+function App() {
+  return <main>Hello</main>;
+}
+
+createRoot(document.getElementById('root')!).render(
+  <MiniappRoot id="mukja">
     <App />
   </MiniappRoot>,
 );
@@ -36,8 +41,17 @@ if (getCapabilities().capabilities.has('map.openPlace')) openMapPlace('event:42'
 ```ts
 import { bootGame } from '@skkuverse/miniapp/game';
 
-const game = bootGame({ onInit: ({ hi, sound }) => showTitle(hi, sound), onPause: pause, onResume: resume });
-stage.addEventListener('pointerdown', () => game.start()); // refused until game.init arrives
+const stage = document.querySelector('canvas')!;
+let paused = false;
+
+const game = bootGame({
+  onInit: ({ hi, sound }) => console.log(`title: best ${hi}, sound ${sound ? 'on' : 'off'}`),
+  onPause: () => { paused = true; },
+  onResume: () => { paused = false; },
+});
+stage.addEventListener('pointerdown', () => {
+  if (!paused) game.start(); // refused until game.init arrives
+});
 ```
 
 Declare the shell the app draws around the page in `public/skkuverse.json`.
