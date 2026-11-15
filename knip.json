@@ -8,6 +8,9 @@
     "pnpm-workspace.yaml": ["catalog"]
   },
   "workspaces": {
+    "packages/repo-checks": {
+      "entry": ["test/*.test.mjs"]
+    },
     "packages/game-contract": {
       "vitest": false,
       "entry": ["vitest.config.ts", "test/**/*.test.ts", "test/global-setup.ts", "test/fixtures/*.ts"]
