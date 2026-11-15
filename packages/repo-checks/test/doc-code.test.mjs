@@ -7,8 +7,9 @@
  * directory, and that package needs an `exports` field and a tsconfig. packages/miniapp has both and holds
  * @skkuverse/ui and @skkuverse/tokens as dependencies, so one run there covers every document that imports them.
  * packages/ui gets its own run, because its README imports its own entry. packages/cli and packages/game-contract
- * have no `exports`, so the verifier cannot run there, and the last case holds their documents to no such fence
- * instead.
+ * have no `exports`, so the verifier cannot run there, and the coverage case holds every document no run covers,
+ * those two packages' and the generated changelogs and changesets among them, to no such fence. A third case finds
+ * openers the verifier skips, such as `ts{2}` or `~~~ts`, with a scan written separately from the verifier's own.
  *
  * A snippet must be complete. `import.meta.env` is declared by Vite, which no workspace package here depends on,
  * so a snippet does not use it.
@@ -27,52 +28,71 @@ import { compileSnippets } from 'typescript-docs-verifier';
 const root = path.join(import.meta.dirname, '../../..');
 
 const IGNORE_MARKER = 'ts-docs-verifier:ignore';
-const FENCE = /```(?:typescript|tsx?)\r?\n/gi;
 
-const GENERATED = /(^|\/)CHANGELOG\.md$|^\.changeset\//;
-const UNVERIFIABLE_PACKAGES = ['packages/cli/', 'packages/game-contract/'];
-const OWN_RUN = 'packages/ui/';
+// What the verifier compiles: three backticks, one of its three language names, nothing else on the line.
+const COMPILED_OPENER = /^[ \t]*```(?:typescript|tsx?)\r?$/i;
+// Anything that reads as a TypeScript fence to a human or to GitHub, however it is spelled. Written on its own, so a
+// spelling the verifier skips is still found here.
+const ANY_TS_OPENER = /^[ \t]*(?:`{3,}|~{3,})[ \t]*(?:typescript|tsx?|mts|cts)\b/i;
+
+// Which documents each run compiles. A path ending in `/` is a directory prefix.
+const RUNS = [
+  { cwd: 'packages/miniapp', covers: ['docs/', 'README.md', 'packages/miniapp/README.md', 'packages/tokens/README.md'] },
+  { cwd: 'packages/ui', covers: ['packages/ui/README.md'] },
+];
+
+const isCovered = (file, covers) => covers.some((entry) => (entry.endsWith('/') ? file.startsWith(entry) : file === entry));
 
 function trackedMarkdown() {
   const out = execFileSync('git', ['ls-files', '-z', '--', '*.md'], { cwd: root, encoding: 'utf8' });
   return out
     .split('\0')
-    .filter((file) => file !== '' && !GENERATED.test(file))
+    .filter((file) => file !== '')
     .filter((file) => fs.existsSync(path.join(root, file)));
 }
 
-function fenceLines(text) {
-  const lines = [];
-  for (const match of text.matchAll(FENCE)) lines.push(text.slice(0, match.index).split('\n').length);
-  return lines;
+function scan(text) {
+  const compiled = [];
+  const other = [];
+  text.split('\n').forEach((line, i) => {
+    if (COMPILED_OPENER.test(line)) compiled.push(i + 1);
+    else if (ANY_TS_OPENER.test(line)) other.push(i + 1);
+  });
+  return { compiled, other };
 }
 
 const documents = trackedMarkdown().map((file) => {
   const text = fs.readFileSync(path.join(root, file), 'utf8');
-  return { file, text, fences: fenceLines(text) };
+  return { file, text, ...scan(text) };
 });
 
-const underAny = (file, prefixes) => prefixes.some((prefix) => file.startsWith(prefix));
-
-const RUNS = [
-  {
-    cwd: 'packages/miniapp',
-    files: documents.filter(({ file }) => !underAny(file, [OWN_RUN, ...UNVERIFIABLE_PACKAGES])).map(({ file }) => file),
-  },
-  {
-    cwd: OWN_RUN.replace(/\/$/, ''),
-    files: documents.filter(({ file }) => file.startsWith(OWN_RUN)).map(({ file }) => file),
-  },
-];
+const runFiles = ({ covers }) => documents.filter(({ file }) => isCovered(file, covers)).map(({ file }) => file);
 
 async function verify(cwd, files) {
   const previous = process.cwd();
   process.chdir(path.join(root, cwd));
   try {
     return await compileSnippets({ markdownFiles: files.map((file) => path.relative(path.join(root, cwd), path.join(root, file))) });
+  } catch (error) {
+    throw locateImport(error, files);
   } finally {
     process.chdir(previous);
   }
+}
+
+// The verifier throws one error for the whole run when an import path is not in `exports`, and says nothing about
+// where it is. Name the line.
+function locateImport(error, files) {
+  const specifier = /Unable to resolve export for path "([^"]+)"/.exec(error?.message ?? '')?.[1];
+  if (specifier === undefined) return error;
+  const places = [];
+  for (const file of files) {
+    const text = fs.readFileSync(path.join(root, file), 'utf8');
+    text.split('\n').forEach((line, i) => {
+      if (line.includes(`'${specifier}'`) || line.includes(`"${specifier}"`)) places.push(`${file}:${i + 1}`);
+    });
+  }
+  return new Error(`${error.message}\nimported at ${places.join(', ') || 'a line this scan could not find'}`);
 }
 
 function describeFailures(cwd, results) {
@@ -80,21 +100,22 @@ function describeFailures(cwd, results) {
     .filter((result) => result.error)
     .map((result) => {
       const file = path.relative(root, path.resolve(root, cwd, result.file));
-      const fence = documents.find((doc) => doc.file === file)?.fences[result.index - 1];
+      const fence = documents.find((doc) => doc.file === file)?.compiled[result.index - 1];
       const lines = result.linesWithErrors.map((line) => (fence === undefined ? line : fence + line));
       return `${file}:${lines.join(',') || fence} (block ${result.index})\n${result.error.message}`;
     });
 }
 
 describe('every TypeScript fence in the docs compiles', () => {
-  for (const { cwd, files } of RUNS) {
-    it(`${cwd} compiles ${files.length} documents`, async () => {
+  for (const run of RUNS) {
+    const files = runFiles(run);
+    it(`${run.cwd} compiles ${files.length} documents`, async () => {
       const expected = documents
         .filter((doc) => files.includes(doc.file))
-        .reduce((sum, doc) => sum + doc.fences.length, 0);
-      const results = await verify(cwd, files);
+        .reduce((sum, doc) => sum + doc.compiled.length, 0);
+      const results = await verify(run.cwd, files);
       assert.equal(results.length, expected, 'the verifier found a different number of fences than the scan did');
-      assert.deepEqual(describeFailures(cwd, results), []);
+      assert.deepEqual(describeFailures(run.cwd, results), []);
     });
   }
 
@@ -103,19 +124,22 @@ describe('every TypeScript fence in the docs compiles', () => {
     assert.deepEqual(skipped, [], `${IGNORE_MARKER} hides a fence from the check`);
   });
 
-  it('packages the verifier cannot run in hold no TypeScript fence', () => {
-    const offenders = documents
-      .filter(({ file, fences }) => underAny(file, UNVERIFIABLE_PACKAGES) && fences.length > 0)
-      .map(({ file, fences }) => `${file}:${fences.join(',')}`);
-    assert.deepEqual(offenders, [], 'these fences are never compiled, so move them into a document a run covers');
+  it('every TypeScript fence is spelled the way the verifier compiles it', () => {
+    const skipped = documents
+      .filter(({ other }) => other.length > 0)
+      .map(({ file, other }) => `${file}:${other.join(',')}`);
+    assert.deepEqual(skipped, [], 'the verifier skips these openers; write exactly three backticks and ts, tsx or typescript');
   });
 
-  it('every fence sits in a document some run covers', () => {
-    const covered = new Set(RUNS.flatMap(({ files }) => files));
-    const unseen = documents
-      .filter(({ file, fences }) => fences.length > 0 && !covered.has(file) && !underAny(file, UNVERIFIABLE_PACKAGES))
-      .map(({ file }) => file);
-    assert.deepEqual(unseen, []);
+  it('every TypeScript fence sits in a document a run compiles', () => {
+    const uncovered = documents
+      .filter(({ file, compiled }) => compiled.length > 0 && !RUNS.some(({ covers }) => isCovered(file, covers)))
+      .map(({ file, compiled }) => `${file}:${compiled.join(',')}`);
+    assert.deepEqual(
+      uncovered,
+      [],
+      'no run compiles these documents (packages/cli and packages/game-contract have no `exports`, and changelogs and changesets are generated); use another fence language or move the example into a covered document',
+    );
   });
 });
 
@@ -142,5 +166,10 @@ describe('the verifier fails on a snippet that does not compile', () => {
     const [result] = await run(block("hapticc('light')"));
     assert.match(result.error?.message ?? '', /hapticc/);
     assert.deepEqual(result.linesWithErrors, [3]);
+  });
+
+  it('names the line of an import path the package does not export', async () => {
+    const markdown = ['# x', '', '```ts', "import { MiniappRoot } from '@skkuverse/miniapp/reactt';", '', 'export const used = MiniappRoot;', '```', ''].join('\n');
+    await assert.rejects(run(markdown), /Unable to resolve export for path "@skkuverse\/miniapp\/reactt"\nimported at .*example\.md:4/);
   });
 });

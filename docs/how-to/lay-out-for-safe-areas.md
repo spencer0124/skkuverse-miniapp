@@ -67,7 +67,6 @@ Do not use `env(safe-area-inset-*)` directly. It reads zero on recent Android We
      return (
        <MiniappRoot
          id="mukja"
-         dev
          mockViewport={{
            safeArea: { top: 47, bottom: 34, left: 0, right: 0 },
            contentSafeArea: { top: 0, bottom: 66, left: 0, right: 0 },

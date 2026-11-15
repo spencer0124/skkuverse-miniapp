@@ -79,6 +79,8 @@ it('keeps the game contract for one run', async () => {
 });
 ```
 
+The example stubs `window` because the page guard pins the clock and the timers on `window` for good, and the test's node environment has no `window` to pin them on.
+
 To hold a built game to the same contract without writing a test, run `@skkuverse/game-contract` from the repository root after the build:
 
 ```sh

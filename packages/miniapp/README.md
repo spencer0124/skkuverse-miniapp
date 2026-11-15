@@ -18,6 +18,8 @@ createRoot(document.getElementById('root')!).render(
 );
 ```
 
+In a Vite app, pass `dev={import.meta.env.DEV}` to `MiniappRoot` for the dev banner and mock insets. Without `dev` it turns them on at localhost and private addresses.
+
 ```ts
 import { getCapabilities, haptic, openUrl, openMapPlace } from '@skkuverse/miniapp';
 
@@ -42,15 +44,19 @@ if (getCapabilities().capabilities.has('map.openPlace')) openMapPlace('event:42'
 import { bootGame } from '@skkuverse/miniapp/game';
 
 const stage = document.querySelector('canvas')!;
-let paused = false;
+let ticks = 0;
+let clock: number | undefined;
+
+const run = () => { clock = window.setInterval(() => { ticks += 1; }, 1000 / 60); };
+const stop = () => window.clearInterval(clock);
 
 const game = bootGame({
   onInit: ({ hi, sound }) => console.log(`title: best ${hi}, sound ${sound ? 'on' : 'off'}`),
-  onPause: () => { paused = true; },
-  onResume: () => { paused = false; },
+  onPause: stop,
+  onResume: run,
 });
 stage.addEventListener('pointerdown', () => {
-  if (!paused) game.start(); // refused until game.init arrives
+  if (game.start()) run(); // refused until game.init arrives
 });
 ```
 
