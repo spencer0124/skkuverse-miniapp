@@ -76,7 +76,7 @@ before(() => {
   dir = path.join(work, 'repo');
   fs.mkdirSync(dir);
   git(dir, 'init', '-q', '-b', 'main');
-  // The script's own git calls, such as `git tag -a` in push, run with no identity on a CI runner.
+  // A CI runner has no git identity, and push runs `git tag -a` in this repository, so `-c` flags on the test's own calls are not enough.
   for (const [key, value] of [['user.name', 'fixture'], ['user.email', 'fixture@example.com'], ['commit.gpgsign', 'false'], ['tag.gpgsign', 'false']]) {
     git(dir, 'config', key, value);
   }

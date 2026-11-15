@@ -292,7 +292,6 @@ function hasRelease(gh, repo, tag) {
   }
 }
 
-/** A run that stopped between the tag push and the release finds the tag on the remote, so it creates only the release. */
 export function push(repo, records, { remote = 'origin', gh = 'gh', log = () => {} } = {}) {
   const table = packageTable(repo, 'HEAD');
   const plan = tagPlan(records, remoteTags(repo, remote));
