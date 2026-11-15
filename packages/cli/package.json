@@ -5,6 +5,10 @@
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
+    },
     "./platform": {
       "types": "./dist/platform.d.ts",
       "import": "./dist/platform.js"

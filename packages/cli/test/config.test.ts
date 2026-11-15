@@ -70,4 +70,18 @@ describe('loadConfig', () => {
       /apps\.b deploys to "miniapp-a", which apps\.a deploys to/,
     );
   });
+
+  it('accepts operatorPaths and queryParams on a miniapp, and refuses a path that would skip every route or none', () => {
+    const config = load({ apps: { club: { project: 'miniapp-club', operatorPaths: ['/admin', '/staff/'], queryParams: ['tab'] } } });
+    assert.deepEqual(entryOf(config, 'app', 'club')?.operatorPaths, ['/admin', '/staff/']);
+    assert.deepEqual(entryOf(config, 'app', 'club')?.queryParams, ['tab']);
+    for (const path of ['', '/', 'settings', '//admin']) {
+      assert.throws(
+        () => load({ apps: { club: { project: 'miniapp-club', operatorPaths: [path] } } }),
+        new RegExp(`apps\\.club\\.operatorPaths: "${path}" must start with / and name at least one segment, such as "/admin"`),
+      );
+    }
+    assert.throws(() => load({ apps: { club: { project: 'miniapp-club', operatorPaths: '/admin' } } }), /apps\.club\.operatorPaths must be a list of strings/);
+    assert.throws(() => load({ apps: { club: { project: 'miniapp-club', queryParams: [''] } } }), /apps\.club\.queryParams: a query key cannot be empty/);
+  });
 });
