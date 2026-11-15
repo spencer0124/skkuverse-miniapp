@@ -13,9 +13,9 @@ audience: public
 
 ## Summary
 
-Six festival miniapps opened inside the skkuverse app during ESKARA 2026, and all six imported `@skkuverse/miniapp`, at version 0.2.1 or 0.3.0. Over the two festival days, 2,118 devices used the app and 1,477 of them opened a festival feature. The festival shuttle miniapp was the most used, on 1,070 devices.
+Six festival miniapps opened inside the skkuverse app during ESKARA 2026, and all six imported `@skkuverse/miniapp`, at version 0.2.1 or 0.3.0. Over the two festival days, 2,118 devices used the app and 1,477 of them used a festival feature. The festival shuttle miniapp was the most used, on 1,070 devices.
 
-The SDK exists because of that festival. Six miniapps that each carried their own copy of the bridge code had drifted apart, so the copies became one published package six days before the festival. After the festival, the rules the miniapps had followed by habit became a written spec and a CLI that checks it.
+The published SDK came out of building for that festival. The miniapps built for it each carried their own copy of the bridge code, the copies drifted apart, and they became one published package six days before the festival. After the festival, the rules the miniapps had followed by habit became a written spec and a CLI that checks it.
 
 The miniapps' source lives outside this repository. This document describes what they used from these packages, not their code.
 
@@ -32,17 +32,17 @@ Each miniapp was a Vite and React page that the app opened from a tile on its ho
 | Food roulette (`mukja`) | Picks something to eat at the festival, at random | `haptic`, `MapButton`, and `@skkuverse/ui` components |
 | Booth draw (`booth-box`) | Picks a booth at random and shares it | `useIsInApp`, `useCanOpenMap`, `openMapPlace`, `share`, `canShare`, and `haptic` |
 
-The [stage timetable example](../../examples/stage-timetable) in this repository has the shape of the third row, with made-up acts. It runs in a browser on the fake host, so you can see the same calls without the app.
+The [stage timetable example](../../examples/stage-timetable) in this repository has the shape of the third row, with made-up acts. It runs in a browser on the fake host and lists each bridge message it sends.
 
 ## What was counted
 
-The app's analytics counted these numbers. The unit is a device, not a person: a phone that reinstalls the app counts again, and one person with two phones counts twice. The period is 2026-10-01 to 2026-10-02 in Korea Standard Time, and the counts come from a recount on finished data, made on 2026-11-04.
+The app's analytics counted these numbers. The unit is a device, not a person. A phone that reinstalls the app counts again, and one person with two phones counts twice. The period is 2026-10-01 to 2026-10-02 in Korea Standard Time, and the counts come from a recount on finished data, made on 2026-11-04.
 
 | Measure | Value |
 | --- | --- |
 | Devices that used the app on either day | 2,118 |
 | Devices active on 2026-10-01, and on 2026-10-02 | 1,343 and 1,533 |
-| Devices that opened a festival feature: one of the six miniapps, or the festival layer of the app's map | 1,477 (69.7% of 2,118) |
+| Devices that used a festival feature, which is one of the six miniapps or the festival layer of the app's map | 1,477 (69.7% of 2,118) |
 
 Per miniapp, over the same two days:
 
@@ -63,11 +63,11 @@ Each item names the problem, the decision, and the change in this repository. Th
 
 ### Copies drift, so the SDK became one package
 
-Before the festival, each of the six miniapps carried its own copy of the tokens, the UI kit and the bridge code, with a file of helpers beside them. By 2026-09-25 the copies disagreed. Three lacked the `appUrl` option of `openUrl`, and the helpers existed in four different subsets. A fix to one copy reached one miniapp.
+While the festival miniapps were being built, each miniapp carried its own copy of the tokens, the UI kit and the bridge code, with a file of helpers beside them. By 2026-09-25 six copies disagreed. Three lacked the `appUrl` option of `openUrl`, and the helpers existed in four different subsets. A fix to one copy reached one miniapp.
 
 The decision was to publish one SDK to npm and make it the source of truth for the bridge protocol, so a miniapp takes a fix by bumping a version. [ADR 0001](../decisions/0001-sdk-distribution.md) records the decision, and commit [`e63cfae`](https://github.com/spencer0124/skkuverse-miniapp/commit/e63cfae41750c9beaccbf7033ef9db254a7c047e) made the three packages. Version 0.1.0 reached npm the same evening, and the festival builds used 0.2.1 or 0.3.0.
 
-Evidence: recorded. The commit message describes the six drifted copies.
+Evidence: recorded for the drift, which the commit message describes. That the drifted miniapps were festival work comes from the dates.
 
 ### A page shared outside the app sat under the notch
 
@@ -89,7 +89,7 @@ The six miniapps followed the same conventions by habit: the manifest, the host 
 
 The festival is still visible in the spec. Rule R4 puts every miniapp on `<id>.mini.skkuverse.com`, and the festival guide is the one listed exception, because released builds and festival links name its older host.
 
-Evidence: recorded. The spec's commit message names the `eskara-2026` exception.
+Evidence: recorded for the R4 exception, which the spec's commit message names. That the festival prompted the spec is inferred from the dates.
 
 ## Why miniapps, and why this shape
 
@@ -100,17 +100,17 @@ Loose web pages without a shared SDK were the other alternative, and the first i
 ## What is still open
 
 - The app counted these numbers, not the SDK. They show that a miniapp opened, not that its bridge calls did what the page asked. A page cannot tell either, because a notification such as `map.openPlace` has no answer.
-- The README lists the [known gaps](../../README.md#known-gaps) of the packages themselves.
+- The README lists the [known gaps](https://github.com/spencer0124/skkuverse-miniapp#known-gaps) of the packages themselves.
 
 ## Screenshot
 
-<img src="./assets/eskara-2026.png" width="360" alt="The skkuverse app's home screen during ESKARA 2026: the festival banner above six tiles for the festival guide, festival shuttle, stage timetable, playlist preview, food roulette and booth draw miniapps">
+![The skkuverse app's home screen during ESKARA 2026: the festival banner above six tiles for the festival guide, festival shuttle, stage timetable, playlist preview, food roulette and booth draw miniapps](./assets/eskara-2026.png)
 
 The app's home screen on 2026-09-26, from the iOS simulator. The leaderboard below the tiles, which showed a nickname and a masked account ID, is cropped out, along with the status bar and the tab bar.
 
 ## Related
 
-- [README](../../README.md#in-production), the short version of this document
+- [In production](https://github.com/spencer0124/skkuverse-miniapp#in-production), the short version of this document in the README
 - [architecture.md](architecture.md), how a miniapp reaches the app
 - [ADR 0001](../decisions/0001-sdk-distribution.md), why the SDK is a set of public npm packages
 - [miniapp-spec.md](../reference/miniapp-spec.md), the rules `check` enforces
