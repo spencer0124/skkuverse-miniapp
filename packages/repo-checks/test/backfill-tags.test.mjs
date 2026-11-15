@@ -33,8 +33,7 @@ const CHANGELOG = `# ${CLI}\n\n## 0.2.0\n\n### Minor Changes\n\n- Say two.\n\n##
 
 const sh = (cwd, cmd, args, env = {}) => execFileSync(cmd, args, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ...env } });
 const day = (n) => `2026-01-${String(n).padStart(2, '0')}T00:00:00Z`;
-const IDENTITY = ['-c', 'user.name=fixture', '-c', 'user.email=fixture@example.com', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false'];
-const git = (cwd, ...args) => sh(cwd, 'git', [...IDENTITY, ...args]);
+const git = (cwd, ...args) => sh(cwd, 'git', args);
 
 function write(dir, files) {
   for (const [file, text] of Object.entries(files)) {
@@ -46,7 +45,7 @@ function write(dir, files) {
 function commit(dir, n, message, files, paths = Object.keys(files)) {
   write(dir, files);
   git(dir, 'add', '--', ...paths);
-  sh(dir, 'git', [...IDENTITY, 'commit', '-q', '-m', message], { GIT_AUTHOR_DATE: day(n), GIT_COMMITTER_DATE: day(n) });
+  sh(dir, 'git', ['commit', '-q', '-m', message], { GIT_AUTHOR_DATE: day(n), GIT_COMMITTER_DATE: day(n) });
   return git(dir, 'rev-parse', 'HEAD').trim();
 }
 
@@ -77,6 +76,10 @@ before(() => {
   dir = path.join(work, 'repo');
   fs.mkdirSync(dir);
   git(dir, 'init', '-q', '-b', 'main');
+  // The script's own git calls, such as `git tag -a` in push, run with no identity on a CI runner.
+  for (const [key, value] of [['user.name', 'fixture'], ['user.email', 'fixture@example.com'], ['commit.gpgsign', 'false'], ['tag.gpgsign', 'false']]) {
+    git(dir, 'config', key, value);
+  }
   const { packageManager } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   write(dir, {
     'package.json': `${JSON.stringify({ name: 'fixture', private: true, packageManager })}\n`,
@@ -183,24 +186,41 @@ describe('backfill-tags', () => {
     assert.equal(imported.stderr, '');
   });
 
-  it('pushes an annotated tag and a release with the CHANGELOG section, once', () => {
+  it('pushes an annotated tag and a release with the CHANGELOG section, once, and creates a release a stopped run left out', () => {
     const remote = path.join(work, 'remote.git');
     git(work, 'init', '-q', '--bare', remote);
     git(dir, 'remote', 'add', 'origin', remote);
     const calls = path.join(work, 'gh-calls');
+    const failNext = path.join(work, 'gh-fail-next');
     const gh = path.join(work, 'gh');
-    fs.writeFileSync(gh, `#!/bin/sh\nnotes=$(eval echo \\$$#)\n{ echo "$@"; cat "$notes"; } >> '${calls}'\n`, { mode: 0o755 });
+    fs.writeFileSync(
+      gh,
+      [
+        '#!/bin/sh',
+        `if [ "$1 $2" = "release view" ]; then grep -q "^release create $3 " '${calls}' 2>/dev/null && exit 0; echo 'release not found' >&2; exit 1; fi`,
+        `if [ -e '${failNext}' ]; then rm '${failNext}'; exit 1; fi`,
+        'notes=$(eval echo \\$$#)',
+        `{ echo "$@"; cat "$notes"; } >> '${calls}'`,
+        '',
+      ].join('\n'),
+      { mode: 0o755 },
+    );
     const records = provenance(dir, 'HEAD', { registry, builder });
-
-    push(dir, records, { gh });
-    push(dir, records, { gh });
-
     const tag = `${CLI}@0.1.0`;
+
+    fs.writeFileSync(failNext, '');
+    assert.throws(() => push(dir, records, { gh }), /release create/, 'gh fails after the tag push');
+    assert.deepEqual([...remoteTags(dir, 'origin')], [[tag, sha.docs]]);
+    assert.equal(fs.existsSync(calls), false, 'the stopped run created no release');
+
+    push(dir, records, { gh });
+    push(dir, records, { gh });
+
     assert.deepEqual([...remoteTags(dir, 'origin')], [[tag, sha.docs]]);
     assert.equal(git(dir, 'cat-file', '-t', tag).trim(), 'tag', 'the tag is annotated');
     assert.match(git(dir, 'cat-file', '-p', tag), new RegExp(`${tag} ${RULE} at ${sha.docs}`));
     const logged = fs.readFileSync(calls, 'utf8');
-    assert.equal(logged.match(/^release create/gm).length, 1, 'a second push releases nothing again');
+    assert.equal(logged.match(/^release create/gm).length, 1, 'the next run creates the missing release, and a third creates nothing');
     assert.match(logged, new RegExp(`^release create ${tag} --verify-tag --title ${tag} --notes-file \\S+\\n### Minor Changes\\n\\n- Say one\\.\\n`, 'm'));
   });
 });

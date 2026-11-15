@@ -282,23 +282,44 @@ export function releaseNotes(repo, { dir, name }, version, commit) {
   return (text === null ? null : changelogSection(text, version)) ?? `${name}@${version} has no CHANGELOG section.`;
 }
 
+function hasRelease(gh, repo, tag) {
+  try {
+    run(gh, ['release', 'view', tag, '--json', 'tagName'], repo);
+    return true;
+  } catch (error) {
+    if (/release not found/.test(String(error.stderr))) return false;
+    throw error;
+  }
+}
+
+/** A run that stopped between the tag push and the release finds the tag on the remote, so it creates only the release. */
 export function push(repo, records, { remote = 'origin', gh = 'gh', log = () => {} } = {}) {
   const table = packageTable(repo, 'HEAD');
   const plan = tagPlan(records, remoteTags(repo, remote));
-  for (const { tag, commit } of plan.present) log(`${tag}: on ${remote} at ${commit} already`);
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'backfill-notes-'));
+  const release = (tag, commit) => {
+    const name = tag.slice(0, tag.lastIndexOf('@'));
+    const version = tag.slice(tag.lastIndexOf('@') + 1);
+    const notes = path.join(work, 'notes.md');
+    fs.writeFileSync(notes, `${releaseNotes(repo, table.find((p) => p.name === name), version, commit)}\n`);
+    run(gh, ['release', 'create', tag, '--verify-tag', '--title', tag, '--notes-file', notes], repo);
+  };
   try {
     for (const { tag, commit } of plan.create) {
-      const name = tag.slice(0, tag.lastIndexOf('@'));
-      const version = tag.slice(tag.lastIndexOf('@') + 1);
-      const notes = path.join(work, 'notes.md');
-      fs.writeFileSync(notes, `${releaseNotes(repo, table.find((p) => p.name === name), version, commit)}\n`);
       const local = git(repo, 'tag', '--list', tag).trim();
       if (local === '') git(repo, 'tag', '-a', tag, commit, '-m', `${tag} ${RULE} at ${commit}`);
       else if (git(repo, 'rev-parse', `${tag}^{commit}`).trim() !== commit) throw new Error(`local ${tag} is not at ${commit}`);
       git(repo, 'push', remote, `refs/tags/${tag}`);
-      run(gh, ['release', 'create', tag, '--verify-tag', '--title', tag, '--notes-file', notes], repo);
+      release(tag, commit);
       log(`${tag}: tagged ${commit}, pushed and released`);
+    }
+    for (const { tag, commit } of plan.present) {
+      if (hasRelease(gh, repo, tag)) {
+        log(`${tag}: on ${remote} at ${commit} and released already`);
+        continue;
+      }
+      release(tag, commit);
+      log(`${tag}: on ${remote} at ${commit} already, released`);
     }
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
