@@ -325,7 +325,8 @@ export const verifiers = [
       const miniapp = readJson('packages/miniapp/package.json');
       const subpaths = Object.keys(miniapp.exports).filter((key) => key !== '.' && !key.endsWith('.json')).map((key) => `${miniapp.name}${key.slice(1)}`);
       const names = [...published().map(({ manifest }) => manifest.name), ...subpaths];
-      return names.filter((name) => !new RegExp(`^\\| \`${name.replace(/[/.]/g, '\\$&')}\` \\|`, 'm').test(text)).map((name) => `the piece table has no row for ${name}`);
+      const rows = text.split('\n');
+      return names.filter((name) => !rows.some((row) => row.startsWith(`| \`${name}\` |`))).map((name) => `the piece table has no row for ${name}`);
     },
   },
   {
