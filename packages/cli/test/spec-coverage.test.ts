@@ -12,8 +12,8 @@
  * `assert` call in `test`, outside a case that is skipped or marked todo. They
  * cannot tell whether that assertion can fail: `assert.ok(true, 'R3')`, a
  * check that is never reached and a test that no longer exercises the rule all
- * count. That is for the case itself, and the spec's For column is parsed and
- * compared with nothing.
+ * count. That is for the case itself. The spec's For column is compared with
+ * one thing: a rule the contract runner enforces must be `app`.
  */
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -30,13 +30,14 @@ const SPEC_FILE = resolve(CLI_DIR, '..', '..', 'docs', 'reference', 'miniapp-spe
 interface SpecRule {
   id: string;
   kind: 'checked' | 'review';
+  for: 'app' | 'game' | 'both';
   /** The anchor of the heading the rule's table sits under. */
   anchor: string;
 }
 
 const RULES_COLUMNS = ['Rule', 'Kind', 'For', 'Requirement'];
 const RULES_HEADER = `| ${RULES_COLUMNS.join(' | ')} |`;
-const RULE_ROW = /^\|\s*(?<id>[A-Z]\d+)\s*\|\s*(?<kind>checked|review)\s*\|\s*(?:app|game|both)\s*\|/;
+const RULE_ROW = /^\|\s*(?<id>[A-Z]\d+)\s*\|\s*(?<kind>checked|review)\s*\|\s*(?<for>app|game|both)\s*\|/;
 const cellsOf = (line: string) => line.replace(/^\||\|\s*$/g, '').split('|').map((cell) => cell.trim());
 
 /** GitHub's anchor for a heading: lowercase, anything but letters, digits, `_`, `-` and spaces dropped, spaces to hyphens. */
@@ -76,9 +77,9 @@ function parseSpec(markdown: string): { rules: SpecRule[]; anchors: string[] } {
     if (!inTable || /^\|[\s:|-]+$/.test(line)) continue;
     const row = RULE_ROW.exec(line);
     if (row === null) throw new Error(`a rules table row does not match ${RULE_ROW}: ${line}`);
-    const { id, kind } = row.groups as { id: string; kind: SpecRule['kind'] };
+    const { id, kind, for: appliesTo } = row.groups as { id: string; kind: SpecRule['kind']; for: SpecRule['for'] };
     if (rules.some((rule) => rule.id === id)) throw new Error(`the spec defines ${id} twice`);
-    rules.push({ id, kind, anchor });
+    rules.push({ id, kind, for: appliesTo, anchor });
   }
   return { rules, anchors };
 }
@@ -197,6 +198,9 @@ function disagreements(spec: string, definedRules: readonly string[]) {
   };
 }
 
+/** The For value the spec gives a rule. */
+const forOf = (spec: string, id: string) => parseSpec(spec).rules.find((rule) => rule.id === id)?.for;
+
 const specText = readFileSync(SPEC_FILE, 'utf8');
 const { rules: specRules, anchors } = parseSpec(specText);
 const checked = specRules.filter((rule) => rule.kind === 'checked');
@@ -208,6 +212,17 @@ const asserted = literalsIn(TESTS, (name) => name.endsWith('.test.ts') && !name.
 describe('spec coverage', () => {
   it('the rules the spec marks checked are the rules the checker and the contract runner define', () => {
     assert.deepEqual(disagreements(specText, defined), { markedCheckedButNotDefined: [], definedButNotMarkedChecked: [] });
+  });
+
+  it('no rule is in both RULE_SECTIONS and CONTRACT_RULES', () => {
+    assert.deepEqual(Object.keys(CONTRACT_RULES).filter((id) => id in RULE_SECTIONS), []);
+  });
+
+  it('every rule the contract runner enforces is for an app in the spec, since it loads a miniapp only', () => {
+    assert.deepEqual(
+      Object.keys(CONTRACT_RULES).filter((id) => forOf(specText, id) !== 'app'),
+      [],
+    );
   });
 
   it('no two headings of the spec share an anchor', () => {
@@ -258,7 +273,7 @@ describe('spec coverage', () => {
         '| T1   | checked | both | A package keeps no more than 5 MiB in storage |',
         '',
       ].join('\n');
-      assert.deepEqual(parseSpec(aligned).rules, [{ id: 'T1', kind: 'checked', anchor: 'storage' }]);
+      assert.deepEqual(parseSpec(aligned).rules, [{ id: 'T1', kind: 'checked', for: 'both', anchor: 'storage' }]);
     });
 
     it('a rules table whose columns are not the four the test reads', () => {

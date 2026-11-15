@@ -5,7 +5,7 @@
 skkuverse-miniapp is the SDK, the design system and the tools for skkuverse miniapps, the small Vite and React pages that run inside the skkuverse app. Each tool ends in a check that can fail, so a person or an LLM can prove that a change works before it ships.
 
 - `@skkuverse/miniapp` gives a page typed calls to the app, such as `haptic()` and `share()`, over the [bridge protocol](https://spencer0124.github.io/skkuverse-miniapp/docs/reference/protocol). Outside the app, each call does nothing or falls back to the browser.
-- `miniapp-cli check` holds a package to every rule the [miniapp spec](https://spencer0124.github.io/skkuverse-miniapp/docs/reference/miniapp-spec) marks `checked`, and names each broken rule by its ID.
+- `miniapp-cli check` reads a package's files, and `miniapp-contract` loads the built miniapp in Chromium and watches what it does. Together they hold a package to every rule the [miniapp spec](https://spencer0124.github.io/skkuverse-miniapp/docs/reference/miniapp-spec) marks `checked`, and each names a broken rule by its ID. `check` alone does not hold N1 to N4.
 - A fake host from `@skkuverse/miniapp/testing` runs the app's real bootstrap script in a test or a browser, as the live demo does.
 - Six miniapps built on these packages ran at Sungkyunkwan University's ESKARA 2026 festival, where the festival shuttle alone was used on 1,070 devices in two days ([case study](docs/explanation/case-study-eskara-2026.md)).
 - CI compiles every TypeScript example in the docs and fails when a generated count drifts from the code ([what CI checks](docs/explanation/ci-and-branch-protection.md#workflows)).
@@ -75,6 +75,7 @@ Each command below exits with a non-zero code and names what broke. Run the one 
 | --- | --- | --- |
 | A miniapp or a game package | `miniapp-cli check --json` | The package breaks a rule that the [miniapp spec](docs/reference/miniapp-spec.md) marks `checked`. Each finding names its rule ID |
 | What a page sends to the app | A test that installs `createFakeHost()` from `@skkuverse/miniapp/testing` | The test's assertions on `host.log` fail. `checkGameContract(host.log)` names each game protocol rule the page broke |
+| A built miniapp's runtime behavior: leaving the app, debug switches, `<MiniappRoot>`, backend calls | `pnpm exec miniapp-contract` after the build, once `pnpm exec miniapp-contract install` has fetched Chromium | The page breaks rule N1, N2, N3 or N4 of the spec. [The package README](packages/miniapp-contract/README.md) says what it cannot see |
 | A built game | `game-contract` | A run breaks the game protocol, with the host there from the start or arriving late |
 | This repository | `pnpm check:ci` | A step that CI runs fails: <!-- docs-gen:begin ci-steps -->`install`, `build`, `typecheck`, `test`, `lint`, `lint-md`, `knip` and `owner-gate`<!-- docs-gen:end ci-steps --> |
 
