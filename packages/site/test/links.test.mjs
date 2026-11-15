@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { resolvePages } from 'vitepress';
-import { isPublishedPage, rewriteMarkdownOutputs, srcExclude } from '../.vitepress/links.mts';
+import { isPublishedPage, mapLinks, rewriteMarkdownOutputs, srcExclude } from '../.vitepress/links.mts';
 
 const REPO_URL = 'https://github.com/o/r';
 
@@ -58,7 +58,35 @@ describe('link rewrite', () => {
   });
 
   it('fails on a relative link it cannot send anywhere, instead of leaving it relative', () => {
-    assert.throws(() => build('[gone](./gone.md)\n'), /docs\/a\.md: cannot rewrite the link \.\/gone\.md/);
+    assert.throws(() => build('[gone](./gone.md)\n'), /docs\/a\.md: cannot rewrite the link \.\/gone\.md, which names no file/);
+  });
+
+  it('names a link that leaves the repository as such', () => {
+    assert.throws(() => build('[r](../../README.md)\n'), /docs\/a\.md: cannot rewrite the link \.\.\/\.\.\/README\.md, which points outside this repository/);
+  });
+
+  it('cuts destinations at the right place after a byte order mark, and keeps the mark', () => {
+    const seen = [];
+    assert.equal(mapLinks('﻿[a](./b.md)\n', (href) => (seen.push(href), 'c.md')), '﻿[a](c.md)\n');
+    assert.deepEqual(seen, ['./b.md']);
+    assert.equal(build('﻿[a](./b.md)\n'), '﻿[a](b.md)\n');
+  });
+
+  it('reads a percent sign that starts no escape as itself', () => {
+    assert.equal(build('[q](<./100%.md>)\n', { 'docs/100%.md': '# q\n' }), '[q](<100%25.md>)\n');
+  });
+
+  it('decodes an escaped # in a path, and escapes it again in the target', () => {
+    const files = { 'docs/a#b.md': '# h\n', 'docs/a#b.txt': 'x\n' };
+    assert.equal(build('[h](./a%23b.md) [t](./a%23b.txt)\n', files), `[h](a%23b.md) [t](${REPO_URL}/blob/main/docs/a%23b.txt)\n`);
+  });
+
+  it('leaves a query-only link alone, as it does a fragment', () => {
+    assert.equal(build('[q](?x=1) [f](#x)\n'), '[q](?x=1) [f](#x)\n');
+  });
+
+  it('sends a link to the repository root to the repository page', () => {
+    assert.equal(build('[up](..) [up2](../#readme)\n'), `[up](${REPO_URL}) [up2](${REPO_URL}#readme)\n`);
   });
 });
 
