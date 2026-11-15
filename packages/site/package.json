@@ -1,0 +1,21 @@
+{
+  "name": "site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The documentation site and its llms.txt, built from the Markdown in this repository.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "vitepress": "2.0.0-alpha.21",
+    "vitepress-plugin-llms": "1.14.0",
+    "vue": "3.5.45"
+  }
+}

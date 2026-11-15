@@ -9,6 +9,10 @@
     "pnpm-workspace.yaml": ["catalog"]
   },
   "workspaces": {
+    "packages/site": {
+      "entry": ["test/*.test.mjs"],
+      "ignoreDependencies": ["vue"]
+    },
     "packages/repo-checks": {
       "entry": ["test/*.test.mjs"],
       "ignoreDependencies": [

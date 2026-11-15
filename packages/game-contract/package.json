@@ -13,6 +13,7 @@
   "engines": {
     "node": "^22.13.0 || ^24.0.0 || >=26.0.0"
   },
+  "homepage": "https://spencer0124.github.io/skkuverse-miniapp/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/spencer0124/skkuverse-miniapp.git",
