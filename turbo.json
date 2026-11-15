@@ -13,6 +13,10 @@
     },
     "test": {
       "dependsOn": ["^build"]
+    },
+    "repo-checks#test": {
+      "dependsOn": ["^build"],
+      "cache": false
     }
   }
 }

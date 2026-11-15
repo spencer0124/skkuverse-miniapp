@@ -45,6 +45,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 | [lay-out-for-safe-areas.md](how-to/lay-out-for-safe-areas.md) | Padding with `--sv-inset-*` so content clears the device and the app's UI |
 | [add-a-bridge-method.md](how-to/add-a-bridge-method.md) | Adding a feature a page asks the app for, and the release order |
 | [release-packages.md](how-to/release-packages.md) | Changesets, the local version and publish, and bumping the miniapps |
+| [move-the-repositories-back.md](how-to/move-the-repositories-back.md) | Pointing every GitHub link at a new owner with one setting, and the GitHub and npm steps after it |
 
 ### reference
 
