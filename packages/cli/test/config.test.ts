@@ -98,7 +98,7 @@ describe('loadConfig', () => {
     for (const path of ['/admin*', '/*']) {
       assert.throws(
         () => load({ apps: { club: { project: 'miniapp-club', operatorPaths: [path] } } }),
-        new RegExp(`apps\\.club\\.operatorPaths: "${path.replace('*', '\\*')}" holds \\*, but each path is matched as written, not as a pattern`),
+        new RegExp(`apps\\.club\\.operatorPaths: "${path.replaceAll('*', '\\*')}" holds \\*, but each path is matched as written, not as a pattern`),
       );
     }
     assert.deepEqual(load({ apps: { club: { project: 'miniapp-club', operatorPaths: ['/%EA%B4%80%EB%A6%AC'] } } }).apps.club?.operatorPaths, ['/%EA%B4%80%EB%A6%AC']);
