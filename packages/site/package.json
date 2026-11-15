@@ -11,7 +11,7 @@
   "scripts": {
     "build": "vitepress build",
     "preview": "vitepress preview",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test test/*.test.mjs"
   },
   "devDependencies": {
     "markdown-it": "14.3.3",
