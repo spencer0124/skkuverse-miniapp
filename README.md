@@ -61,6 +61,8 @@ Each command below exits with a non-zero code and names what broke. Run the one 
 | A built game | `game-contract` | A run breaks the game protocol, with the host there from the start or arriving late |
 | This repository | `pnpm check:ci` | A step that CI runs fails: install, build, typecheck, test, package lint, Markdown lint, knip or the owner gate's tests |
 
+Every TypeScript example in the docs is compiled in CI, so a copied snippet type-checks.
+
 The next two sections show where `check` sits on a miniapp's way to the app, and a fake host test in full.
 
 ## From a folder to the app
