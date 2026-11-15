@@ -60,6 +60,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 | --- | --- |
 | [architecture.md](explanation/architecture.md) | How the packages, the app's mini-app shell and the server registry fit together, and why |
 | [ci-and-branch-protection.md](explanation/ci-and-branch-protection.md) | What CI runs, the rulesets and the files that record them, the supply-chain settings and the release path, and what is still checked only locally |
+| [case-study-eskara-2026.md](explanation/case-study-eskara-2026.md) | What ran on these packages at the ESKARA 2026 festival, what was counted, and what it changed in the SDK |
 
 ### decisions
 

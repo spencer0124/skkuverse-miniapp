@@ -5,8 +5,9 @@
 [![@skkuverse/miniapp-cli on npm](https://img.shields.io/npm/v/@skkuverse/miniapp-cli?label=%40skkuverse%2Fminiapp-cli)](https://www.npmjs.com/package/@skkuverse/miniapp-cli)
 [![License](https://img.shields.io/npm/l/@skkuverse/miniapp)](LICENSE)
 
-The shared code every skkuverse miniapp imports, and the tools that check, test and ship one.
-A miniapp is a small Vite and React page that runs inside the skkuverse app.
+The SDK, the design system and the tools for skkuverse miniapps, the small Vite and React pages that run inside the skkuverse app.
+Each tool ends in a check that can fail, so a person or an LLM that changes a miniapp can prove the change works before it ships.
+To watch a miniapp run outside the app, open the [stage timetable example in StackBlitz](https://stackblitz.com/github/spencer0124/skkuverse-miniapp/tree/main/examples/stage-timetable?file=src%2FApp.tsx). It runs on the fake host and lists every message it sends to the app.
 
 | Package | What it is |
 | --- | --- |
@@ -15,6 +16,20 @@ A miniapp is a small Vite and React page that runs inside the skkuverse app.
 | [`@skkuverse/game-contract`](packages/game-contract) | Plays a built game against the fake host and holds it to the game protocol |
 | [`@skkuverse/ui`](packages/ui) | SKKU Design System for the web: `SDSProvider` and components |
 | [`@skkuverse/tokens`](packages/tokens) | Design tokens, copied from the app and hash-checked |
+
+## In production
+
+Six miniapps built on `@skkuverse/miniapp` ran inside the skkuverse app at ESKARA 2026, Sungkyunkwan University's festival, on 2026-10-01 and 2026-10-02 (KST).
+
+| Counted by the app's analytics over the two days | Devices |
+| --- | --- |
+| Used the app | 2,118 |
+| Used one of the six miniapps or the map's festival layer | 1,477 |
+| Used the festival shuttle, the most used miniapp | 1,070 |
+
+<img src="./docs/explanation/assets/eskara-2026.png" width="300" alt="The skkuverse app's home screen during ESKARA 2026: the festival banner above tiles for the six festival miniapps">
+
+The miniapps' source lives outside this repository. The [ESKARA 2026 case study](docs/explanation/case-study-eskara-2026.md) defines each number and lists what the festival changed in the SDK.
 
 ```tsx
 import { SDSProvider, Button } from '@skkuverse/ui';
@@ -30,6 +45,20 @@ Documentation is indexed in [docs/README.md](docs/README.md). Start with:
 - [reference/miniapp-spec.md](docs/reference/miniapp-spec.md), for what a miniapp or a game must be before skkuverse hosts it
 - [explanation/ci-and-branch-protection.md](docs/explanation/ci-and-branch-protection.md), for what CI checks and how `main` and the releases are guarded
 - [decisions/0003-spec-checker-in-this-repository.md](docs/decisions/0003-spec-checker-in-this-repository.md), for why the spec, its checker and the game contract live here
+- [explanation/case-study-eskara-2026.md](docs/explanation/case-study-eskara-2026.md), for what ran at the festival and what it changed in the SDK
+
+## Check your work
+
+Each command below exits with a non-zero code and names what broke. Run the one that matches your change and read its output, rather than judging the change by eye.
+
+| After you change | Run | It fails when |
+| --- | --- | --- |
+| A miniapp or a game package | `miniapp-cli check --json` | The package breaks a rule that the [miniapp spec](docs/reference/miniapp-spec.md) marks `checked`. Each finding names its rule ID |
+| What a page sends to the app | A test that installs `createFakeHost()` from `@skkuverse/miniapp/testing` | The test's assertions on `host.log` fail. `checkGameContract(host.log)` names each game protocol rule the page broke |
+| A built game | `game-contract` | A run breaks the game protocol, with the host there from the start or arriving late |
+| This repository | `pnpm check:ci` | A step that CI runs fails: install, build, typecheck, test, package lint, Markdown lint, knip or the owner gate's tests |
+
+The next two sections show where `check` sits on a miniapp's way to the app, and a fake host test in full.
 
 ## From a folder to the app
 
@@ -102,8 +131,10 @@ It plays each page twice: once with the host there from the start, and once with
 
 ```sh
 pnpm install
-pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm lint:md && pnpm knip
+pnpm check:ci
 ```
+
+`pnpm check:ci` runs `scripts/check-ci.sh`, the same steps in the same order as CI, and stops at the first one that fails.
 
 To try a change in a miniapp before releasing it, build here, then in the miniapp run
 `pnpm link ../../skkuverse-miniapp/packages/<name>`. Never commit the link.
