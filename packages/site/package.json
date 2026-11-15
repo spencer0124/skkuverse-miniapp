@@ -1,0 +1,26 @@
+{
+  "name": "site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The documentation site and its llms.txt, built from the Markdown in this repository.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "markdown-it": "14.3.3",
+    "micromark": "4.0.3",
+    "micromark-extension-gfm-table": "2.1.2",
+    "micromark-util-decode-string": "2.0.1",
+    "micromark-util-normalize-identifier": "2.0.1",
+    "vitepress": "2.0.0-alpha.21",
+    "vitepress-plugin-llms": "1.14.0",
+    "vue": "3.5.45"
+  }
+}

@@ -1,0 +1,66 @@
+name: Pages
+
+# WHY: the docs site and its llms.txt are built from the Markdown in this repository and published on every push to
+# main. A pull request builds the same site through `pnpm test` in ci.yml, so a broken link or a page that drops out
+# fails before the merge. The build job only reads the Pages settings, which configure-pages needs, and the deploy
+# job holds the write permission and no repository code.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# WHY: one deploy at a time, and a deploy already running finishes rather than being cut off half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - run: pnpm --filter site build
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: packages/site/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+      # WHY: the build already passed, so this step checks what the host serves: redirect rules and a missing page
+      # show only after the deploy. The version is pinned because npx would otherwise run whatever was published last.
+      - name: Check llms.txt as served
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: npx --yes llms-txt-check@0.1.5 "${PAGE_URL}llms.txt"
