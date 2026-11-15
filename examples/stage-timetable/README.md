@@ -3,7 +3,7 @@
 A small miniapp on the published `@skkuverse/miniapp` and `@skkuverse/ui`, which runs in a plain browser.
 It is shaped like a festival stage timetable, and its acts are made up.
 
-[Open it in StackBlitz](https://stackblitz.com/github/spencer0124/skkuverse-miniapp/tree/main/examples/stage-timetable?file=src%2FApp.tsx). The first visit can take a few minutes, because StackBlitz clones the repository and installs the packages. To run it here instead:
+[Open the live demo](https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/), which the docs site serves as static files. To run it here instead:
 
 ```sh
 npm ci
@@ -18,4 +18,4 @@ npm run dev
   A test reads the same record from `host.log`.
 - `?host=none` leaves the fake host out. The page then runs as it would in a plain browser: `haptic()` does nothing and `share()` falls back to the browser's share sheet or the clipboard.
 
-The example pins exact versions in `package-lock.json`. It is not a workspace package, so `pnpm install` at the repository root leaves it alone, and CI does not build it.
+The example pins exact versions in `package-lock.json`. It is not a workspace package, so `pnpm install` at the repository root leaves it alone. The docs site's build runs `npm ci` and `npm run build` here, through `packages/site/scripts/build-examples.mjs`, so CI fails when the example stops building, and the Pages workflow publishes what it built.
