@@ -33,6 +33,8 @@ const SDK_DIR = 'packages/miniapp/src/sdk/';
 const GAME_BOOT = 'packages/miniapp/src/game/boot.ts';
 const HARNESS = 'packages/game-contract/src/harness.ts';
 
+const READING_ORDER = ['@skkuverse/miniapp', '@skkuverse/ui', '@skkuverse/tokens', '@skkuverse/miniapp-cli', '@skkuverse/game-contract'];
+
 export const files = [
   'README.md',
   'CLAUDE.md',
@@ -277,7 +279,15 @@ export const transforms = {
   'package-table': (_args, { file }) => {
     const depth = file.split('/').length - 1;
     const prefix = '../'.repeat(depth);
-    return table(['Package', 'What it is'], published().map(({ dir, manifest }) => [`[${code(manifest.name)}](${prefix}${dir})`, manifest.description]));
+    const rank = (name) => (READING_ORDER.includes(name) ? READING_ORDER.indexOf(name) : READING_ORDER.length);
+    const rows = published().sort((a, b) => rank(a.manifest.name) - rank(b.manifest.name) || a.manifest.name.localeCompare(b.manifest.name));
+    return table(
+      ['Package', 'Description', 'Version'],
+      rows.map(({ dir, manifest }) => {
+        const npm = `https://www.npmjs.com/package/${manifest.name}`;
+        return [`[${code(manifest.name)}](${prefix}${dir})`, manifest.description, `[![npm](https://img.shields.io/npm/v/${manifest.name})](${npm})`];
+      }),
+    );
   },
 
   'package-names': () => sentenceList(published().map(({ manifest }) => code(manifest.name))),

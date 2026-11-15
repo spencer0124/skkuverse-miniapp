@@ -159,6 +159,19 @@ describe('built site', () => {
     }
   });
 
+  it('titles the home page with the repository name alone', () => {
+    const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
+    assert.equal(/<title>([^<]*)<\/title>/.exec(html)?.[1], 'skkuverse-miniapp');
+  });
+
+  it('opens every link to an example outside the router, which would show its 404 page', () => {
+    const tags = builtHtml(dist).flatMap((page) =>
+      [...fs.readFileSync(path.join(dist, page), 'utf8').matchAll(new RegExp(`<a\\b[^>]*\\bhref="[^"]*${BASE}examples/[^>]*>`, 'g'))].map(([tag]) => ({ page, tag })),
+    );
+    assert.ok(tags.some(({ page }) => page === 'index.html'), 'the home page links the demo');
+    assert.deepEqual(tags.filter(({ tag }) => !/\btarget="_blank"/.test(tag)), []);
+  });
+
   it('has llms-full.txt', () => {
     assert.ok(fs.statSync(path.join(dist, 'llms-full.txt')).size > 0);
   });

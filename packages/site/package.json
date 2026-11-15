@@ -9,7 +9,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "vitepress build",
+    "build": "vitepress build && node scripts/build-examples.mjs",
     "preview": "vitepress preview",
     "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test test/*.test.mjs"
   },

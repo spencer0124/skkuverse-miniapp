@@ -53,6 +53,11 @@ export default defineConfig({
   },
   // WHY: with the repository root as srcDir, VitePress would load every config.ts under it, packages/cli/src/config.ts included.
   additionalConfig: {},
+  // WHY: the README's H1 is the name, a middle dot and the badges, and VitePress would make all of it the page title,
+  // the entity included.
+  transformPageData(pageData) {
+    pageData.title = pageData.title.split(/\s*(?:·|&middot;)\s*/)[0];
+  },
   // WHY: the plugin writes the Markdown copies from the source text during the bundle, so their links are fixed afterwards.
   buildEnd(siteConfig) {
     rewriteMarkdownOutputs({ repoRoot, repoUrl, siteUrl: `${origin}${base}`, outDir: siteConfig.outDir });
