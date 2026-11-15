@@ -5,7 +5,8 @@
  * prints the command that rewrites each link to match.
  *
  * The scan reads each text file `git ls-files` lists and finds the https form
- * of a repository link, the `git@` clone form and the `github.io` Pages form,
+ * of a repository link, the `git@` clone form, the `raw.githubusercontent.com`
+ * and `api.github.com/repos` forms and the `github.io` Pages form,
  * where the repository name starts with `skkuverse`. A link to a repository
  * outside `public` fails under any owner, because a public repository must
  * not send its readers to a private one. The package.json `repository.url`
@@ -27,9 +28,13 @@ const root = path.join(import.meta.dirname, '../../..');
 
 const OWNER_NAME = '[A-Za-z0-9-]+';
 const REPO_NAME = 'skkuverse[A-Za-z0-9_.-]*';
-export const GITHUB_SOURCE = `github\\.com[:/](${OWNER_NAME})/(${REPO_NAME})`;
-export const PAGES_SOURCE = `(${OWNER_NAME})\\.github\\.io/(${REPO_NAME})`;
-/** Valid as a `git grep -E -i` pattern, so `git grep -h -o -i -E "$pattern" | wc -l` counts what the scan counts. */
+const GITHUB_HOSTS = 'github[.]com[:/]|raw[.]githubusercontent[.]com/|api[.]github[.]com/repos/';
+export const GITHUB_SOURCE = `(${GITHUB_HOSTS})(${OWNER_NAME})/(${REPO_NAME})`;
+export const PAGES_SOURCE = `(${OWNER_NAME})[.]github[.]io/(${REPO_NAME})`;
+/**
+ * Valid as a `git grep -E -i` pattern, so `git grep -h -o -i -E "$pattern" | wc -l` counts what the scan counts.
+ * It holds no backslash, because a printed backslash doubles on its way through pnpm and a pasted `\\.` matches nothing.
+ */
 export const GREP_PATTERN = `${GITHUB_SOURCE}|${PAGES_SOURCE}`;
 
 const OWNER_SHAPE = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/;
@@ -52,14 +57,17 @@ const repoName = (token) => token.replace(/\.+$/, '').replace(/\.git$/i, '').toL
 
 export function linkHits(text) {
   // Most files hold no link, so two tests of the whole text spare splitting them into lines.
-  if (!/skkuverse/i.test(text) || !/github\.(?:com|io)/i.test(text)) return [];
+  if (!/skkuverse/i.test(text) || !/github(?:usercontent)?\.(?:com|io)/i.test(text)) return [];
   return text.split('\n').flatMap((lineText, i) =>
-    [GITHUB_SOURCE, PAGES_SOURCE].flatMap((source) =>
+    [
+      [GITHUB_SOURCE, 2],
+      [PAGES_SOURCE, 1],
+    ].flatMap(([source, ownerGroup]) =>
       [...lineText.matchAll(new RegExp(source, 'gi'))].map((m) => ({
         line: i + 1,
         url: m[0].replace(/\.+$/, ''),
-        owner: m[1],
-        repo: repoName(m[2]),
+        owner: m[ownerGroup],
+        repo: repoName(m[ownerGroup + 1]),
       })),
     ),
   );
@@ -72,7 +80,7 @@ export function linkHits(text) {
 export function rewriteCommand(links, oldOwners) {
   const old = oldOwners.length === 1 ? oldOwners[0] : `(?:${oldOwners.join('|')})`;
   const names = `(${links.public.join('|')})(?=(?:[.]git)?[.]*(?![A-Za-z0-9_.-]))`;
-  const https = `s#github[.]com([:/])${old}/${names}#github.com\${1}${links.owner}/\${2}#gi`;
+  const https = `s#(${GITHUB_HOSTS})${old}/${names}#\${1}${links.owner}/\${2}#gi`;
   const pages = `s#(?<![A-Za-z0-9-])${old}[.]github[.]io/${names}#${links.owner}.github.io/\${1}#gi`;
   return `git ls-files -z | xargs -0 perl -pi -e '${https}; ${pages}'`;
 }
@@ -156,6 +164,8 @@ describe('a link to a skkuverse repository', () => {
     ['a link that ends a sentence', `Read https://github.com/${OWNER}/skkuverse-server.`],
     ['the owner and repository in other letter case', `https://github.com/${OWNER.toUpperCase()}/Skkuverse-Server`],
     ['a repository outside the skkuverse family', `https://github.com/${OTHER}/example`],
+    ['a raw file link at the owner', `https://raw.githubusercontent.com/${OWNER}/skkuverse-app/main/README.md`],
+    ['an API link at the owner', `https://api.github.com/repos/${OWNER}/skkuverse-app/releases`],
   ];
   for (const [name, text] of passing) {
     it(`passes ${name}`, () => {
@@ -192,6 +202,30 @@ describe('a link to a skkuverse repository', () => {
       `https://github.com/${OWNER}/skkuverse-app.evil`,
       `github.com/${OWNER}/skkuverse-app.evil`,
       'skkuverse-app.evil is not in public',
+    ],
+    [
+      'a wrong owner in a raw file link',
+      `https://raw.githubusercontent.com/${OTHER}/skkuverse-app/main/README.md`,
+      `raw.githubusercontent.com/${OTHER}/skkuverse-app`,
+      `owner is not ${OWNER}`,
+    ],
+    [
+      'a wrong owner in an API link',
+      `https://api.github.com/repos/${OTHER}/skkuverse-app/releases`,
+      `api.github.com/repos/${OTHER}/skkuverse-app`,
+      `owner is not ${OWNER}`,
+    ],
+    [
+      'a private repository in a raw file link',
+      `https://raw.githubusercontent.com/${OWNER}/skkuverse-web/main/x`,
+      `raw.githubusercontent.com/${OWNER}/skkuverse-web`,
+      'skkuverse-web is not in public',
+    ],
+    [
+      'a private repository in an API link',
+      `https://api.github.com/repos/${OWNER}/skkuverse-web`,
+      `api.github.com/repos/${OWNER}/skkuverse-web`,
+      'skkuverse-web is not in public',
     ],
     [
       'a wrong owner and a private repository',
@@ -263,6 +297,8 @@ describe('the printed rewrite command', () => {
       'a.md': [
         `[readme](https://github.com/${OTHER}/skkuverse-server/blob/main/README.md) and https://${OTHER}.github.io/skkuverse-app/`,
         `Read https://github.com/${OTHER}/skkuverse-server.`,
+        `curl https://raw.githubusercontent.com/${OTHER}/skkuverse-app/main/x.json https://api.github.com/repos/${OTHER}/skkuverse-server/tags`,
+        `curl https://raw.githubusercontent.com/${OTHER}/skkuverse-web/main/x https://api.github.com/repos/${OTHER}/skkuverse-web`,
         `the umbrella is https://github.com/${OTHER}/skkuverse`,
         `the fork is https://github.com/${OTHER}/skkuverse-app.evil`,
         'an unrelated line',
@@ -286,6 +322,8 @@ describe('the printed rewrite command', () => {
         'a.md': [
           `[readme](https://github.com/${OWNER}/skkuverse-server/blob/main/README.md) and https://${OWNER}.github.io/skkuverse-app/`,
           `Read https://github.com/${OWNER}/skkuverse-server.`,
+          `curl https://raw.githubusercontent.com/${OWNER}/skkuverse-app/main/x.json https://api.github.com/repos/${OWNER}/skkuverse-server/tags`,
+          `curl https://raw.githubusercontent.com/${OTHER}/skkuverse-web/main/x https://api.github.com/repos/${OTHER}/skkuverse-web`,
           `the umbrella is https://github.com/${OTHER}/skkuverse`,
           `the fork is https://github.com/${OTHER}/skkuverse-app.evil`,
           'an unrelated line',
@@ -329,6 +367,14 @@ describe('the tracked tree', () => {
     for (const { file, text } of manifests) {
       assert.ok(linkHits(text).length >= 1, `${file} names its repository, and the scan reads that line`);
     }
+  });
+
+  it('prints a pattern without a backslash, and the printed line pasted into git grep counts the same URLs', () => {
+    const scanned = files.reduce((sum, { text }) => sum + linkHits(text).length, 0);
+
+    assert.ok(!GREP_PATTERN.includes('\\'), 'a backslash doubles when the line passes through pnpm');
+    const pasted = execFileSync('sh', ['-c', `git grep -I -h -o -i -E '${GREP_PATTERN}' | wc -l`], { cwd: root, encoding: 'utf8' });
+    assert.equal(Number(pasted.trim()), scanned);
   });
 
   it('counts the same URLs as the exported git grep pattern', () => {

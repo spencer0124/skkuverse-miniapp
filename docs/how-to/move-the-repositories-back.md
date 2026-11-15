@@ -17,7 +17,7 @@ Every link to a skkuverse repository in a tracked file names the owner that `rep
 
 The check reads `package.json` `repository.url` and `homepage`, the badges in `README.md`, the issue template and every other tracked text file. It uses no network.
 
-The check reads links only. Four things stay manual: the `source` field of each file under `.github/rulesets/`, enabling Pages, pushing the release tags, and publishing each package once so that npm shows the new `repository.url`.
+The check reads links only. Five things stay manual: the `source` field of each file under `.github/rulesets/`, the maintainer account in `.github/CODEOWNERS`, `.github/owner-gate-owners` and `.github/owner-gate/test.sh`, enabling Pages, pushing the release tags, and publishing each package once so that npm shows the new `repository.url`.
 
 ## Prerequisites
 
@@ -29,9 +29,9 @@ The check reads links only. Four things stay manual: the `source` field of each 
 
 1. Change `owner` in `repo-links.json` to the new account name. Leave `public` as it is unless a repository joined or left the public set.
 2. Run `pnpm --filter repo-checks test`. The test fails. Each failure line names a `path:line`, and the last line starts with `Rewrite each link to a public repository with:`.
-3. Copy the command on that last line and run it from the repository root. It rewrites the https, `git@` and `github.io` forms and leaves a link to any repository outside `public` alone.
+3. Copy the command on that last line and run it from the repository root. It rewrites the https, `git@`, `raw.githubusercontent.com`, `api.github.com/repos` and `github.io` forms and leaves a link to any repository outside `public` alone.
 4. Run `pnpm test`. It passes when no link is left at the old owner. If it still fails with `is not in public`, remove the link, or add the repository to `public` when the repository is public.
-5. Search for the old account name outside links with `git ls-files -z | xargs -0 grep -n -i '<old-owner>'`. The `source` field of each file under `.github/rulesets/` holds `<owner>/<repo>`, and `.github/CODEOWNERS` and `.github/owner-gate-owners` name the maintainer account. Change each of these by hand when the account that owns them changes.
+5. Search for the old account name outside links with `git ls-files -z | xargs -0 grep -n -i '<old-owner>'`. The `source` field of each file under `.github/rulesets/` holds `<owner>/<repo>`, and `.github/CODEOWNERS`, `.github/owner-gate-owners` and the `owner=` line of `.github/owner-gate/test.sh` (line 28) name the maintainer account. Change each of these by hand when the account that owns them changes, then run `bash scripts/check-ci.sh`, which runs the owner-gate test against the new account.
 6. Commit the change and merge it into `main` through a pull request.
 7. If a workflow publishes a Pages site, enable GitHub Pages on the new repository and set the source to GitHub Actions.
 8. Push the release tags to the new repository. The `release-tags` ruleset blocks moving or deleting a tag, so push each tag once. Replace `<new-owner>` with the new account name:
