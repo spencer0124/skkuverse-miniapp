@@ -8,7 +8,7 @@ skkuverse-miniapp is the SDK, the design system and the tools for skkuverse mini
 - `miniapp-cli check` holds a package to every rule the [miniapp spec](https://spencer0124.github.io/skkuverse-miniapp/docs/reference/miniapp-spec) marks `checked`, and names each broken rule by its ID.
 - A fake host from `@skkuverse/miniapp/testing` runs the app's real bootstrap script in a test or a browser, as the live demo does.
 - Six miniapps built on these packages ran at Sungkyunkwan University's ESKARA 2026 festival, where the festival shuttle alone was used on 1,070 devices in two days ([case study](docs/explanation/case-study-eskara-2026.md)).
-- CI compiles every TypeScript example in the docs and fails when a generated count drifts from the code ([what CI checks](docs/explanation/ci-and-branch-protection.md)).
+- CI compiles every TypeScript example in the docs and fails when a generated count drifts from the code ([what CI checks](docs/explanation/ci-and-branch-protection.md#workflows)).
 
 ## Packages
 
@@ -51,14 +51,17 @@ createRoot(document.getElementById('root')!).render(
 
 The [live demo](https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/) is a page built this way. It runs in a browser against the fake host and lists each message the page sends to the app.
 
-<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/"><img width="320" src="./docs/explanation/assets/stage-timetable.png" alt="The stage timetable demo at phone width: four acts with Star and Share buttons, one act starred, above the log of messages the page sent to the fake host, app.ready and haptic.impact"></a>
+<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/" target="_blank" rel="noreferrer"><img width="320" src="./docs/explanation/assets/stage-timetable.png" alt="The stage timetable demo at phone width: four acts with Star and Share buttons, one act starred, above the log of messages the page sent to the fake host, app.ready and haptic.impact"></a>
 
-In a repository laid out as the [CLI README](packages/cli/README.md) describes, the CLI creates, checks and deploys a miniapp:
+In a repository laid out as the [CLI README](packages/cli/README.md) describes, these steps create a miniapp, check it against the spec and deploy a preview. The second line is an edit to make by hand, not a command.
 
 ```sh
-npx @skkuverse/miniapp-cli new my-app              # write apps/my-app from the template
-npx @skkuverse/miniapp-cli check my-app            # after the build, check it against the spec
-npx @skkuverse/miniapp-cli ship my-app --preview   # build, check and deploy a preview
+pnpm exec miniapp-cli new my-app              # write apps/my-app from the template
+# add "my-app": { "project": "miniapp-my-app" } under "apps" in deploy.config.json
+pnpm install                                  # link apps/my-app and install its dependencies
+pnpm --filter ./apps/my-app build             # write apps/my-app/dist
+pnpm exec miniapp-cli check my-app            # check it against the spec
+pnpm exec miniapp-cli ship my-app --preview   # build, check and deploy a preview with wrangler
 ```
 
 [Ship a miniapp](docs/how-to/ship-a-miniapp.md) follows a miniapp from a folder on disk to a screen in the app.
@@ -120,4 +123,4 @@ After `pnpm install`, `pnpm check:ci` runs the steps CI runs, in the same order,
 
 ## License
 
-Apache-2.0 © spencer0124. See [LICENSE](./LICENSE) for details.
+Apache-2.0. Copyright 2024-2026 spencer0124. See [LICENSE](./LICENSE) for details.

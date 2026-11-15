@@ -66,6 +66,9 @@ pnpm exec miniapp-cli check club --json
   [miniapp template](https://github.com/spencer0124/skkuverse-miniapp/blob/main/packages/cli/templates/miniapp/package.json)
   and the [game template](https://github.com/spencer0124/skkuverse-miniapp/blob/main/packages/cli/templates/game/package.json)
   take as `catalog:`.
+- With pnpm 11, the same file allows esbuild's install script, which vite brings in:
+  `allowBuilds: { esbuild: true }`. Without it, `pnpm install` stops with
+  `ERR_PNPM_IGNORED_BUILDS` after `new`.
 - The root has a `tsconfig.base.json`, which the `tsconfig.json` of each template extends.
 - For `ship`, the root has `wrangler` installed, so that `node_modules/.bin/wrangler`
   exists, and wrangler can deploy to the Pages projects that `deploy.config.json` names.
