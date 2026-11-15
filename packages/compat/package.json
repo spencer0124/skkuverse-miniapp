@@ -1,0 +1,29 @@
+{
+  "name": "compat",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Which @skkuverse/miniapp page version works with which host version, computed from the published packages.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
+    "generate": "node src/matrix.mjs --write",
+    "check": "node src/matrix.mjs --check"
+  },
+  "devDependencies": {
+    "@skkuverse/miniapp": "workspace:*",
+    "happy-dom": "catalog:",
+    "sdk-0.1.0": "npm:@skkuverse/miniapp@0.1.0",
+    "sdk-0.2.0": "npm:@skkuverse/miniapp@0.2.0",
+    "sdk-0.2.1": "npm:@skkuverse/miniapp@0.2.1",
+    "sdk-0.3.0": "npm:@skkuverse/miniapp@0.3.0",
+    "sdk-0.4.0": "npm:@skkuverse/miniapp@0.4.0",
+    "sdk-0.4.1": "npm:@skkuverse/miniapp@0.4.1",
+    "sdk-0.4.2": "npm:@skkuverse/miniapp@0.4.2",
+    "sdk-workspace": "workspace:@skkuverse/miniapp@*",
+    "semver": "^7.8.5"
+  }
+}
