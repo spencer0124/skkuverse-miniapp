@@ -9,12 +9,15 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { before, describe, it } from 'node:test';
+import { fromMarkdown } from 'mdast-util-from-markdown';
 
 const siteDir = path.join(import.meta.dirname, '..');
 const repoRoot = path.join(siteDir, '../..');
 const dist = path.join(siteDir, '.vitepress/dist');
 const ORIGIN = 'http://localhost:4173';
 const BASE = '/skkuverse-miniapp/';
+const { owner } = JSON.parse(fs.readFileSync(path.join(repoRoot, 'repo-links.json'), 'utf8'));
+const REPO_URL = `https://github.com/${owner}/skkuverse-miniapp`;
 
 function publishedSources(root) {
   const out = execFileSync(
@@ -53,22 +56,47 @@ function builtHtml(dir) {
   return found.sort();
 }
 
-const FENCE = /^\s*(```|~~~)/;
-
-/** Inline link targets and reference definitions outside code fences, with their line numbers. */
-function linksOf(text) {
-  const out = [];
-  let fenced = false;
-  text.split('\n').forEach((line, i) => {
-    if (FENCE.test(line)) fenced = !fenced;
-    if (fenced) return;
-    const bare = line.replace(/`[^`]*`/g, '');
-    for (const m of bare.matchAll(/\]\(<?([^)\s>]+)/g)) out.push({ href: m[1], line: i + 1 });
-    const def = /^\s{0,3}\[[^\]]+\]:\s*<?(\S+?)>?\s*$/.exec(bare);
-    if (def) out.push({ href: def[1], line: i + 1 });
-  });
-  return out;
+/**
+ * What a Markdown document links to and which code blocks it holds, read with mdast (micromark). The site's rewrite
+ * reads the same text with markdown-it, so a construct one parser mishandles is still seen by the other.
+ */
+function parse(text) {
+  const links = [];
+  const code = [];
+  const visit = (node) => {
+    const line = node.position?.start.line;
+    if (node.type === 'link' || node.type === 'image' || node.type === 'definition') links.push({ href: node.url, line });
+    else if (node.type === 'code') code.push(`${node.lang ?? ''} ${node.meta ?? ''}\n${node.value}`);
+    else if (node.type === 'html') {
+      for (const m of node.value.matchAll(/\b(?:href|src)\s*=\s*["']([^"']+)["']/gi)) links.push({ href: m[1], line });
+    }
+    node.children?.forEach(visit);
+  };
+  visit(fromMarkdown(text));
+  return { links, code };
 }
+
+const sourceOfCopy = (copy) => {
+  const pkg = /^packages\/([^/]+)\.md$/.exec(copy);
+  return pkg ? `packages/${pkg[1]}/README.md` : copy;
+};
+
+/** The sections of llms-full.txt, each with the URL of the page it was built from. */
+function sectionsOf(text) {
+  const parts = text.split(/^---\nurl: (?:>-\n\s+)?(\S+)\n---\n/m);
+  const sections = [];
+  for (let i = 1; i < parts.length; i += 2) sections.push({ url: parts[i], body: parts[i + 1] });
+  return sections;
+}
+
+const existsAtHead = (rel) => {
+  try {
+    execFileSync('git', ['cat-file', '-e', `HEAD:${rel}`], { cwd: repoRoot, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 function markdownCopies(dir) {
   const found = [];
@@ -129,34 +157,50 @@ describe('built site', () => {
     assert.ok(fs.statSync(path.join(dist, 'llms-full.txt')).size > 0);
   });
 
-  it('resolves every link in the Markdown copies and llms-full.txt', () => {
+  it('resolves every link in the Markdown copies and llms-full.txt, and keeps their code blocks as written', () => {
     const full = `${ORIGIN}${BASE}`;
-    const broken = [];
-    const check = (where, href, resolveRelative) => {
-      if (href.startsWith('#') || /^(mailto|tel):/i.test(href)) return;
-      const [target] = href.split(/[#?]/);
-      if (/^https?:/i.test(href)) {
-        if (target.startsWith(full)) {
-          if (!fs.existsSync(path.join(dist, target.slice(full.length)))) broken.push(`${where}: ${href} is not in the build`);
+    const githubPrefix = `${REPO_URL}/`;
+    const problems = [];
+    const sourceOf = (rel) => parse(fs.readFileSync(path.join(repoRoot, rel), 'utf8'));
+    const checkDocument = (where, source, text, inBundle) => {
+      const original = sourceOf(source);
+      const authored = new Set(original.links.map((l) => l.href));
+      const output = parse(text);
+      if (JSON.stringify(output.code) !== JSON.stringify(original.code)) problems.push(`${where}: code blocks differ from ${source}`);
+      const from = path.posix.dirname(where);
+      for (const { href, line } of output.links) {
+        const at = `${where}:${line}`;
+        if (href.startsWith('#') || /^(mailto|tel):/i.test(href)) continue;
+        const [target] = href.split(/[#?]/);
+        if (/^https?:/i.test(href)) {
+          if (target.startsWith(full)) {
+            if (!fs.existsSync(path.join(dist, decodeURI(target.slice(full.length))))) problems.push(`${at}: ${href} is not in the build`);
+          } else if (/^https:\/\/github\.com\//i.test(href) && !authored.has(href)) {
+            const rel = target.startsWith(githubPrefix) ? /^(?:blob|tree)\/main\/(.+?)\/?$/.exec(target.slice(githubPrefix.length))?.[1] : undefined;
+            if (rel === undefined) problems.push(`${at}: ${href} is not ${REPO_URL}/(blob|tree)/main/<path>`);
+            else if (!existsAtHead(decodeURI(rel))) problems.push(`${at}: ${href} names ${decodeURI(rel)}, which is not in the repository at HEAD`);
+          }
+        } else if (href.startsWith('/')) {
+          if (!target.startsWith(BASE)) problems.push(`${at}: ${href} is site-absolute but leaves the base ${BASE}`);
+          else if (!fs.existsSync(path.join(dist, decodeURI(target.slice(BASE.length))))) problems.push(`${at}: ${href} is not in the build`);
+        } else if (inBundle) {
+          problems.push(`${at}: ${href} is relative inside a single-file bundle`);
         } else {
-          const blob = new RegExp(`^https://github\\.com/[^/]+/skkuverse-miniapp/(?:blob|tree)/main/(.+?)/?$`).exec(target);
-          if (blob && !fs.existsSync(path.join(repoRoot, decodeURI(blob[1])))) broken.push(`${where}: ${href} is not in the repository`);
+          const resolved = path.posix.normalize(path.posix.join(from, decodeURI(target)));
+          if (!fs.existsSync(path.join(dist, resolved))) problems.push(`${at}: ${href} resolves to ${resolved}, which is not in the build`);
         }
-        return;
       }
-      const resolved = resolveRelative(decodeURI(target));
-      if (resolved === null) broken.push(`${where}: ${href} is relative inside a single-file bundle`);
-      else if (!fs.existsSync(path.join(dist, resolved))) broken.push(`${where}: ${href} resolves to ${resolved}, which is not in the build`);
     };
     for (const copy of markdownCopies(dist)) {
-      const from = path.posix.dirname(copy);
-      for (const { href, line } of linksOf(fs.readFileSync(path.join(dist, copy), 'utf8'))) {
-        check(`${copy}:${line}`, href, (t) => (t.startsWith('/') ? t.replace(BASE, '') : path.posix.normalize(path.posix.join(from, t))));
-      }
+      checkDocument(copy, sourceOfCopy(copy), fs.readFileSync(path.join(dist, copy), 'utf8'), false);
     }
-    for (const { href, line } of linksOf(fs.readFileSync(path.join(dist, 'llms-full.txt'), 'utf8'))) {
-      check(`llms-full.txt:${line}`, href, () => null);
+    const bundle = fs.readFileSync(path.join(dist, 'llms-full.txt'), 'utf8');
+    const sections = sectionsOf(bundle);
+    assert.ok(sections.length > 0, 'llms-full.txt has sections');
+    for (const { url, body } of sections) {
+      assert.ok(url.startsWith(full), `llms-full.txt section ${url} is under ${full}`);
+      checkDocument(`llms-full.txt[${url.slice(full.length)}]`, sourceOfCopy(url.slice(full.length)), body, true);
     }
-    assert.deepEqual(broken, [], `${broken.length} broken link(s)`);
+    assert.deepEqual(problems, [], `${problems.length} problem(s)`);
   });
 });

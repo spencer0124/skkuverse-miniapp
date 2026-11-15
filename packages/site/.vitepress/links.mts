@@ -1,5 +1,9 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import MarkdownIt from 'markdown-it';
+import reference from 'markdown-it/lib/rules_block/reference.mjs';
+import image from 'markdown-it/lib/rules_inline/image.mjs';
+import link from 'markdown-it/lib/rules_inline/link.mjs';
 
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
@@ -32,26 +36,103 @@ export function repoLinkOf(repoRoot: string, fromRel: string, href: string): Rep
 export const githubUrl = (repoUrl: string, link: RepoLink) =>
   `${repoUrl}/${link.isDir ? 'tree' : 'blob'}/main/${link.rel.replace(/\/$/, '')}${link.suffix}`;
 
-/** Rewrites each link target outside code fences and inline code. `rewrite` returns a new target, or undefined to keep it. */
+interface Span {
+  start: number;
+  end: number;
+}
+
+// A parser, not line patterns, decides what is a link: fences of any nesting, code spans, titles and reference
+// definitions are CommonMark's business. The parser records where each destination sits in the source, and
+// nothing else is edited.
+const inlineSpans = new WeakMap<object, Span[]>();
+const parser = new MarkdownIt({ html: true });
+
+for (const [name, rule, isImage] of [['link', link, false], ['image', image, true]] as const) {
+  parser.inline.ruler.at(name, (state: any, silent: boolean) => {
+    const before = state.tokens.length;
+    const start: number = state.pos;
+    if (!rule(state, silent)) return false;
+    if (silent) return true;
+    const token = isImage ? state.tokens[state.tokens.length - 1] : state.tokens.slice(before).find((t: any) => t.type === 'link_open');
+    const href: string | null = token.attrGet(isImage ? 'src' : 'href');
+    const labelEnd: number = parser.helpers.parseLinkLabel(state, isImage ? start + 1 : start, !isImage);
+    if (state.src[labelEnd + 1] !== '(') return true;
+    let pos = labelEnd + 2;
+    while (pos < state.posMax && /\s/.test(state.src[pos])) pos++;
+    const dest = parser.helpers.parseLinkDestination(state.src, pos, state.posMax);
+    if (!dest.ok || parser.normalizeLink(dest.str) !== href) return true;
+    const angle = state.src[pos] === '<' ? 1 : 0;
+    const list = inlineSpans.get(state.tokens) ?? [];
+    list.push({ start: pos + angle, end: dest.pos - angle });
+    inlineSpans.set(state.tokens, list);
+    return true;
+  });
+}
+
+parser.block.ruler.at('reference', (state: any, startLine: number, endLine: number, silent: boolean) => {
+  if (!reference(state, startLine, endLine, silent)) return false;
+  if (silent) return true;
+  const from: number = state.bMarks[startLine] + state.tShift[startLine];
+  const to: number = state.eMarks[state.line - 1];
+  const raw: string = state.src.slice(from, to);
+  let colon = 1;
+  while (colon < raw.length && raw[colon] !== ']') colon += raw[colon] === '\\' ? 2 : 1;
+  let pos = from + colon + 2;
+  while (pos < to && /\s/.test(state.src[pos])) pos++;
+  const dest = parser.helpers.parseLinkDestination(state.src, pos, to);
+  const href = dest.ok && parser.normalizeLink(dest.str);
+  if (!href || !Object.values<{ href: string }>(state.env.references).some((r) => r.href === href)) {
+    throw new Error(`cannot locate the destination of the reference definition at line ${startLine + 1}`);
+  }
+  const angle = state.src[pos] === '<' ? 1 : 0;
+  state.env.definitionSpans.push({ start: pos + angle, end: dest.pos - angle });
+  return true;
+});
+
+/** The source position of every link, image and reference-definition destination that is not code. */
+function linkTargets(text: string): Span[] {
+  if (text.includes('\r')) throw new Error('a Markdown copy with a carriage return is not supported');
+  const env: { definitionSpans: Span[] } = { definitionSpans: [] };
+  const tokens = parser.parse(text, env);
+  const lineStart: number[] = [0];
+  for (let i = text.indexOf('\n'); i >= 0; i = text.indexOf('\n', i + 1)) lineStart.push(i + 1);
+  const lineAt = (n: number) => text.slice(lineStart[n], (lineStart[n + 1] ?? text.length + 1) - 1);
+  const found = [...env.definitionSpans];
+  let block: number[] = [0, 0];
+  const cursor = new Map<number, number>();
+  for (const token of tokens) {
+    if (token.map) block = token.map;
+    const spans = token.type === 'inline' ? inlineSpans.get(token.children) : undefined;
+    if (!spans) continue;
+    // WHY: a table cell has no source map of its own, so it takes the row's. The content of an inline token is its
+    // source lines minus the container prefix, so each line is found again inside its source line.
+    const row = block[0];
+    const bases: { content: number; file: number }[] = [];
+    let content = 0;
+    token.content.split('\n').forEach((piece: string, i: number) => {
+      const at = lineAt(row + i).indexOf(piece, cursor.get(row + i) ?? 0);
+      if (at < 0) throw new Error(`cannot align inline content with line ${row + i + 1}`);
+      cursor.set(row + i, at + piece.length);
+      bases.push({ content, file: lineStart[row + i] + at });
+      content += piece.length + 1;
+    });
+    for (const span of spans) {
+      const base = [...bases].reverse().find((b) => b.content <= span.start)!;
+      const delta = base.file - base.content;
+      found.push({ start: span.start + delta, end: span.end + delta });
+    }
+  }
+  return found;
+}
+
+/** Rewrites each link target that is not code. `rewrite` returns a new target, or undefined to keep it. */
 export function mapLinks(text: string, rewrite: (href: string) => string | undefined): string {
-  let fenced = false;
-  return text
-    .split('\n')
-    .map((line) => {
-      if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
-      if (fenced) return line;
-      const masked = line.replace(/`[^`]*`/g, (code) => '\0'.repeat(code.length));
-      const edits: { start: number; end: number; to: string }[] = [];
-      const consider = (start: number, href: string) => {
-        const to = rewrite(href);
-        if (to !== undefined && to !== href) edits.push({ start, end: start + href.length, to });
-      };
-      for (const m of masked.matchAll(/\]\(<?([^)\s>]+)/g)) consider(m.index + m[0].length - m[1].length, m[1]);
-      const def = /^(\s{0,3}\[[^\]]+\]:\s*<?)(\S+?)>?\s*$/.exec(masked);
-      if (def) consider(def[1].length, def[2]);
-      return edits.sort((a, b) => b.start - a.start).reduce((acc, e) => acc.slice(0, e.start) + e.to + acc.slice(e.end), line);
-    })
-    .join('\n');
+  const edits = linkTargets(text).flatMap(({ start, end }) => {
+    const href = text.slice(start, end);
+    const to = rewrite(href);
+    return to !== undefined && to !== href ? [{ start, end, to }] : [];
+  });
+  return edits.sort((a, b) => b.start - a.start).reduce((acc, e) => acc.slice(0, e.start) + e.to + acc.slice(e.end), text);
 }
 
 function markdownCopies(outDir: string): string[] {
