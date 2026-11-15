@@ -17,12 +17,12 @@ skkuverse hosts every miniapp and every game itself. Each hands over a package, 
 
 Each rule has an ID, a kind and the packages it applies to. The kind says who enforces it:
 
-- **checked**: `check` enforces it. The implementation is `packages/cli/src/check.ts` in this repository. Each failure prints the rule ID, and `check --json` adds the heading of this document that defines the rule.
+- **checked**: a tool enforces it, and each failure prints the rule ID and the heading of this document that defines it (`--json` adds it as `spec`). `check` reads a package's files, in `packages/cli/src/check.ts`. `miniapp-contract` loads the built miniapp in Chromium and watches what the page does, in `packages/miniapp-contract/src/`, and it enforces N1 to N4. What each tool cannot see is in its own README, and a checked rule is held only as far as its tool observes it.
 - **review**: the operator reads the code for it before a first release and when a release touches it.
 
 The **For** column says which packages a rule applies to: `app` for a miniapp, `game` for a game, `both` for either. A rule for one is never checked against the other.
 
-<!-- docs-gen:begin spec-rule-count -->The spec holds 24 rules: 20 are checked and 4 are for review.<!-- docs-gen:end spec-rule-count -->
+<!-- docs-gen:begin spec-rule-count -->The spec holds 26 rules: 24 are checked and 2 are for review.<!-- docs-gen:end spec-rule-count -->
 
 Numeric limits are not repeated here. Each rule names the file that owns its value.
 
@@ -77,12 +77,16 @@ apps/<id>/
 
 ## Page
 
+`miniapp-contract` judges a miniapp only. N1 and N2 hold for a game too, and N6 is the operator's review of them.
+
 | Rule | Kind | For | Requirement |
 | --- | --- | --- | --- |
 | H1 | checked | both | `index.html` has `<html lang>` and a viewport `<meta>` with `viewport-fit=cover`. Every executable `<script>` has a same-origin, root-absolute `src`. No inline script and no `on*=` handler attribute, since the platform's CSP blocks both |
-| N1 | review | both | Inside the app, a page leaves its own origin only through the SDK's `link.open` (`openUrl()`, `handleLinkClick()`). A plain `<a href>` or `location` change to another site is for browser-only code paths |
-| N2 | review | both | A debug switch, such as a clock override read from the query string, works only under `import.meta.env.DEV` |
-| N3 | review | app | Every user-facing route renders inside `<MiniappRoot>`. An operator page, such as `/admin`, may sit outside it and must require a token |
+| N1 | checked | app | Inside the app, a page leaves its own origin only through the SDK's `link.open` (`openUrl()`, `handleLinkClick()`). `miniapp-contract` clicks every link and button in DOM order on each same-origin route it reaches, and fails when the page, or a popup it opens, navigates to another origin with no `link.open` post for that URL. It does not click a `<div onClick>`, and it misses a navigation a timer fires after the click settles |
+| N2 | checked | app | A debug switch, such as a clock override read from the query string, works only under `import.meta.env.DEV`. `miniapp-contract` finds each query key a built script reads through a literal `.get`, `.getAll` or `.has` call and loads `/` with it set to `1` and to `true`. It fails when a load shows other text, posts other messages or requests other addresses than the plain load. A key read any other way, such as a loop over `URLSearchParams`, is not found, and neither is a switch read only in a lazily loaded route, because the runner loads `/` alone, and a key the miniapp uses on purpose is listed in its `queryParams` in `deploy.config.json` |
+| N3 | checked | app | Every user-facing route renders inside `<MiniappRoot>`. `miniapp-contract` loads every route its crawl found with no host, and fails when `<MiniappRoot>` has not marked `<html>` with `data-sv-chrome`. A route it cannot reach by a link or a click, and a hash route, is not judged. The operator pages listed in `operatorPaths` in `deploy.config.json` are skipped and named in a warning, and N5 covers them |
+| N5 | review | app | An operator page, such as `/admin`, may sit outside `<MiniappRoot>` and must require a token. It is listed in `operatorPaths`, and the operator reads that it asks for the token |
+| N6 | review | game | A game leaves its origin only through `link.open` and keeps each debug switch behind `import.meta.env.DEV`, as N1 and N2 ask of a miniapp. `miniapp-contract` does not load a game, so the operator reads the game's source for both |
 | G2 | checked | game | The page boots through `bootGame` from `@skkuverse/miniapp/game`, which installs the page guard and speaks the `game.*` protocol. Its source never posts to `window.ReactNativeWebView` itself and never reads, defines or replaces the host globals (`window.skkuverse`, `window.__host`) |
 
 ## Manifest
@@ -101,7 +105,7 @@ A miniapp may call a backend of its own. skkuverse hosts the static page, not th
 
 | Rule | Kind | For | Requirement |
 | --- | --- | --- | --- |
-| N4 | review | app | The backend URL is absolute and comes from a `VITE_*` variable in a committed `.env.production`, which holds public values only. The backend allows the miniapp's origin through CORS. Authentication uses a token, not a cookie, because the iOS web view blocks third-party cookies |
+| N4 | checked | app | The backend URL is absolute and comes from a `VITE_*` variable in a committed `.env.production`, which holds public values only. The backend allows the miniapp's origin through CORS. Authentication uses a token, not a cookie, because the iOS web view blocks third-party cookies. `miniapp-contract` records each `fetch`, XHR, EventSource and WebSocket to another origin in every load it makes, and fails on an origin that no `VITE_*` value names, on a request that asks to send cookies, and on a backend whose answer to the CORS preflight a browser on the miniapp's origin sends (or to a simple `GET` or `HEAD` itself) does not allow the request. It sends no `POST`, `PUT`, `PATCH` or `DELETE`, and warns about a simple `POST` instead. It does not read the code, so that the URL comes from a `VITE_*` variable, that `.env.production` is committed and that it holds public values only are the operator's to review: the runner takes the origins from that file when it exists. It judges a `fetch` or XHR a Worker makes, but its cookie check runs only in the top window, so it misses a Worker's request that asks for cookies, and it refuses and warns about a WebSocket a Worker opens without judging it. It does not judge a beacon or an image, and it reaches a backend over the network |
 | B1 | checked | app | **First-party only.** A miniapp whose `deploy.config.json` entry declares `"backend": "functions"` keeps a Pages Functions backend in `functions/` with its `wrangler.toml`, served on its own origin under `/api/*` and deployed in the same `ship`. A `functions/` directory without that declaration fails the check |
 | G3 | checked | game | **No backend.** A game has no `functions/` directory and no `backend` declaration, and calls no server. A ranked result is verified outside the page, never by anything the game ships |
 
@@ -131,9 +135,9 @@ A game's CSP is defence in depth, not the boundary against whoever can deploy it
 
 ## Changing the spec
 
-A new rule lands here and in `check.ts` together, and the existing miniapps are brought into line in the same change. A rule only a reviewer can judge is marked review rather than left out.
+A new rule lands here and in the tool that enforces it, together, and the existing miniapps are brought into line in the same change. A rule `miniapp-cli check` raises goes in `RULE_SECTIONS` in `check.ts`. A rule the `miniapp-contract` browser runner raises goes in `CONTRACT_RULES` in `packages/miniapp-contract/src/rules.ts`. A rule only a reviewer can judge is marked review rather than left out.
 
-`packages/cli/test/spec-coverage.test.ts` fails when this document and the checker disagree. Every checked rule has to be raised by the checker, asserted by a test, and listed in `RULE_SECTIONS` in `check.ts` under the heading its table sits in. A rule marked review is not in the checker, and a rule in the checker is marked checked here. Renaming a heading that holds a rule means updating `RULE_SECTIONS`, because `check --json` links to the heading.
+`packages/cli/test/spec-coverage.test.ts` fails when this document and the checker disagree. Every checked rule has to be raised by one of the two tools, asserted by a test, and listed in `RULE_SECTIONS` or `CONTRACT_RULES` (never both) under the heading its table sits in. A rule `miniapp-contract` enforces is `app` here. A rule marked review is in neither tool, and a rule in either is marked checked here. Renaming a heading that holds a rule means updating whichever record holds it, because `check --json` and the runner's findings link to the heading.
 
 ## Related
 

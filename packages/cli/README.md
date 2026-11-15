@@ -26,9 +26,12 @@ walking up from the working directory. Every command also takes `--root <path>`.
 
 `check` exits 1 when a package breaks a rule. `ship` runs the repository's `wrangler pages deploy`, and a production deploy needs a clean `main` that matches `origin/main`.
 
-The spec marks each rule `checked` or `review`. The CLI enforces the `checked` rules, and
-`src/check.ts` holds them. `test/spec-coverage.test.ts` fails when the spec and the checker
-disagree about which rules are checked, or when a checked rule has no test.
+The spec marks each rule `checked` or `review`. A `checked` rule is enforced by this CLI or
+by `@skkuverse/miniapp-contract`, which runs N1 to N4 in a browser. `src/check.ts` holds the
+CLI's rules and `packages/miniapp-contract/src/rules.ts` the contract runner's.
+`test/spec-coverage.test.ts` fails when the spec and the two disagree about which rules are
+checked, when a checked rule has no test in either package, or when either links a rule to
+a heading the spec does not define it under.
 
 ## Read the findings as JSON
 

@@ -19,7 +19,8 @@ The shared code every skkuverse miniapp imports, and the tools that check and sh
   - `src/testing/` is `./testing`: the fake game host, the game contract and the bound fixtures (`fixtures/bounds.json`, also published on its own).
   - `src/react/` holds `MiniappRoot` and the hooks. It must never import `@skkuverse/ui`.
   - `src/react/ui/` holds the SDS-styled components.
-- `packages/cli` → `@skkuverse/miniapp-cli`: `check`, `new` and `ship`. `src/check.ts` enforces the `checked` rules of `docs/reference/miniapp-spec.md`, and `templates/` holds what `new` scaffolds. It ships as built JavaScript, with the templates beside it.
+- `packages/cli` → `@skkuverse/miniapp-cli`: `check`, `new` and `ship`. `src/check.ts` enforces the file-based `checked` rules of `docs/reference/miniapp-spec.md` (not N1 to N4), and `templates/` holds what `new` scaffolds. It ships as built JavaScript, with the templates beside it.
+- `packages/miniapp-contract` → `@skkuverse/miniapp-contract`: loads a built miniapp in Chromium and enforces the runtime rules N1 to N4 of the spec, which `check` cannot see. Its rules live in `src/rules.ts` (`CONTRACT_RULES`).
 - `packages/game-contract` → `@skkuverse/game-contract`: plays a built game against the fake host from `./testing` and holds it to the game protocol contract. It installs vitest and happy-dom, which is why it is not part of the CLI.
 
 Read `docs/explanation/architecture.md` for how these meet the app's mini-app shell and the server registry.

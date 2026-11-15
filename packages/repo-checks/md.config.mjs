@@ -28,6 +28,7 @@ import {
 const MESSAGES = 'packages/miniapp/src/protocol/messages.ts';
 const CONTRACT = 'packages/miniapp/src/testing/contract.ts';
 const CLI_CHECK = 'packages/cli/src/check.ts';
+const CONTRACT_RULES = 'packages/miniapp-contract/src/rules.ts';
 const CLI_REPORT = 'packages/cli/src/report.ts';
 const SDK_DIR = 'packages/miniapp/src/sdk/';
 const GAME_BOOT = 'packages/miniapp/src/game/boot.ts';
@@ -377,9 +378,9 @@ export const transforms = {
     const rows = [...readText('docs/reference/miniapp-spec.md').matchAll(/^\| ([A-Z]\d+) \| (checked|review) \|/gm)];
     const checked = rows.filter((row) => row[2] === 'checked').length;
     const reviewed = rows.length - checked;
-    const enforced = Object.keys(Object.fromEntries(stringRecord(CLI_CHECK, 'RULE_SECTIONS'))).length;
-    if (enforced !== checked) throw new Error(`the spec marks ${checked} rules checked, but RULE_SECTIONS in ${CLI_CHECK} holds ${enforced}`);
-    return `The spec holds ${rows.length} rules: ${checked} are checked and ${reviewed} are for review.`;
+    const enforced = new Set([...stringRecord(CLI_CHECK, 'RULE_SECTIONS'), ...stringRecord(CONTRACT_RULES, 'CONTRACT_RULES')].map(([id]) => id)).size;
+    if (enforced !== checked) throw new Error(`the spec marks ${checked} rules checked, but RULE_SECTIONS in ${CLI_CHECK} and CONTRACT_RULES in ${CONTRACT_RULES} hold ${enforced}`);
+    return `The spec holds ${rows.length} rules: ${checked} are checked and ${reviewed} ${reviewed === 1 ? 'is' : 'are'} for review.`;
   },
 
   engines: ({ package: dir }) => enginesPhrase(readJson(`packages/${dir}/package.json`).engines.node),

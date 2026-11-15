@@ -14,6 +14,15 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "@skkuverse/miniapp-cli#test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/docs/reference/miniapp-spec.md",
+        "$TURBO_ROOT$/packages/miniapp-contract/src/**",
+        "$TURBO_ROOT$/packages/miniapp-contract/test/**"
+      ]
+    },
     "repo-checks#test": {
       "dependsOn": ["^build"],
       "cache": false

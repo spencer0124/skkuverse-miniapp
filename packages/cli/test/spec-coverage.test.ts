@@ -1,38 +1,43 @@
 /**
  * Holds the spec, the checker and the tests to one set of rules. The spec
- * (`docs/reference/miniapp-spec.md`) says which rules `check` enforces and
- * under which heading each is defined. The checker raises them, `RULE_SECTIONS`
- * links each to its heading, and a test asserts each. When one side gains,
- * loses or moves a rule without the others, this file fails and names the rule.
+ * (`docs/reference/miniapp-spec.md`) says which rules `check` and
+ * `miniapp-contract` enforce and under which heading each is defined. The CLI
+ * or the contract runner raises them, `RULE_SECTIONS` and `CONTRACT_RULES` link
+ * each to its heading, and a test in either package asserts each. When one side
+ * gains, loses or moves a rule without the others, this file fails and names
+ * the rule.
  *
  * The checks read names, not behavior. A rule is raised when its ID is a string
  * literal in `src`, and asserted when its ID is a literal in a positive
  * `assert` call in `test`, outside a case that is skipped or marked todo. They
  * cannot tell whether that assertion can fail: `assert.ok(true, 'R3')`, a
  * check that is never reached and a test that no longer exercises the rule all
- * count. That is for the case itself, and the spec's For column is parsed and
- * compared with nothing.
+ * count. That is for the case itself. The spec's For column is compared with
+ * one thing: a rule the contract runner enforces must be `app`.
  */
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, it } from 'node:test';
 import ts from 'typescript';
+import { CONTRACT_RULES } from '../../miniapp-contract/src/rules.ts';
 import { RULE_SECTIONS } from '../src/check.ts';
 
 const CLI_DIR = resolve(import.meta.dirname, '..');
+const CONTRACT_DIR = resolve(CLI_DIR, '..', 'miniapp-contract');
 const SPEC_FILE = resolve(CLI_DIR, '..', '..', 'docs', 'reference', 'miniapp-spec.md');
 
 interface SpecRule {
   id: string;
   kind: 'checked' | 'review';
+  for: 'app' | 'game' | 'both';
   /** The anchor of the heading the rule's table sits under. */
   anchor: string;
 }
 
 const RULES_COLUMNS = ['Rule', 'Kind', 'For', 'Requirement'];
 const RULES_HEADER = `| ${RULES_COLUMNS.join(' | ')} |`;
-const RULE_ROW = /^\|\s*(?<id>[A-Z]\d+)\s*\|\s*(?<kind>checked|review)\s*\|\s*(?:app|game|both)\s*\|/;
+const RULE_ROW = /^\|\s*(?<id>[A-Z]\d+)\s*\|\s*(?<kind>checked|review)\s*\|\s*(?<for>app|game|both)\s*\|/;
 const cellsOf = (line: string) => line.replace(/^\||\|\s*$/g, '').split('|').map((cell) => cell.trim());
 
 /** GitHub's anchor for a heading: lowercase, anything but letters, digits, `_`, `-` and spaces dropped, spaces to hyphens. */
@@ -72,9 +77,9 @@ function parseSpec(markdown: string): { rules: SpecRule[]; anchors: string[] } {
     if (!inTable || /^\|[\s:|-]+$/.test(line)) continue;
     const row = RULE_ROW.exec(line);
     if (row === null) throw new Error(`a rules table row does not match ${RULE_ROW}: ${line}`);
-    const { id, kind } = row.groups as { id: string; kind: SpecRule['kind'] };
+    const { id, kind, for: appliesTo } = row.groups as { id: string; kind: SpecRule['kind']; for: SpecRule['for'] };
     if (rules.some((rule) => rule.id === id)) throw new Error(`the spec defines ${id} twice`);
-    rules.push({ id, kind, anchor });
+    rules.push({ id, kind, for: appliesTo, anchor });
   }
   return { rules, anchors };
 }
@@ -170,15 +175,19 @@ function stringLiterals(source: string, inAssertion = false): Set<string> {
   return found;
 }
 
-function literalsIn(dir: string, keep: (name: string) => boolean, inAssertion = false): Set<string> {
+/** Walks each folder recursively: the contract runner raises each rule in `src/observe/n<k>.ts`. Fixtures under `test/` are not `.test.ts` files. */
+function literalsIn(dirs: readonly string[], keep: (name: string) => boolean, inAssertion = false): Set<string> {
   const found = new Set<string>();
-  for (const name of readdirSync(dir).filter(keep)) {
-    for (const literal of stringLiterals(readFileSync(join(dir, name), 'utf8'), inAssertion)) found.add(literal);
+  for (const dir of dirs) {
+    for (const name of readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter(keep)) {
+      for (const literal of stringLiterals(readFileSync(join(dir, name), 'utf8'), inAssertion)) found.add(literal);
+    }
   }
   return found;
 }
 
-const defined = Object.keys(RULE_SECTIONS);
+const SECTIONS: Readonly<Record<string, string>> = { ...RULE_SECTIONS, ...CONTRACT_RULES };
+const defined = Object.keys(SECTIONS);
 
 /** The rules the spec marks checked and the checker does not define, and the reverse. */
 function disagreements(spec: string, definedRules: readonly string[]) {
@@ -189,15 +198,31 @@ function disagreements(spec: string, definedRules: readonly string[]) {
   };
 }
 
+/** The For value the spec gives a rule. */
+const forOf = (spec: string, id: string) => parseSpec(spec).rules.find((rule) => rule.id === id)?.for;
+
 const specText = readFileSync(SPEC_FILE, 'utf8');
 const { rules: specRules, anchors } = parseSpec(specText);
 const checked = specRules.filter((rule) => rule.kind === 'checked');
-const raised = literalsIn(join(CLI_DIR, 'src'), (name) => name.endsWith('.ts'));
-const asserted = literalsIn(join(CLI_DIR, 'test'), (name) => name.endsWith('.test.ts') && name !== 'spec-coverage.test.ts', true);
+const SOURCES = [join(CLI_DIR, 'src'), join(CONTRACT_DIR, 'src')];
+const TESTS = [join(CLI_DIR, 'test'), join(CONTRACT_DIR, 'test')];
+const raised = literalsIn(SOURCES, (name) => name.endsWith('.ts'));
+const asserted = literalsIn(TESTS, (name) => name.endsWith('.test.ts') && !name.endsWith('spec-coverage.test.ts'), true);
 
 describe('spec coverage', () => {
-  it('the rules the spec marks checked are the rules the checker defines', () => {
+  it('the rules the spec marks checked are the rules the checker and the contract runner define', () => {
     assert.deepEqual(disagreements(specText, defined), { markedCheckedButNotDefined: [], definedButNotMarkedChecked: [] });
+  });
+
+  it('no rule is in both RULE_SECTIONS and CONTRACT_RULES', () => {
+    assert.deepEqual(Object.keys(CONTRACT_RULES).filter((id) => id in RULE_SECTIONS), []);
+  });
+
+  it('every rule the contract runner enforces is for an app in the spec, since it loads a miniapp only', () => {
+    assert.deepEqual(
+      Object.keys(CONTRACT_RULES).filter((id) => forOf(specText, id) !== 'app'),
+      [],
+    );
   });
 
   it('no two headings of the spec share an anchor', () => {
@@ -207,9 +232,9 @@ describe('spec coverage', () => {
   describe(`each of the ${checked.length} checked rules`, () => {
     for (const { id, anchor } of checked) {
       it(`${id} is raised by the checker, asserted by a test, and linked to its heading`, () => {
-        assert.ok(raised.has(id), `${id}: no source file under packages/cli/src raises it`);
-        assert.ok(asserted.has(id), `${id}: no test under packages/cli/test names it in an assertion`);
-        assert.equal(RULE_SECTIONS[id as keyof typeof RULE_SECTIONS], anchor, `${id}: RULE_SECTIONS does not name the heading the spec defines it under`);
+        assert.ok(raised.has(id), `${id}: no source file under packages/cli/src or packages/miniapp-contract/src raises it`);
+        assert.ok(asserted.has(id), `${id}: no test under packages/cli/test or packages/miniapp-contract/test names it in an assertion`);
+        assert.equal(SECTIONS[id], anchor, `${id}: neither RULE_SECTIONS nor CONTRACT_RULES names the heading the spec defines it under`);
       });
     }
   });
@@ -248,7 +273,7 @@ describe('spec coverage', () => {
         '| T1   | checked | both | A package keeps no more than 5 MiB in storage |',
         '',
       ].join('\n');
-      assert.deepEqual(parseSpec(aligned).rules, [{ id: 'T1', kind: 'checked', anchor: 'storage' }]);
+      assert.deepEqual(parseSpec(aligned).rules, [{ id: 'T1', kind: 'checked', for: 'both', anchor: 'storage' }]);
     });
 
     it('a rules table whose columns are not the four the test reads', () => {
