@@ -17,7 +17,7 @@ Every link to a skkuverse repository in a tracked file names the owner that `rep
 
 The check reads `package.json` `repository.url` and `homepage`, the badges in `README.md`, the issue template and every other tracked text file. It uses no network.
 
-Three things the check cannot do stay manual: enable Pages, push the release tags, and publish each package once so that npm shows the new `repository.url`.
+The check reads links only. Four things stay manual: the `source` field of each file under `.github/rulesets/`, enabling Pages, pushing the release tags, and publishing each package once so that npm shows the new `repository.url`.
 
 ## Prerequisites
 
@@ -31,21 +31,22 @@ Three things the check cannot do stay manual: enable Pages, push the release tag
 2. Run `pnpm --filter repo-checks test`. The test fails. Each failure line names a `path:line`, and the last line starts with `Rewrite each link to a public repository with:`.
 3. Copy the command on that last line and run it from the repository root. It rewrites the https, `git@` and `github.io` forms and leaves a link to any repository outside `public` alone.
 4. Run `pnpm test`. It passes when no link is left at the old owner. If it still fails with `is not in public`, remove the link, or add the repository to `public` when the repository is public.
-5. Commit the change and merge it into `main` through a pull request.
-6. If a workflow publishes a Pages site, enable GitHub Pages on the new repository and set the source to GitHub Actions.
-7. Push the release tags to the new repository. The `release-tags` ruleset blocks moving or deleting a tag, so push each tag once. Replace `<new-owner>` with the new account name:
+5. Search for the old account name outside links with `git ls-files -z | xargs -0 grep -n -i '<old-owner>'`. The `source` field of each file under `.github/rulesets/` holds `<owner>/<repo>`, and `.github/CODEOWNERS` and `.github/owner-gate-owners` name the maintainer account. Change each of these by hand when the account that owns them changes.
+6. Commit the change and merge it into `main` through a pull request.
+7. If a workflow publishes a Pages site, enable GitHub Pages on the new repository and set the source to GitHub Actions.
+8. Push the release tags to the new repository. The `release-tags` ruleset blocks moving or deleting a tag, so push each tag once. Replace `<new-owner>` with the new account name:
 
    ```sh
    git push https://github.com/<new-owner>/skkuverse-miniapp.git 'refs/tags/@skkuverse/*:refs/tags/@skkuverse/*'
    ```
 
-8. Point `origin` at the new repository:
+9. Point `origin` at the new repository:
 
    ```sh
    git remote set-url origin https://github.com/<new-owner>/skkuverse-miniapp.git
    ```
 
-9. Release each package once. npm shows the `repository.url` of a package's latest version, so a package keeps the old URL until its next release. Follow [release-packages.md](release-packages.md).
+10. Release each package once. npm shows the `repository.url` of a package's latest version, so a package keeps the old URL until its next release. Follow [release-packages.md](release-packages.md).
 
 ## Troubleshooting
 
