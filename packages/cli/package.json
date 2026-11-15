@@ -4,6 +4,13 @@
   "description": "check, new and ship for a repository of skkuverse miniapps and games.",
   "license": "Apache-2.0",
   "type": "module",
+  "exports": {
+    "./platform": {
+      "types": "./dist/platform.d.ts",
+      "import": "./dist/platform.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
     "miniapp-cli": "./dist/cli.js"
   },
@@ -26,7 +33,7 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "lint": "publint",
+    "lint": "publint && attw --pack . --profile esm-only",
     "test": "node --experimental-strip-types --test test/*.test.ts"
   },
   "dependencies": {
