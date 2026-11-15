@@ -301,31 +301,41 @@ export function githubRepo(url) {
   return repo;
 }
 
+const isLocalPath = (url) => url.startsWith('file://') || !/^[^/]*:/.test(url);
+
 /**
- * The remote's configured URL. git pushes somewhere else when the remote has a second `url`, a `pushurl` that differs
- * or a `pushInsteadOf` rule that matches, so each of those stops the run. Without them, `ls-remote` also reads the
- * repository the tags go to.
+ * The GitHub repository the remote's configured URL names, once git's own resolution shows the tags go there too.
+ * A second URL, a pushurl and an insteadOf or pushInsteadOf rule can each send a push elsewhere, or make ls-remote read
+ * another repository than the one pushed to. A rewrite to a local path is allowed: the tag stays on this machine, and
+ * `gh release create --verify-tag` refuses a tag GitHub does not hold. The rehearsal and the test fixture rely on it.
  */
-function remoteUrl(repo, remote) {
-  const all = (...args) => {
+export function releaseRepository(repo, remote) {
+  const urls = (...args) => {
     try {
-      return git(repo, 'config', '--null', ...args).split('\0').filter(Boolean);
+      return git(repo, ...args).split('\n').filter(Boolean);
     } catch {
       return [];
     }
   };
-  const urls = all('--get-all', `remote.${remote}.url`);
-  const pushUrls = all('--get-all', `remote.${remote}.pushurl`);
-  if (urls.length === 0) throw new Error(`no remote named ${remote}`);
-  if (urls.length > 1) throw new Error(`${remote} has ${urls.length} urls, and git pushes to every one`);
-  if (pushUrls.length > 1) throw new Error(`${remote} has ${pushUrls.length} pushurls, and git pushes to every one`);
-  const [url] = urls;
-  if (pushUrls.length === 1 && pushUrls[0] !== url) throw new Error(`${remote} pushes to ${pushUrls[0]}, not its url ${url}`);
-  for (const entry of all('--get-regexp', '^url\\..*\\.pushinsteadof$')) {
-    const [key, prefix] = entry.split('\n');
-    if (url.startsWith(prefix)) throw new Error(`${key} ${prefix} rewrites where ${remote} pushes`);
-  }
-  return url;
+  const configured = urls('config', '--get-all', `remote.${remote}.url`);
+  const pushes = urls('remote', 'get-url', '--push', '--all', remote);
+  const [fetched] = urls('remote', 'get-url', remote);
+  if (configured.length === 0) throw new Error(`no remote named ${remote}`);
+  if (configured.length > 1) throw new Error(`${remote} has ${configured.length} urls, and git pushes to every one`);
+  if (pushes.length > 1) throw new Error(`${remote} has ${pushes.length} push URLs, and git pushes to every one`);
+  const ghRepo = githubRepo(configured[0]);
+  const place = (url) => {
+    if (isLocalPath(url)) return url;
+    try {
+      return githubRepo(url);
+    } catch {
+      return url;
+    }
+  };
+  const [pushed] = pushes;
+  if (!isLocalPath(pushed) && place(pushed) !== ghRepo) throw new Error(`${remote} is ${configured[0]}, but git pushes it to ${pushed}`);
+  if (place(pushed) !== place(fetched)) throw new Error(`git pushes ${remote} to ${pushed}, but ls-remote reads ${fetched}`);
+  return ghRepo;
 }
 
 function hasRelease(gh, repo, ghRepo, tag) {
@@ -343,7 +353,7 @@ function hasRelease(gh, repo, ghRepo, tag) {
  * already exists. A pushed tag is permanent, so a run that stops leaves nothing it would not push again.
  */
 export function push(repo, records, { remote = 'origin', gh = 'gh', log = () => {} } = {}) {
-  const ghRepo = githubRepo(remoteUrl(repo, remote));
+  const ghRepo = releaseRepository(repo, remote);
   const table = packageTable(repo, 'HEAD');
   const plan = tagPlan(records, remoteTags(repo, remote));
   const notes = new Map(
@@ -369,7 +379,7 @@ export function push(repo, records, { remote = 'origin', gh = 'gh', log = () => 
   try {
     for (const { tag, commit } of plan.create) {
       if (git(repo, 'tag', '--list', tag).trim() === '') git(repo, 'tag', '-a', tag, commit, '-m', `${tag} ${RULE} at ${commit}`);
-      git(repo, 'push', remote, `refs/tags/${tag}`);
+      git(repo, 'push', '--no-follow-tags', remote, `refs/tags/${tag}`);
       release(tag);
       log(`${tag}: tagged ${commit}, pushed and released`);
     }

@@ -22,6 +22,7 @@ import {
   packageTable,
   provenance,
   push,
+  releaseRepository,
   remoteTags,
   RULE,
   serialize,
@@ -262,7 +263,7 @@ describe('backfill-tags', () => {
     assert.equal(fs.existsSync(calls), false, 'gh was never called');
   });
 
-  it('pushes nothing when git would push somewhere other than the remote\'s configured URL', () => {
+  it('pushes nothing when git would push somewhere other than the repository the remote\'s URL names', () => {
     const records = provenance(dir, 'HEAD', { registry, builder });
     const url = `https://github.com/${GH_REPO}.git`;
     const mirror = 'https://github.com/o/mirror.git';
@@ -275,18 +276,28 @@ describe('backfill-tags', () => {
       }
     };
     const refusals = [
-      [/origin has 2 urls/, ['remote.origin.url', mirror]],
-      [/origin has 2 pushurls/, ['remote.origin.pushurl', url], ['remote.origin.pushurl', mirror]],
-      [/origin pushes to https:\/\/github\.com\/o\/mirror\.git, not its url/, ['remote.origin.pushurl', mirror]],
-      [/pushinsteadof https:\/\/github\.com\/ rewrites where origin pushes/, ['url.https://github.com/o/.pushInsteadOf', 'https://github.com/']],
+      ['origin', /origin has 2 urls/, ['remote.origin.url', mirror]],
+      ['origin', /origin has 2 push URLs/, ['remote.origin.pushurl', url], ['remote.origin.pushurl', mirror]],
+      ['origin', /but git pushes it to https:\/\/github\.com\/o\/mirror\.git$/, ['remote.origin.pushurl', mirror]],
+      ['origin', /but git pushes it to https:\/\/github\.com\/o\/fixture-owner\//, ['url.https://github.com/o/.pushInsteadOf', 'https://github.com/']],
+      ['origin', /but ls-remote reads/, ['remote.origin.pushurl', path.join(work, 'other.git')]],
+      [
+        'source',
+        /source is https:\/\/github\.com\/o\/source\.git, but git pushes it to https:\/\/github\.com\/o\/mirror\.git$/,
+        ['remote.source.url', 'https://github.com/o/source.git'],
+        [`url.${mirror}.insteadOf`, 'https://github.com/o/source.git'],
+      ],
     ];
-    for (const [error, ...entries] of refusals) withConfig(entries, () => assert.throws(() => push(dir, records, { gh }), error));
+    for (const [remote, error, ...entries] of refusals) withConfig(entries, () => assert.throws(() => push(dir, records, { gh, remote }), error));
 
     const gone = { name: '@skkuverse/gone', version: '1.0.0', reproducible: true, tag: '@skkuverse/gone@1.0.0', commit: sha.first, rule: RULE };
     const harmless = [['remote.origin.pushurl', url], ['url.https://gitlab.com/o/.pushInsteadOf', 'https://gitlab.com/']];
     withConfig(harmless, () =>
       assert.throws(() => push(dir, [...records, gone], { gh }), /@skkuverse\/gone is not a package at HEAD/, 'a pushurl equal to the url, and a pushInsteadOf for another host, pass'),
     );
+    const ssh = [['remote.ssh.url', 'https://github.com/o/r.git'], ['url.git@github.com:.insteadOf', 'https://github.com/']];
+    withConfig(ssh, () => assert.equal(releaseRepository(dir, 'ssh'), 'o/r', 'a rewrite to the same repository over ssh passes'));
+    assert.equal(releaseRepository(dir, 'origin'), GH_REPO, 'a rewrite to a local path passes');
 
     assert.deepEqual([...remoteTags(dir, 'origin')], []);
     assert.equal(git(dir, 'tag', '--list').trim(), '');
@@ -311,6 +322,8 @@ describe('backfill-tags', () => {
     const tag = `${CLI}@0.1.0`;
     const atDocs = [[tag, { commit: sha.docs, annotated: true }]];
 
+    git(dir, 'config', 'push.followTags', 'true');
+    git(dir, 'tag', '-a', 'unplanned', sha.first, '-m', 'an annotated tag on an ancestor of the tagged commit');
     fs.writeFileSync(failNext, '');
     assert.throws(() => push(dir, records, { gh }), /release create/, 'gh fails after the tag push');
     assert.deepEqual([...remoteTags(dir, 'origin')], atDocs);
@@ -319,6 +332,7 @@ describe('backfill-tags', () => {
     push(dir, records, { gh });
 
     assert.deepEqual([...remoteTags(dir, 'origin')], atDocs);
+    assert.doesNotMatch(git(dir, 'ls-remote', '--tags', 'origin'), /unplanned/, 'push.followTags carries no other tag along');
     assert.equal(git(dir, 'cat-file', '-t', tag).trim(), 'tag', 'the tag is annotated');
     assert.match(git(dir, 'cat-file', '-p', tag), new RegExp(`${tag} ${RULE} at ${sha.docs}`));
     const logged = fs.readFileSync(calls, 'utf8');
