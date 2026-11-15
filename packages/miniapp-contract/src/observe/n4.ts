@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Finding } from '../rules.ts';
-import { backendOrigin, RunnerError, type Outbound, type Visit } from '../session.ts';
+import { backendOrigin, RunnerError, type Outbound, type Unjudged, type Visit } from '../session.ts';
 
 export const ENV_FILE = '.env.production';
 const CORS_TIMEOUT_MS = 10_000;
@@ -95,13 +95,6 @@ export async function judgeN4(visits: readonly Visit[], allowed: ReadonlySet<str
       const shape = `${origin} ${request.method} ${request.preflightHeaders.join(',')}`;
       if (!checked.has(shape)) checked.set(shape, request);
     }
-    for (const { target, trigger } of visit.refused) {
-      once(
-        `refused ${target}`,
-        `${trigger} opened a connection to ${target} that the runner's routing did not see, such as a WebSocket from a Worker. The runner refused it and does not judge it`,
-        'warn',
-      );
-    }
     for (const { url, how, trigger } of visit.cookieAsks) {
       const origin = new URL(url).origin;
       once(
@@ -126,4 +119,25 @@ export async function judgeN4(visits: readonly Visit[], allowed: ReadonlySet<str
     if (refused) once(`cors ${origin}`, `${origin} does not allow ${productionOrigin} through CORS: ${refused}`);
   }
   return findings;
+}
+
+/** A `warn` line for each connection the runner stopped without judging it, once per target. */
+export function unjudgedFindings(unjudged: readonly Unjudged[]): Finding[] {
+  const lines = new Map<string, string>();
+  for (const stopped of unjudged) {
+    const [key, message] =
+      stopped.kind === 'refused'
+        ? [
+            `refused ${stopped.target}`,
+            `${stopped.trigger} opened a connection to ${stopped.target} that the runner's routing did not see, such as a WebSocket from a Worker. The runner refused it and does not judge it`,
+          ]
+        : [
+            `webrtc ${stopped.iceServers.join(' ')}`,
+            stopped.iceServers.length > 0
+              ? `${stopped.trigger} created an RTCPeerConnection with the ICE servers ${stopped.iceServers.join(', ')}. The runner lets WebRTC send no UDP, so no packet reached them, and does not judge them`
+              : `${stopped.trigger} created an RTCPeerConnection. The runner lets WebRTC send no UDP and does not judge it`,
+          ];
+    if (!lines.has(key)) lines.set(key, message);
+  }
+  return [...lines.values()].map((message) => ({ rule: 'N4', level: 'warn', message }));
 }

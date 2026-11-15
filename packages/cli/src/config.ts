@@ -69,14 +69,22 @@ const PROJECT_PREFIX: Record<Kind, string> = { app: 'miniapp-', game: 'game-' };
 /** `/admin` or `/admin/staff`: never `/` or the empty string, which would skip every route, or `admin`, which would skip none. */
 const OPERATOR_PATH = /^\/[^/?#\s][^?#\s]*$/;
 
+/** Why `path` can skip no route as it is written, or undefined. A route is the pathname a browser reports, so a path must be one. */
+function operatorPathProblem(path: string): string | undefined {
+  if (!OPERATOR_PATH.test(path)) return 'must start with / and name at least one segment, such as "/admin"';
+  if (path.includes('*')) return 'holds *, but each path is matched as written, not as a pattern';
+  const read = new URL(path, 'http://localhost').pathname;
+  if (read !== path) return `never matches a route, because a browser reads it as "${read}"`;
+  return undefined;
+}
+
 function stringList(entry: AppConfig, field: 'operatorPaths' | 'queryParams', where: string): void {
   const value: unknown = entry[field];
   if (value === undefined) return;
   if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) throw new Error(`${CONFIG_FILE}: ${where}.${field} must be a list of strings`);
   for (const item of value) {
-    if (field === 'operatorPaths' && !OPERATOR_PATH.test(item)) {
-      throw new Error(`${CONFIG_FILE}: ${where}.operatorPaths: "${item}" must start with / and name at least one segment, such as "/admin"`);
-    }
+    const problem = field === 'operatorPaths' ? operatorPathProblem(item) : undefined;
+    if (problem) throw new Error(`${CONFIG_FILE}: ${where}.operatorPaths: "${item}" ${problem}`);
     if (field === 'queryParams' && item === '') throw new Error(`${CONFIG_FILE}: ${where}.queryParams: a query key cannot be empty`);
   }
 }

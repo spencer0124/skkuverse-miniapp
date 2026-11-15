@@ -2,14 +2,16 @@
  * The page never leaves 127.0.0.1. A navigation to another origin is answered
  * 204, which a browser treats as "stay on the current document", every other
  * request to another origin is aborted, and every WebSocket is closed before it
- * connects, because `context.route` does not see WebSockets. A click on a
- * button that writes to a backend writes nothing. The clock is pinned and
- * `Math.random` seeded so two loads of one URL render the same, which N2 relies on.
+ * connects, because `context.route` does not see WebSockets. Each visit's proxy
+ * refuses whatever the routing misses, and Chromium sends WebRTC's UDP only
+ * through a proxy, which carries no UDP. A click on a button that writes to a
+ * backend writes nothing. The clock is pinned and `Math.random` seeded so two
+ * loads of one URL render the same, which N2 relies on.
  */
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
-import { chromium, type Browser, type Locator, type Page, type Request } from 'playwright';
+import { chromium, type Browser, type BrowserContext, type Locator, type Page, type Request } from 'playwright';
 import { hostBootstrapScript, parseMessage } from '@skkuverse/miniapp/protocol';
 import { resolvePreset } from '@skkuverse/miniapp/testing';
 import { serve } from './serve.ts';
@@ -42,6 +44,13 @@ export interface CookieAsk {
   trigger: Trigger;
 }
 
+/** What the runner stopped without judging it, in any visit. */
+export type Unjudged =
+  /** A connection the page's routing did not see, which the visit's proxy refused: `host:port` for a tunnel, else a URL. */
+  | { kind: 'refused'; target: string; trigger: Trigger }
+  /** An `RTCPeerConnection` the page created, whose UDP Chromium does not send under the runner. */
+  | { kind: 'webrtc'; iceServers: string[]; trigger: Trigger };
+
 export interface Visit {
   path: string;
   posted: Posted[];
@@ -49,8 +58,6 @@ export interface Visit {
   outbound: Outbound[];
   /** Every fetch, XHR, EventSource and WebSocket address the page asked for, same-origin ones included, in order. */
   requests: string[];
-  /** Connections the page's routing did not see, which the browser's proxy refused: `host:port` for a tunnel, else a URL. */
-  refused: { target: string; trigger: Trigger }[];
   cookieAsks: CookieAsk[];
   routes: string[];
   text: string;
@@ -133,6 +140,19 @@ const INSTRUMENT = `(function () {
     }
     return send.apply(this, arguments);
   };
+  ['RTCPeerConnection', 'webkitRTCPeerConnection'].forEach(function (name) {
+    if (typeof window[name] !== 'function') return;
+    window[name] = new Proxy(window[name], {
+      construct: function (target, args, newTarget) {
+        var servers = [];
+        try {
+          ((args[0] && args[0].iceServers) || []).forEach(function (server) { servers = servers.concat(server.urls); });
+        } catch (e) {}
+        report('webrtc', JSON.stringify(servers.map(String)));
+        return Reflect.construct(target, args, newTarget);
+      }
+    });
+  });
   document.addEventListener('securitypolicyviolation', function (event) {
     report('csp', JSON.stringify({ directive: event.effectiveDirective, blocked: event.blockedURI }));
   });
@@ -165,12 +185,18 @@ export class RunnerError extends Error {}
 
 export class BrowserMissingError extends RunnerError {}
 
-const close = (server: Server) => new Promise<void>((done) => server.close(() => done()));
+const close = (server: Server) =>
+  new Promise<void>((done) => {
+    server.close(() => done());
+    server.closeAllConnections();
+  });
 
 /**
- * The browser's proxy: it refuses every connection, and names it. Only the
- * served origin bypasses it, so whatever the page's routing does not see, such
- * as a WebSocket a Worker opens, reaches this and nothing else.
+ * A proxy that refuses every connection, and names it. Each visit's context
+ * gets its own, which only the served origin bypasses, so whatever the page's
+ * routing does not see, such as a WebSocket a Worker opens, reaches this and
+ * nothing else, and is blamed on that visit. The browser's own one catches
+ * anything outside a context.
  */
 async function guard(refuse: (target: string) => void): Promise<{ server: Server; url: string }> {
   const server = createServer((request, response) => {
@@ -188,10 +214,14 @@ async function guard(refuse: (target: string) => void): Promise<{ server: Server
   return { server, url: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
 }
 
-async function launch(proxy: string, origin: string): Promise<Browser> {
+async function launch(proxy: string): Promise<Browser> {
   try {
-    // `<-loopback>` must come first: Chromium lets a later rule win, and 127.0.0.1 is bypassed by default.
-    return await chromium.launch({ headless: true, args: [`--proxy-server=${proxy}`, `--proxy-bypass-list=<-loopback>;${new URL(origin).host}`] });
+    return await chromium.launch({
+      headless: true,
+      // Playwright puts `<-loopback>` first in the bypass list, so the proxy sees 127.0.0.1 too.
+      proxy: { server: proxy },
+      args: ['--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],
+    });
   } catch (error) {
     if (error instanceof Error && /Executable doesn't exist|browserType\.launch.*install/s.test(error.message)) {
       throw new BrowserMissingError(error.message);
@@ -204,23 +234,24 @@ export class Session {
   private readonly browser: Browser;
   private readonly servers: Server[];
   readonly origin: string;
-  private onRefused: ((target: string) => void) | undefined;
+  /** Everything stopped and not judged, by every visit of this session, N2's and N3's included. */
+  readonly unjudged: Unjudged[];
 
-  private constructor(browser: Browser, servers: Server[], origin: string) {
+  private constructor(browser: Browser, servers: Server[], origin: string, unjudged: Unjudged[]) {
     this.browser = browser;
     this.servers = servers;
     this.origin = origin;
+    this.unjudged = unjudged;
   }
 
   static async open(dist: string): Promise<Session> {
     const { server, origin } = await serve(dist);
     const servers = [server];
-    let session: Session | undefined;
+    const unjudged: Unjudged[] = [];
     try {
-      const proxy = await guard((target) => session?.onRefused?.(target));
+      const proxy = await guard((target) => unjudged.push({ kind: 'refused', target, trigger: 'the browser itself' }));
       servers.push(proxy.server);
-      session = new Session(await launch(proxy.url, origin), servers, origin);
-      return session;
+      return new Session(await launch(proxy.url), servers, origin, unjudged);
     } catch (error) {
       await Promise.all(servers.map(close));
       throw error;
@@ -233,9 +264,8 @@ export class Session {
   }
 
   async visit(path: string, { host, click }: VisitOptions): Promise<Visit> {
-    const { origin } = this;
-    const context = await this.browser.newContext({ viewport: VIEWPORT, serviceWorkers: 'block' });
-    const visit: Visit = { path, posted: [], departures: [], outbound: [], requests: [], refused: [], cookieAsks: [], routes: [], text: '', rootMarked: false, unclicked: 0 };
+    const { origin, unjudged } = this;
+    const visit: Visit = { path, posted: [], departures: [], outbound: [], requests: [], cookieAsks: [], routes: [], text: '', rootMarked: false, unclicked: 0 };
     const routes = new Set<string>();
     const addRoute = (pathname: string) => {
       if (isPage(pathname)) routes.add(pathname);
@@ -246,73 +276,76 @@ export class Session {
     let blockedByCsp: string | undefined;
     let page: Page | undefined;
 
-    const fromPage = (source: { page: Page; frame: unknown }) => source.page === page && source.frame === page.mainFrame();
-    await context.exposeBinding(BINDING, (source, kind: string, payload: string) => {
-      if (!fromPage(source)) return;
+    const proxy = await guard((target) => {
       quietSince = Date.now();
-      if (kind === 'ready') ready = true;
-      if (kind === 'post') visit.posted.push(posted(payload));
-      if (kind === 'csp') {
-        const { directive, blocked } = JSON.parse(payload) as { directive: string; blocked: string };
-        blockedByCsp ??= `the production CSP blocked ${blocked || 'a script'} (${directive}) during ${trigger}, so the page does not run as it would in production`;
-      }
-      if (kind === 'cookies') {
-        const { url, how } = JSON.parse(payload) as { url: string; how: CookieAsk['how'] };
-        visit.cookieAsks.push({ url, how, trigger });
-      }
+      unjudged.push({ kind: 'refused', target, trigger });
     });
-    this.onRefused = (target) => {
-      quietSince = Date.now();
-      visit.refused.push({ target, trigger });
-    };
-    await context.addInitScript(INSTRUMENT);
-    if (host) await context.addInitScript(hostScript());
-    await context.clock.setFixedTime(FIXED_TIME);
-    await context.route('**/*', async (route) => {
-      const request = route.request();
-      quietSince = Date.now();
-      const url = new URL(request.url());
-      const backend = BACKEND_TYPES.has(request.resourceType());
-      if (backend) visit.requests.push(`${request.method()} ${request.url()}`);
-      if (url.origin === origin) {
-        if (request.isNavigationRequest()) addRoute(url.pathname);
-        return route.continue();
-      }
-      const via = request.isNavigationRequest() ? leaves(request, page) : undefined;
-      if (via) {
-        visit.departures.push({ url: request.url(), via, trigger });
-        return route.fulfill({ status: 204 });
-      }
-      if (backend) {
-        visit.outbound.push({ url: request.url(), method: request.method(), preflightHeaders: preflightHeaders(request.headers()), transport: 'http', trigger });
-      }
-      return route.abort('blockedbyclient');
-    });
-    await context.routeWebSocket(
-      () => true,
-      (socket) => {
-        quietSince = Date.now();
-        const url = socket.url();
-        visit.requests.push(`GET ${url}`);
-        if (backendOrigin(url) !== origin) visit.outbound.push({ url, method: 'GET', preflightHeaders: [], transport: 'websocket', trigger });
-        return socket.close({ code: 1008, reason: 'miniapp-contract connects no WebSocket' });
-      },
-    );
-
-    const settle = async () => {
-      const start = Date.now();
-      while (Date.now() - start < SETTLE_MAX_MS && Date.now() - quietSince < QUIET_MS) {
-        await new Promise((done) => setTimeout(done, 25));
-      }
-      if (blockedByCsp) throw new RunnerError(blockedByCsp);
-    };
-    const load = async () => {
-      quietSince = Date.now();
-      await page!.goto(`${origin}${path}`, { waitUntil: 'load', timeout: LOAD_TIMEOUT_MS });
-      await settle();
-    };
-
+    let context: BrowserContext | undefined;
     try {
+      context = await this.browser.newContext({ viewport: VIEWPORT, serviceWorkers: 'block', proxy: { server: proxy.url, bypass: new URL(origin).host } });
+      const fromPage = (source: { page: Page; frame: unknown }) => source.page === page && source.frame === page.mainFrame();
+      await context.exposeBinding(BINDING, (source, kind: string, payload: string) => {
+        if (!fromPage(source)) return;
+        quietSince = Date.now();
+        if (kind === 'ready') ready = true;
+        if (kind === 'post') visit.posted.push(posted(payload));
+        if (kind === 'csp') {
+          const { directive, blocked } = JSON.parse(payload) as { directive: string; blocked: string };
+          blockedByCsp ??= `the production CSP blocked ${blocked || 'a script'} (${directive}) during ${trigger}, so the page does not run as it would in production`;
+        }
+        if (kind === 'cookies') {
+          const { url, how } = JSON.parse(payload) as { url: string; how: CookieAsk['how'] };
+          visit.cookieAsks.push({ url, how, trigger });
+        }
+        if (kind === 'webrtc') unjudged.push({ kind: 'webrtc', iceServers: JSON.parse(payload) as string[], trigger });
+      });
+      await context.addInitScript(INSTRUMENT);
+      if (host) await context.addInitScript(hostScript());
+      await context.clock.setFixedTime(FIXED_TIME);
+      await context.route('**/*', async (route) => {
+        const request = route.request();
+        quietSince = Date.now();
+        const url = new URL(request.url());
+        const backend = BACKEND_TYPES.has(request.resourceType());
+        if (backend) visit.requests.push(`${request.method()} ${request.url()}`);
+        if (url.origin === origin) {
+          if (request.isNavigationRequest()) addRoute(url.pathname);
+          return route.continue();
+        }
+        const via = request.isNavigationRequest() ? leaves(request, page) : undefined;
+        if (via) {
+          visit.departures.push({ url: request.url(), via, trigger });
+          return route.fulfill({ status: 204 });
+        }
+        if (backend) {
+          visit.outbound.push({ url: request.url(), method: request.method(), preflightHeaders: preflightHeaders(request.headers()), transport: 'http', trigger });
+        }
+        return route.abort('blockedbyclient');
+      });
+      await context.routeWebSocket(
+        () => true,
+        (socket) => {
+          quietSince = Date.now();
+          const url = socket.url();
+          visit.requests.push(`GET ${url}`);
+          if (backendOrigin(url) !== origin) visit.outbound.push({ url, method: 'GET', preflightHeaders: [], transport: 'websocket', trigger });
+          return socket.close({ code: 1008, reason: 'miniapp-contract connects no WebSocket' });
+        },
+      );
+
+      const settle = async () => {
+        const start = Date.now();
+        while (Date.now() - start < SETTLE_MAX_MS && Date.now() - quietSince < QUIET_MS) {
+          await new Promise((done) => setTimeout(done, 25));
+        }
+        if (blockedByCsp) throw new RunnerError(blockedByCsp);
+      };
+      const load = async () => {
+        quietSince = Date.now();
+        await page!.goto(`${origin}${path}`, { waitUntil: 'load', timeout: LOAD_TIMEOUT_MS });
+        await settle();
+      };
+
       page = await context.newPage();
       await load();
       if (!ready) throw new RunnerError(`the runner's instrumentation did not start in ${path}`);
@@ -347,8 +380,8 @@ export class Session {
       visit.routes = [...routes];
       return visit;
     } finally {
-      await context.close();
-      this.onRefused = undefined;
+      await context?.close();
+      await close(proxy.server);
     }
   }
 }

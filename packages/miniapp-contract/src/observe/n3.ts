@@ -1,7 +1,11 @@
 import type { Finding } from '../rules.ts';
 import { MAX_ROUTES, type Session } from '../session.ts';
 
-/** `deploy.config.json` holds each path to `/` and at least one segment, so the base is never empty. */
+/**
+ * `/admin` covers `/admin` and every route under `/admin/`, and never `/admin.html`
+ * or `/administrator`, which are other paths. `deploy.config.json` holds each path
+ * to `/` and at least one segment, so the base is never empty.
+ */
 const under = (route: string, path: string) => {
   const base = path.replace(/\/+$/, '');
   return route === base || route.startsWith(`${base}/`);

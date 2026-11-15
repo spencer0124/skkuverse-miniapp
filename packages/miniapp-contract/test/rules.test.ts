@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createSocket } from 'node:dgram';
 import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer, type IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 import { judgeN4 } from '../src/observe/n4.ts';
 import { RunnerError, type Visit } from '../src/session.ts';
@@ -53,11 +54,11 @@ function page(script: string, env?: string, files: Record<string, string> = {}):
   return dir;
 }
 
-/** A repository whose apps/<id> holds a copy of a fixture's build, with `entry` as its deploy.config.json line. */
-function repository(fixtureName: string, entry: Record<string, unknown>): string {
+/** A repository whose apps/<id> holds a copy of the build in `dir`, with `entry` as its deploy.config.json line. */
+function repository(dir: string, entry: Record<string, unknown>, id = basename(dir)): string {
   const root = mkdtempSync(join(tmpdir(), 'miniapp-contract-repo-'));
-  cpSync(join(fixture(fixtureName), 'dist'), join(root, 'apps', fixtureName, 'dist'), { recursive: true });
-  writeFileSync(join(root, 'deploy.config.json'), JSON.stringify({ apps: { [fixtureName]: { project: `miniapp-${fixtureName}`, ...entry } } }));
+  cpSync(join(dir, 'dist'), join(root, 'apps', id, 'dist'), { recursive: true });
+  writeFileSync(join(root, 'deploy.config.json'), JSON.stringify({ apps: { [id]: { project: `miniapp-${id}`, ...entry } } }));
   return root;
 }
 
@@ -155,7 +156,6 @@ describe('N4 CORS', () => {
     departures: [],
     outbound: [{ url, method, preflightHeaders, transport: 'http', trigger: 'the load of /' }],
     requests: [],
-    refused: [],
     cookieAsks: [],
     routes: ['/'],
     text: '',
@@ -246,6 +246,49 @@ describe('the page reaches nothing', () => {
     }
   });
 
+  test.concurrent('WebRTC sends no UDP packet, so a STUN or TURN server never hears from the page', async () => {
+    const udp = createSocket('udp4');
+    const packets: number[] = [];
+    udp.on('message', (message) => packets.push(message.length));
+    await new Promise<void>((done) => udp.bind(0, '127.0.0.1', done));
+    const server = `127.0.0.1:${udp.address().port}`;
+    try {
+      const script = `const peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:${server}' }, { urls: 'turn:${server}?transport=udp', username: 'u', credential: 'p' }] });
+peer.createDataChannel('x');
+peer.createOffer().then((offer) => peer.setLocalDescription(offer));
+document.body.append('rtc');`;
+      const run = await judge(page(script));
+      assert.deepEqual(packets, []);
+      assert.equal(run.status, 0, run.stderr);
+      assert.deepEqual(run.findings.map((f) => [f.rule, f.level]), [['N4', 'warn']]);
+      assert.equal(
+        run.findings[0]!.message,
+        `the load of / created an RTCPeerConnection with the ICE servers stun:${server}, turn:${server}?transport=udp. The runner lets WebRTC send no UDP, so no packet reached them, and does not judge them`,
+      );
+    } finally {
+      udp.close();
+    }
+  });
+
+  for (const [when, script, trigger] of [
+    ['a load with a query key, for N2', `if (new URLSearchParams(location.search).get('live')) new Worker('/worker.js');`, 'the load of /?live=1'],
+    ['a load with no host, for N3', `if (!window.ReactNativeWebView) new Worker('/worker.js');`, 'the load of /'],
+  ] as const) {
+    test.concurrent(`a connection refused during ${when} is printed too`, async () => {
+      const backend = await sink(() => ({ status: 404 }));
+      try {
+        const socket = `${backend.origin.replace('http:', 'ws:')}/from-worker`;
+        const run = await judge(page(`${script} document.body.append('worker');`, undefined, { 'worker.js': `new WebSocket(${JSON.stringify(socket)});` }));
+        assert.deepEqual(backend.upgrades, []);
+        assert.equal(run.status, 0, run.stderr);
+        assert.deepEqual(run.findings.map((f) => [f.rule, f.level]), [['N4', 'warn']]);
+        assert.match(run.findings[0]!.message!, new RegExp(`^${trigger.replaceAll('?', '\\?')} opened a connection to ${new URL(backend.origin).host.replaceAll('.', '\\.')} that the runner's routing did not see`));
+      } finally {
+        await backend.close();
+      }
+    });
+  }
+
   test.concurrent('a WebSocket to a backend .env.production names never connects either, and passes', async () => {
     const backend = await sink(() => ({ status: 404 }));
     try {
@@ -273,13 +316,13 @@ document.body.append('items');`;
 
 describe('operatorPaths and queryParams in deploy.config.json', () => {
   test.concurrent('a skipped path or key fails nothing, and every skip is printed as a warn line', async () => {
-    const root = repository('n3-bad', { operatorPaths: ['/about'] });
+    const root = repository(fixture('n3-bad'), { operatorPaths: ['/about'] });
     const run = parsed(await contract(['--root', root, '--json']));
     assert.equal(run.status, 0, run.stderr);
     assert.deepEqual(run.findings.map((f) => [f.rule, f.level]), [['N3', 'warn']]);
     assert.match(run.findings[0]!.message!, /did not load \/about or any route under it, because operatorPaths in deploy\.config\.json lists it\. The crawl reached \/about/);
 
-    const text = await contract(['--root', repository('n2-bad', { queryParams: ['debug'] })]);
+    const text = await contract(['--root', repository(fixture('n2-bad'), { queryParams: ['debug'] })]);
     assert.equal(text.status, 0, text.stderr);
     assert.match(text.stdout, /^! n2-bad N2 did not load \/ with the query key "debug", because queryParams in deploy\.config\.json lists it$/m);
   });
@@ -289,9 +332,18 @@ describe('operatorPaths and queryParams in deploy.config.json', () => {
     assert.match(run.findings[0]!.message!, /list it in operatorPaths if it is an operator page; the runner prints every path it skips/);
   });
 
+  test.concurrent('/admin covers /admin and every route under it, not /admin.html, which is another path', async () => {
+    const dir = page(`document.body.innerHTML = '<a href="/admin.html">admin</a>';`, undefined, { 'admin.html': '<!doctype html><html lang="en"><body>admin</body></html>' });
+    const run = parsed(await contract(['--root', repository(dir, { operatorPaths: ['/admin'] }, 'club'), '--json']));
+    assert.equal(run.status, 1, run.stderr);
+    assert.deepEqual(run.findings.map((f) => [f.rule, f.level]), [['N3', 'warn'], ['N3', 'error']]);
+    assert.match(run.findings[0]!.message!, /did not load \/admin or any route under it, .* The crawl reached no route under it/);
+    assert.match(run.findings[1]!.message!, /^\/admin\.html renders outside <MiniappRoot>/);
+  });
+
   for (const paths of [[''], ['/'], ['settings']]) {
     test.concurrent(`operatorPaths ${JSON.stringify(paths)} is refused with exit 2`, async () => {
-      const run = await contract(['--root', repository('n3-bad', { operatorPaths: paths }), '--json']);
+      const run = await contract(['--root', repository(fixture('n3-bad'), { operatorPaths: paths }), '--json']);
       assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 2, stdout: '' });
       assert.match(run.stderr, /apps\.n3-bad\.operatorPaths: ".*" must start with \/ and name at least one segment, such as "\/admin"/);
     });

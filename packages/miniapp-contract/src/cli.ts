@@ -8,7 +8,7 @@ import { CONFIG_FILE, entryOf, findRoot, hostFor, loadConfig, namedRoot } from '
 import { judgeN1 } from './observe/n1.ts';
 import { judgeN2, queryKeys } from './observe/n2.ts';
 import { judgeN3 } from './observe/n3.ts';
-import { backendOrigins, judgeN4 } from './observe/n4.ts';
+import { backendOrigins, judgeN4, unjudgedFindings } from './observe/n4.ts';
 import { toJson, type Finding } from './rules.ts';
 import { serve } from './serve.ts';
 import { BrowserMissingError, crawl, RunnerError, withSession } from './session.ts';
@@ -95,6 +95,7 @@ async function judge(target: Target): Promise<Finding[]> {
       ...(await judgeN2(session, keys)),
       ...(await judgeN3(session, routes, target.operatorPaths)),
       ...(await judgeN4(visits, backendOrigins(target.dir), target.productionOrigin)),
+      ...unjudgedFindings(session.unjudged),
     ];
   });
 }

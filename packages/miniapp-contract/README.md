@@ -21,12 +21,21 @@ walking up from the working directory or takes from `--root <path>`.
 ## What it checks
 
 Each run serves `dist/` on 127.0.0.1 with the `_headers` and `_redirects` that `ship`
-writes, so the page runs under the production CSP. The page never reaches another origin.
-A navigation to another origin gets an empty 204 answer, so the page stays where it is.
-Any other request to another origin is aborted, and every WebSocket is closed before it
-connects, so no backend receives a write. The browser's proxy is a server inside the
-runner that refuses every connection, and only the served origin bypasses it, so a
-connection the routing cannot see, such as a WebSocket a Worker opens, is refused too.
+writes, so the page runs under the production CSP. The page reaches no other origin. A
+navigation to another origin gets an empty 204 answer, so the page stays where it is. Any
+other request to another origin is aborted, and every WebSocket is closed before it
+connects. Each page the runner opens gets its own proxy, a server inside the runner that
+refuses every connection, and only the served origin bypasses it, so a connection the
+routing cannot see, such as a WebSocket a Worker opens, is refused too. Chromium sends
+WebRTC's UDP only through a proxy, and this one carries none, so a STUN or TURN server
+receives no packet.
+
+The only requests that leave the runner are its own N4 checks, sent from Node. For each
+backend that `.env.production` names and the page called, it sends the CORS preflight a
+browser would send, or, for a simple `GET` or `HEAD`, that request itself, to the exact
+production URL the page asked for. It sends one for each backend origin, method and header
+set, so a `GET` with side effects runs once in every run, in CI too. No backend receives a
+`POST`, `PUT`, `PATCH` or `DELETE`.
 
 | Rule | What the runner does | It fails when |
 | --- | --- | --- |
@@ -58,8 +67,10 @@ A run passes a page it could not watch break a rule. These causes stay out of it
   or a loop over the parameters, is not found. A key the page reads after it settles, such
   as inside a 500 ms timer, changes nothing the runner compares.
 - N4. A request a Worker or the browser makes outside the page's routing, such as a
-  WebSocket from a Worker, is refused and printed as a `warn` line, not judged. A beacon or
-  an image to another origin is aborted and not judged. A `Cookie` header the browser adds
+  WebSocket from a Worker, is refused and printed as a `warn` line, not judged. So is an
+  `RTCPeerConnection` the page creates: its ICE servers are named in a `warn` line, and
+  one created in a frame is not named. A beacon or an image to another origin is aborted
+  and not judged. A `Cookie` header the browser adds
   from its own store never appears, because every request to another origin is stopped
   before it is sent.
 
@@ -81,9 +92,13 @@ not a bug:
 ```
 
 - `operatorPaths` lists operator pages, which the spec lets render outside `<MiniappRoot>`.
-  N3 skips each path and every route under it. Each path starts with `/` and names at
-  least one segment, so `/` and the empty string (every route) and `admin` (no route) are refused, and the
-  run exits 2. The operator still reviews that such a page requires a token.
+  N3 skips each path and every route under it: `/admin` covers `/admin` and
+  `/admin/members`, not `/admin.html`, which is another path to list. Each path starts
+  with `/`, names at least one segment, and is a pathname as a browser reports it. So the
+  run exits 2 on `/` and the empty string (every route), on `admin`, `/admin*` or `/a/../b`,
+  and on a path with a character a browser escapes, which no route can match. Write such
+  a path percent-encoded, as `/%EA%B4%80%EB%A6%AC`. The operator still reviews that such a
+  page requires a token.
 - `queryParams` lists query keys that are part of the miniapp, such as a deep link to a
   tab. N2 does not load the page with them.
 
@@ -104,9 +119,9 @@ The command ends with one of three exit codes:
   blocks, a page that renders or requests differently on two plain loads, or a backend the
   CORS check cannot reach.
 
-With `--json`, stdout holds one JSON object per finding, one to a line, and nothing else.
-Unlike `check --json`, which prints one array, this prints one JSON object per line. A
-miniapp that keeps every rule, with no `warn` line to print, prints nothing. Each object has the fields of
+With `--json`, stdout holds one JSON object per finding, one to a line, and nothing else,
+where `check --json` prints one array. A miniapp that keeps every rule, with no `warn`
+line to print, prints nothing. Each object has the fields of
 `miniapp-cli check --json`: `id`, `kind` (always `app`), `rule`, `level`, `message` and
 `spec`, the heading of the spec that defines the rule.
 
@@ -116,7 +131,8 @@ miniapp that keeps every rule, with no `warn` line to print, prints nothing. Eac
 
 A finding with the level `warn` does not fail the run. The runner prints one for each
 `operatorPaths` path and `queryParams` key it skipped, for a simple `POST` whose CORS it did
-not check, for a connection its proxy refused, and when it stopped early, after
+not check, for a connection its proxy refused and an `RTCPeerConnection` it kept from
+sending, in any of its loads, and when it stopped early, after
 `MAX_CLICKS` clicks in one route or after `MAX_ROUTES` routes, both in
 [`src/session.ts`](https://github.com/spencer0124/skkuverse-miniapp/blob/main/packages/miniapp-contract/src/session.ts).
 
