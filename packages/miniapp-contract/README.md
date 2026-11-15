@@ -60,8 +60,9 @@ A run passes a page it could not watch break a rule. These causes stay out of it
 - N1. The runner clicks `<a href>`, `<button>`, `[role="button"]` and `<input>` buttons. A
   `<div onClick>` is never clicked. Controls are clicked by their place in DOM order, so a
   control a click puts in the place of the clicked one, without a navigation, is never
-  clicked. A load or click counts as settled after 150 ms with no request, message or DOM
-  change, so a navigation a timer fires later, such as 1 s after a click, is missed.
+  clicked. A load or click counts as settled when the page has no task above background priority left and
+  150 ms pass with no request, message or DOM change, so a navigation a timer fires later,
+  such as 1 s after a click, is missed.
 - N1 and N3. Routes are tracked by path. A hash route such as `#/settings` is the same
   route as `/`, and a route reached only by typed input is never found.
 - N2. A key read any other way, such as `Object.fromEntries(new URLSearchParams(location.search)).debug`

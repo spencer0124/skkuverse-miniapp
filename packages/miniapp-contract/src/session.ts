@@ -11,6 +11,7 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
+import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, type Browser, type BrowserContext, type Locator, type Page, type Request } from 'playwright';
 import { hostBootstrapScript, parseMessage } from '@skkuverse/miniapp/protocol';
 import { resolvePreset } from '@skkuverse/miniapp/testing';
@@ -344,10 +345,29 @@ export class Session {
         },
       );
 
+      /** True when the page ran out of queued work with no new signal before `deadline`. */
+      const idle = async (deadline: number) => {
+        const since = quietSince;
+        const ran = page!.evaluate(untilIdle).then(
+          (broken) => {
+            if (broken) throw new RunnerError(`the runner cannot tell when ${path} is idle: ${broken}, so a load would run to the ${SETTLE_MAX_MS} ms cap every time`);
+            return true;
+          },
+          () => false,
+        );
+        const cancel = new AbortController();
+        const late = delay(deadline - Date.now(), false, { ref: false, signal: cancel.signal }).catch(() => false);
+        try {
+          return (await Promise.race([ran, late])) && quietSince === since;
+        } finally {
+          cancel.abort();
+        }
+      };
       const settle = async () => {
-        const start = Date.now();
-        while (Date.now() - start < SETTLE_MAX_MS && Date.now() - quietSince < QUIET_MS) {
-          await new Promise((done) => setTimeout(done, 25));
+        const deadline = Date.now() + SETTLE_MAX_MS;
+        while (Date.now() < deadline) {
+          if (Date.now() - quietSince >= QUIET_MS && (await idle(deadline))) break;
+          await delay(25);
         }
         if (blockedByCsp) throw new RunnerError(blockedByCsp);
       };
@@ -395,6 +415,25 @@ export class Session {
       await context?.close();
       await close(proxy.server);
     }
+  }
+}
+
+declare const scheduler: { postTask(task: () => void, options: { priority: 'background' }): Promise<void> } | undefined;
+
+/**
+ * Resolves once the page has no task queued above background priority. A page
+ * that renders in queued tasks, as React does, sends no signal while it works,
+ * so a quiet window alone can end in the middle of a render.
+ * Resolves to a reason when `scheduler.postTask` is missing or throws, which
+ * the caller turns into a RunnerError; a page that navigates mid-wait rejects instead.
+ * `requestIdleCallback` is no substitute: it stops firing after a click in
+ * headless Chromium, and the pinned clock replaces it with a timer.
+ */
+async function untilIdle(): Promise<string | undefined> {
+  try {
+    await scheduler!.postTask(() => {}, { priority: 'background' });
+  } catch (error) {
+    return `scheduler.postTask is unavailable or throws (${String(error)})`;
   }
 }
 

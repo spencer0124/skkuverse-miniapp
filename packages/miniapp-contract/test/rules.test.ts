@@ -366,6 +366,55 @@ document.body.append('items');`;
   });
 });
 
+/**
+ * Runs `done` after 600 ms of work split into 10 ms tasks, the way React's
+ * scheduler splits a render, so the page sends nothing for longer than the
+ * quiet window while it is still busy.
+ */
+const AFTER_WORK = `const afterWork = (done) => {
+  const channel = new MessageChannel();
+  let tasks = 60;
+  channel.port1.onmessage = () => {
+    const end = performance.now() + 10;
+    while (performance.now() < end);
+    if (--tasks > 0) channel.port2.postMessage(null);
+    else done();
+  };
+  channel.port2.postMessage(null);
+};
+`;
+
+describe('a load is read after the page has done its work', () => {
+  test.concurrent('a page that marks its root after 600 ms of queued work keeps N3', async () => {
+    const script = `${AFTER_WORK}document.documentElement.removeAttribute('data-sv-chrome');
+afterWork(() => {
+  document.documentElement.setAttribute('data-sv-chrome', '');
+  document.body.append('ready');
+});`;
+    const run = await judge(page(script));
+    assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 0, stdout: '' }, run.stderr);
+  });
+
+  test.concurrent('a change at the end of queued work starts the quiet window over, so a root marked 100 ms later keeps N3', async () => {
+    const script = `${AFTER_WORK}document.documentElement.removeAttribute('data-sv-chrome');
+afterWork(() => {
+  document.body.append('ready');
+  setTimeout(() => document.documentElement.setAttribute('data-sv-chrome', ''), 100);
+});`;
+    const run = await judge(page(script));
+    assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 0, stdout: '' }, run.stderr);
+  });
+
+  test.concurrent('a debug key whose text appears after 600 ms of queued work breaks N2', async () => {
+    const script = `${AFTER_WORK}const debug = new URLSearchParams(location.search).get('debug');
+afterWork(() => document.body.append(debug ? 'debug on' : 'ready'));`;
+    const run = await judge(page(script));
+    assert.equal(run.status, 1, run.stderr);
+    assert.deepEqual(run.rules, ['N2']);
+    assert.match(run.findings[0]!.message!, /query key "debug": with \?debug=1 the page shows other text \("debug on"\)/);
+  });
+});
+
 describe('operatorPaths and queryParams in deploy.config.json', () => {
   test.concurrent('a skipped path or key fails nothing, and every skip is printed as a warn line', async () => {
     const root = repository(fixture('n3-bad'), { operatorPaths: ['/about'] });
@@ -418,6 +467,19 @@ describe('runner errors exit 2', () => {
     const run = await contract(['--dir', dir, '--id', 'csp', '--json']);
     assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 2, stdout: '' });
     assert.match(run.stderr, /the production CSP blocked eval \(script-src\) during the load of \//);
+  });
+
+  test('a page that shows other text on a second plain load is not judged, and the error says what differs', async () => {
+    const run = await judge(page(`new URLSearchParams(location.search).get('ref');
+document.body.append(String(crypto.getRandomValues(new Uint32Array(1))[0]));`));
+    assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 2, stdout: '' });
+    assert.match(run.stderr, /two plain loads of \/ differ: the second one shows other text \("\d+"\) than the first, so N2 cannot compare/);
+  });
+
+  test('a page whose scheduler.postTask is gone is not judged, and the error names it', async () => {
+    const run = await judge(page(`Object.defineProperty(window, 'scheduler', { value: undefined, configurable: true });`));
+    assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 2, stdout: '' });
+    assert.match(run.stderr, /cannot tell when \/ is idle: scheduler\.postTask is unavailable or throws/);
   });
 
   test('a folder with no build is a usage error', async () => {
