@@ -16,6 +16,7 @@ import {
   changelogSection,
   createBuilder,
   differingFiles,
+  githubRepo,
   NO_COMMIT,
   unstableFiles,
   packageTable,
@@ -29,6 +30,7 @@ import {
 
 const root = path.join(import.meta.dirname, '../../..');
 const CLI = '@skkuverse/miniapp-cli';
+const GH_REPO = 'fixture-owner/fixture-repo';
 const CHANGELOG = `# ${CLI}\n\n## 0.2.0\n\n### Minor Changes\n\n- Say two.\n\n## 0.1.0\n\n### Minor Changes\n\n- Say one.\n`;
 
 const sh = (cwd, cmd, args, env = {}) => execFileSync(cmd, args, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ...env } });
@@ -70,6 +72,9 @@ const registry = {
   tarball: (name, version) => published[`${name}@${version}`],
 };
 let builder;
+let gh;
+let calls;
+let failNext;
 
 before(() => {
   work = fs.mkdtempSync(path.join(os.tmpdir(), 'backfill-test-'));
@@ -104,6 +109,27 @@ before(() => {
   published[`${CLI}@0.2.0`] = path.join(work, 'published-0.2.0.tgz');
   fs.copyFileSync(tampered, published[`${CLI}@0.2.0`]);
   tamper.dispose();
+
+  // origin names a GitHub repository, and git reaches it in a local bare repository.
+  const remote = path.join(work, 'remote.git');
+  git(work, 'init', '-q', '--bare', remote);
+  git(dir, 'remote', 'add', 'origin', `https://github.com/${GH_REPO}.git`);
+  git(dir, 'config', `url.${remote}.insteadOf`, `https://github.com/${GH_REPO}.git`);
+  calls = path.join(work, 'gh-calls');
+  failNext = path.join(work, 'gh-fail-next');
+  gh = path.join(work, 'gh');
+  fs.writeFileSync(
+    gh,
+    [
+      '#!/bin/sh',
+      `if [ -e '${failNext}' ]; then rm '${failNext}'; exit 1; fi`,
+      `echo "$@" >> '${calls}'`,
+      `if [ "$1 $2" = "release view" ]; then grep -q "^release create $3 " '${calls}' && exit 0; echo 'release not found' >&2; exit 1; fi`,
+      `for notes; do :; done; cat "$notes" >> '${calls}'`,
+      '',
+    ].join('\n'),
+    { mode: 0o755 },
+  );
 });
 
 after(() => {
@@ -155,6 +181,15 @@ describe('backfill-tags', () => {
     }
   });
 
+  it('names a file whose mode differs', () => {
+    // pnpm pack writes 0644 for every file outside `bin`, so the tarball is repacked by hand.
+    const tree = fs.mkdtempSync(path.join(work, 'mode-'));
+    sh(tree, 'tar', ['-xpzf', published[`${CLI}@0.1.0`]]);
+    fs.chmodSync(path.join(tree, 'package/dist/out.txt'), 0o755);
+    sh(tree, 'tar', ['-czf', path.join(work, 'mode.tgz'), 'package']);
+    assert.deepEqual(differingFiles(published[`${CLI}@0.1.0`], path.join(work, 'mode.tgz')), ['dist/out.txt']);
+  });
+
   it('cuts one version out of a Changesets CHANGELOG', () => {
     assert.equal(changelogSection(CHANGELOG, '0.2.0'), '### Minor Changes\n\n- Say two.');
     assert.equal(changelogSection(CHANGELOG, '0.1.0'), '### Minor Changes\n\n- Say one.');
@@ -169,8 +204,36 @@ describe('backfill-tags', () => {
     ];
     const tag = { tag: `${CLI}@0.1.0`, commit: sha.first };
     assert.deepEqual(tagPlan(records, new Map()), { create: [tag], present: [] });
-    assert.deepEqual(tagPlan(records, new Map([[tag.tag, sha.first]])), { create: [], present: [tag] });
-    assert.throws(() => tagPlan(records, new Map([[`${CLI}@0.1.0`, sha.second]])), /already exists at/);
+    assert.deepEqual(tagPlan(records, new Map([[tag.tag, { commit: sha.first, annotated: true }]])), { create: [], present: [tag] });
+    assert.throws(() => tagPlan(records, new Map([[tag.tag, { commit: sha.second, annotated: true }]])), /already exists at/);
+    assert.throws(() => tagPlan(records, new Map([[tag.tag, { commit: sha.first, annotated: false }]])), /lightweight/);
+  });
+
+  it('reads the GitHub repository from a remote URL', () => {
+    for (const url of ['https://github.com/o/r.git', 'https://github.com/o/r', 'git@github.com:o/r.git', 'ssh://git@github.com/o/r.git']) {
+      assert.equal(githubRepo(url), 'o/r', url);
+    }
+    assert.throws(() => githubRepo('/srv/git/r.git'), /not a GitHub repository URL/);
+  });
+
+  it('pushes nothing when a tag it would push is lightweight, locally or on the remote, or a package is gone from HEAD', () => {
+    const records = provenance(dir, 'HEAD', { registry, builder });
+    const tag = `${CLI}@0.1.0`;
+
+    git(dir, 'tag', tag, sha.docs);
+    assert.throws(() => push(dir, records, { gh }), /local .* is a lightweight tag/);
+    git(dir, 'push', '-q', 'origin', `refs/tags/${tag}`);
+    git(dir, 'tag', '-d', tag);
+    assert.deepEqual([...remoteTags(dir, 'origin')], [[tag, { commit: sha.docs, annotated: false }]]);
+    assert.throws(() => push(dir, records, { gh }), /exists as a lightweight tag/);
+    git(dir, 'push', '-q', 'origin', `:refs/tags/${tag}`);
+
+    const gone = { name: '@skkuverse/gone', version: '1.0.0', reproducible: true, tag: '@skkuverse/gone@1.0.0', commit: sha.first, rule: RULE };
+    assert.throws(() => push(dir, [...records, gone], { gh }), /@skkuverse\/gone is not a package at HEAD/);
+
+    assert.deepEqual([...remoteTags(dir, 'origin')], []);
+    assert.equal(git(dir, 'tag', '--list').trim(), '');
+    assert.equal(fs.existsSync(calls), false, 'gh was never called');
   });
 
   it('runs as a command through a symlink, and does nothing when only imported', () => {
@@ -187,40 +250,28 @@ describe('backfill-tags', () => {
   });
 
   it('pushes an annotated tag and a release with the CHANGELOG section, once, and creates a release a stopped run left out', () => {
-    const remote = path.join(work, 'remote.git');
-    git(work, 'init', '-q', '--bare', remote);
-    git(dir, 'remote', 'add', 'origin', remote);
-    const calls = path.join(work, 'gh-calls');
-    const failNext = path.join(work, 'gh-fail-next');
-    const gh = path.join(work, 'gh');
-    fs.writeFileSync(
-      gh,
-      [
-        '#!/bin/sh',
-        `if [ "$1 $2" = "release view" ]; then grep -q "^release create $3 " '${calls}' 2>/dev/null && exit 0; echo 'release not found' >&2; exit 1; fi`,
-        `if [ -e '${failNext}' ]; then rm '${failNext}'; exit 1; fi`,
-        'notes=$(eval echo \\$$#)',
-        `{ echo "$@"; cat "$notes"; } >> '${calls}'`,
-        '',
-      ].join('\n'),
-      { mode: 0o755 },
-    );
     const records = provenance(dir, 'HEAD', { registry, builder });
     const tag = `${CLI}@0.1.0`;
+    const atDocs = [[tag, { commit: sha.docs, annotated: true }]];
 
     fs.writeFileSync(failNext, '');
     assert.throws(() => push(dir, records, { gh }), /release create/, 'gh fails after the tag push');
-    assert.deepEqual([...remoteTags(dir, 'origin')], [[tag, sha.docs]]);
-    assert.equal(fs.existsSync(calls), false, 'the stopped run created no release');
+    assert.deepEqual([...remoteTags(dir, 'origin')], atDocs);
 
     push(dir, records, { gh });
     push(dir, records, { gh });
 
-    assert.deepEqual([...remoteTags(dir, 'origin')], [[tag, sha.docs]]);
+    assert.deepEqual([...remoteTags(dir, 'origin')], atDocs);
     assert.equal(git(dir, 'cat-file', '-t', tag).trim(), 'tag', 'the tag is annotated');
     assert.match(git(dir, 'cat-file', '-p', tag), new RegExp(`${tag} ${RULE} at ${sha.docs}`));
     const logged = fs.readFileSync(calls, 'utf8');
-    assert.equal(logged.match(/^release create/gm).length, 1, 'the next run creates the missing release, and a third creates nothing');
-    assert.match(logged, new RegExp(`^release create ${tag} --verify-tag --title ${tag} --notes-file \\S+\\n### Minor Changes\\n\\n- Say one\\.\\n`, 'm'));
+    const ghCalls = logged.split('\n').filter((line) => line.startsWith('release '));
+    assert.deepEqual(
+      ghCalls.map((line) => line.split(' ').slice(0, 2).join(' ')),
+      ['release view', 'release create', 'release view'],
+      'the next run creates the release the stopped run left out, and a third creates nothing',
+    );
+    for (const line of ghCalls) assert.match(line, new RegExp(` -R ${GH_REPO} `), 'gh releases in the repository git pushes to');
+    assert.match(logged, new RegExp(`^release create ${tag} -R ${GH_REPO} --verify-tag --latest=false --title ${tag} --notes-file \\S+\\n### Minor Changes\\n\\n- Say one\\.\\n`, 'm'));
   });
 });

@@ -1,6 +1,8 @@
 /**
- * Records, for each version npm lists, the commit that rebuilds its tarball byte for byte, or the closest commit and
- * the files that differ, or why no commit could be tried. Only a version that rebuilds byte for byte gets a tag.
+ * Records, for each version npm lists, the commit that rebuilds it byte for byte, or the closest commit and the files
+ * that differ, or why no commit could be tried. A rebuild matches when its tarball holds the same files with the same
+ * contents and modes as the one npm serves; the .tgz bytes themselves are not compared. Only a version that rebuilds
+ * byte for byte gets a tag.
  *
  *     pnpm --filter repo-checks backfill-tags --dry-run   print the records and the tag plan, write nothing
  *     pnpm --filter repo-checks backfill-tags --write     write release-provenance.json
@@ -120,13 +122,14 @@ function buildInputsHash(repo, sha, dir) {
 export function fileHashes(tarball) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'backfill-extract-'));
   try {
-    run('tar', ['-xzf', tarball, '-C', dir]);
+    run('tar', ['-xpzf', tarball, '-C', dir]);
     const hashes = new Map();
     for (const entry of fs.readdirSync(dir, { recursive: true, withFileTypes: true })) {
       if (!entry.isFile()) continue;
       const full = path.join(entry.parentPath, entry.name);
       const inside = path.relative(dir, full).split(path.sep).slice(1).join('/');
-      hashes.set(inside, crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex'));
+      const mode = (fs.statSync(full).mode & 0o777).toString(8);
+      hashes.set(inside, `${mode} ${crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex')}`);
     }
     return hashes;
   } finally {
@@ -255,23 +258,26 @@ export function changelogSection(text, version) {
     .trim();
 }
 
+/** Maps each remote tag to the commit it names, and whether it is annotated. */
 export function remoteTags(repo, remote) {
   const tags = new Map();
   for (const line of git(repo, 'ls-remote', '--tags', remote, `${TAG_PREFIX}*`).split('\n').filter(Boolean)) {
     const [sha, ref] = line.split('\t');
     // ls-remote lists an annotated tag twice: the tag object, then `<tag>^{}` with the commit it points at.
     const tag = ref.slice('refs/tags/'.length).replace(/\^\{\}$/, '');
-    if (ref.endsWith('^{}') || !tags.has(tag)) tags.set(tag, sha);
+    if (ref.endsWith('^{}')) tags.set(tag, { commit: sha, annotated: true });
+    else if (!tags.has(tag)) tags.set(tag, { commit: sha, annotated: false });
   }
   return tags;
 }
 
-/** A pushed tag cannot move under the release-tags ruleset, so a remote tag at another commit stops the plan. */
+/** A pushed tag cannot move under the release-tags ruleset, so a remote tag that is not the one to push stops the plan. */
 export function tagPlan(records, remote) {
   const plan = { create: [], present: [] };
   for (const { tag, commit } of records.filter((record) => record.reproducible)) {
     const at = remote.get(tag);
-    if (at !== undefined && at !== commit) throw new Error(`${tag} already exists at ${at}, not ${commit}`);
+    if (at !== undefined && at.commit !== commit) throw new Error(`${tag} already exists at ${at.commit}, not ${commit}`);
+    if (at !== undefined && !at.annotated) throw new Error(`${tag} exists as a lightweight tag, not an annotated one`);
     plan[at === undefined ? 'create' : 'present'].push({ tag, commit });
   }
   return plan;
@@ -282,9 +288,29 @@ export function releaseNotes(repo, { dir, name }, version, commit) {
   return (text === null ? null : changelogSection(text, version)) ?? `${name}@${version} has no CHANGELOG section.`;
 }
 
-function hasRelease(gh, repo, tag) {
+/** The GitHub repository a remote URL names, so gh releases where git pushes, whatever `gh repo set-default` says. */
+export function githubRepo(url) {
+  const match = /github\.com[:/]([^/]+\/[^/]+?)(?:\.git)?\/?$/.exec(url);
+  if (match === null) throw new Error(`${url} is not a GitHub repository URL`);
+  return match[1];
+}
+
+function pushUrl(repo, remote) {
+  const configured = (key) => {
+    try {
+      return git(repo, 'config', '--get', key).trim();
+    } catch {
+      return '';
+    }
+  };
+  const url = configured(`remote.${remote}.pushurl`) || configured(`remote.${remote}.url`);
+  if (url === '') throw new Error(`no remote named ${remote}`);
+  return url;
+}
+
+function hasRelease(gh, repo, ghRepo, tag) {
   try {
-    run(gh, ['release', 'view', tag, '--json', 'tagName'], repo);
+    run(gh, ['release', 'view', tag, '-R', ghRepo, '--json', 'tagName'], repo);
     return true;
   } catch (error) {
     if (/release not found/.test(String(error.stderr))) return false;
@@ -292,32 +318,47 @@ function hasRelease(gh, repo, tag) {
   }
 }
 
+/**
+ * Every check runs before the first push: the release repository, each release's notes, and each local tag that
+ * already exists. A pushed tag is permanent, so a run that stops leaves nothing it would not push again.
+ */
 export function push(repo, records, { remote = 'origin', gh = 'gh', log = () => {} } = {}) {
+  const ghRepo = githubRepo(pushUrl(repo, remote));
   const table = packageTable(repo, 'HEAD');
   const plan = tagPlan(records, remoteTags(repo, remote));
+  const notes = new Map(
+    records
+      .filter((record) => record.reproducible)
+      .map(({ name, version, tag, commit }) => {
+        const pkg = table.find((p) => p.name === name);
+        if (pkg === undefined) throw new Error(`${name} is not a package at HEAD, so ${tag} has no CHANGELOG to release`);
+        return [tag, releaseNotes(repo, pkg, version, commit)];
+      }),
+  );
+  for (const { tag, commit } of plan.create) {
+    if (git(repo, 'tag', '--list', tag).trim() === '') continue;
+    if (git(repo, 'cat-file', '-t', `refs/tags/${tag}`).trim() !== 'tag') throw new Error(`local ${tag} is a lightweight tag, not an annotated one`);
+    if (git(repo, 'rev-parse', `${tag}^{commit}`).trim() !== commit) throw new Error(`local ${tag} is not at ${commit}`);
+  }
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'backfill-notes-'));
-  const release = (tag, commit) => {
-    const name = tag.slice(0, tag.lastIndexOf('@'));
-    const version = tag.slice(tag.lastIndexOf('@') + 1);
-    const notes = path.join(work, 'notes.md');
-    fs.writeFileSync(notes, `${releaseNotes(repo, table.find((p) => p.name === name), version, commit)}\n`);
-    run(gh, ['release', 'create', tag, '--verify-tag', '--title', tag, '--notes-file', notes], repo);
+  const release = (tag) => {
+    const file = path.join(work, 'notes.md');
+    fs.writeFileSync(file, `${notes.get(tag)}\n`);
+    run(gh, ['release', 'create', tag, '-R', ghRepo, '--verify-tag', '--latest=false', '--title', tag, '--notes-file', file], repo);
   };
   try {
     for (const { tag, commit } of plan.create) {
-      const local = git(repo, 'tag', '--list', tag).trim();
-      if (local === '') git(repo, 'tag', '-a', tag, commit, '-m', `${tag} ${RULE} at ${commit}`);
-      else if (git(repo, 'rev-parse', `${tag}^{commit}`).trim() !== commit) throw new Error(`local ${tag} is not at ${commit}`);
+      if (git(repo, 'tag', '--list', tag).trim() === '') git(repo, 'tag', '-a', tag, commit, '-m', `${tag} ${RULE} at ${commit}`);
       git(repo, 'push', remote, `refs/tags/${tag}`);
-      release(tag, commit);
+      release(tag);
       log(`${tag}: tagged ${commit}, pushed and released`);
     }
     for (const { tag, commit } of plan.present) {
-      if (hasRelease(gh, repo, tag)) {
+      if (hasRelease(gh, repo, ghRepo, tag)) {
         log(`${tag}: on ${remote} at ${commit} and released already`);
         continue;
       }
-      release(tag, commit);
+      release(tag);
       log(`${tag}: on ${remote} at ${commit} already, released`);
     }
   } finally {
