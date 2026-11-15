@@ -11,6 +11,7 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
+import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, type Browser, type BrowserContext, type Locator, type Page, type Request } from 'playwright';
 import { hostBootstrapScript, parseMessage } from '@skkuverse/miniapp/protocol';
 import { resolvePreset } from '@skkuverse/miniapp/testing';
@@ -344,10 +345,21 @@ export class Session {
         },
       );
 
+      /** True when the page ran out of queued work with no new signal before `deadline`. */
+      const idle = async (deadline: number) => {
+        const since = quietSince;
+        const ran = page!.evaluate(untilIdle).then(
+          () => true,
+          () => false,
+        );
+        const late = delay(deadline - Date.now(), false, { ref: false });
+        return (await Promise.race([ran, late])) && quietSince === since;
+      };
       const settle = async () => {
-        const start = Date.now();
-        while (Date.now() - start < SETTLE_MAX_MS && Date.now() - quietSince < QUIET_MS) {
-          await new Promise((done) => setTimeout(done, 25));
+        const deadline = Date.now() + SETTLE_MAX_MS;
+        while (Date.now() < deadline) {
+          if (Date.now() - quietSince >= QUIET_MS && (await idle(deadline))) break;
+          await delay(25);
         }
         if (blockedByCsp) throw new RunnerError(blockedByCsp);
       };
@@ -396,6 +408,19 @@ export class Session {
       await close(proxy.server);
     }
   }
+}
+
+declare const scheduler: { postTask(task: () => void, options: { priority: 'background' }): Promise<void> };
+
+/**
+ * Resolves once the page has no task queued above background priority. A page
+ * that renders in queued tasks, as React does, sends no signal while it works,
+ * so a quiet window alone can end in the middle of a render.
+ * `requestIdleCallback` is no substitute: it stops firing after a click in
+ * headless Chromium, and the pinned clock replaces it with a timer.
+ */
+function untilIdle(): Promise<void> {
+  return scheduler.postTask(() => {}, { priority: 'background' });
 }
 
 function posted(raw: string): Posted {
