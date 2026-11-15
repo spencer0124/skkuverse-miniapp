@@ -26,7 +26,7 @@ Six miniapps built on `@skkuverse/miniapp` ran inside the skkuverse app at ESKAR
 - 1,477 devices that used one of the six miniapps or the map's festival layer
 - 1,070 devices that used the festival shuttle, the most used miniapp
 
-The miniapps' source lives outside this repository. To watch a miniapp of the same shape run outside the app, open the [stage timetable example in StackBlitz](https://stackblitz.com/github/spencer0124/skkuverse-miniapp/tree/main/examples/stage-timetable?file=src%2FApp.tsx). It runs on the fake host and lists every message it sends to the app.
+The miniapps' source lives outside this repository. To watch a miniapp of the same shape run outside the app, open the [stage timetable example in StackBlitz](https://stackblitz.com/github/spencer0124/skkuverse-miniapp/tree/main/examples/stage-timetable?file=src%2FApp.tsx). It runs on the fake host and lists every message it sends to the app. StackBlitz clones the repository and installs the packages first, which can take two minutes.
 
 <br clear="right">
 
