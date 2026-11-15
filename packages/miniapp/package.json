@@ -12,7 +12,8 @@
     },
     "./protocol": {
       "types": "./dist/protocol/index.d.ts",
-      "import": "./dist/protocol/index.js"
+      "import": "./dist/protocol/index.js",
+      "default": "./dist/protocol/index.js"
     },
     "./game": {
       "types": "./dist/game/index.d.ts",
