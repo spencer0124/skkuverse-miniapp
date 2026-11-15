@@ -76,6 +76,10 @@ let builder;
 let gh;
 let calls;
 let failNext;
+let ghDown;
+let ghNoPush;
+const SECRET = 'SECRET123';
+const pushLocal = (records, options = {}) => push(dir, records, { gh, allowLocalRemote: true, ...options });
 
 before(() => {
   // Every remote the fixture names is on github.com; insteadOf sends origin to a local bare repository, and this keeps a
@@ -121,12 +125,15 @@ before(() => {
   git(dir, 'config', `url.${remote}.insteadOf`, `https://github.com/${GH_REPO}.git`);
   calls = path.join(work, 'gh-calls');
   failNext = path.join(work, 'gh-fail-next');
+  ghDown = path.join(work, 'gh-down');
+  ghNoPush = path.join(work, 'gh-no-push');
   gh = path.join(work, 'gh');
   fs.writeFileSync(
     gh,
     [
       '#!/bin/sh',
-      `if [ -e '${failNext}' ]; then rm '${failNext}'; exit 1; fi`,
+      `if [ "$1" = api ]; then echo "$@" >> '${calls}'; [ -e '${ghDown}' ] && { echo 'gh auth login' >&2; exit 4; }; [ -e '${ghNoPush}' ] && echo false || echo true; exit 0; fi`,
+      `if [ "$1 $2" = "release create" ] && [ -e '${failNext}' ]; then rm '${failNext}'; exit 1; fi`,
       `echo "$@" >> '${calls}'`,
       `if [ "$1 $2" = "release view" ]; then grep -q "^release create $3 " '${calls}' && exit 0; echo 'release not found' >&2; exit 1; fi`,
       `for notes; do :; done; cat "$notes" >> '${calls}'`,
@@ -248,15 +255,15 @@ describe('backfill-tags', () => {
     const tag = `${CLI}@0.1.0`;
 
     git(dir, 'tag', tag, sha.docs);
-    assert.throws(() => push(dir, records, { gh }), /local .* is a lightweight tag/);
+    assert.throws(() => pushLocal(records), /local .* is a lightweight tag/);
     git(dir, 'push', '-q', 'origin', `refs/tags/${tag}`);
     git(dir, 'tag', '-d', tag);
     assert.deepEqual([...remoteTags(dir, 'origin')], [[tag, { commit: sha.docs, annotated: false }]]);
-    assert.throws(() => push(dir, records, { gh }), /exists as a lightweight tag/);
+    assert.throws(() => pushLocal(records), /exists as a lightweight tag/);
     git(dir, 'push', '-q', 'origin', `:refs/tags/${tag}`);
 
     const gone = { name: '@skkuverse/gone', version: '1.0.0', reproducible: true, tag: '@skkuverse/gone@1.0.0', commit: sha.first, rule: RULE };
-    assert.throws(() => push(dir, [...records, gone], { gh }), /@skkuverse\/gone is not a package at HEAD/);
+    assert.throws(() => pushLocal([...records, gone]), /@skkuverse\/gone is not a package at HEAD/);
 
     assert.deepEqual([...remoteTags(dir, 'origin')], []);
     assert.equal(git(dir, 'tag', '--list').trim(), '');
@@ -288,20 +295,106 @@ describe('backfill-tags', () => {
         [`url.${mirror}.insteadOf`, 'https://github.com/o/source.git'],
       ],
     ];
-    for (const [remote, error, ...entries] of refusals) withConfig(entries, () => assert.throws(() => push(dir, records, { gh, remote }), error));
+    for (const [remote, error, ...entries] of refusals) withConfig(entries, () => assert.throws(() => pushLocal(records, { remote }), error));
 
     const gone = { name: '@skkuverse/gone', version: '1.0.0', reproducible: true, tag: '@skkuverse/gone@1.0.0', commit: sha.first, rule: RULE };
     const harmless = [['remote.origin.pushurl', url], ['url.https://gitlab.com/o/.pushInsteadOf', 'https://gitlab.com/']];
     withConfig(harmless, () =>
-      assert.throws(() => push(dir, [...records, gone], { gh }), /@skkuverse\/gone is not a package at HEAD/, 'a pushurl equal to the url, and a pushInsteadOf for another host, pass'),
+      assert.throws(() => pushLocal([...records, gone]), /@skkuverse\/gone is not a package at HEAD/, 'a pushurl equal to the url, and a pushInsteadOf for another host, pass'),
     );
     const ssh = [['remote.ssh.url', 'https://github.com/o/r.git'], ['url.git@github.com:.insteadOf', 'https://github.com/']];
     withConfig(ssh, () => assert.equal(releaseRepository(dir, 'ssh'), 'o/r', 'a rewrite to the same repository over ssh passes'));
-    assert.equal(releaseRepository(dir, 'origin'), GH_REPO, 'a rewrite to a local path passes');
+    const cased = [['remote.cased.url', 'https://github.com/O/Cased.git'], ['remote.cased.pushurl', 'git@github.com:o/cased.git']];
+    withConfig(cased, () => assert.equal(releaseRepository(dir, 'cased'), 'O/Cased', 'GitHub owner and repository names ignore case'));
+
+    const leaks = [
+      ['leak', /^https:\/\/\*\*\*@gitlab\.com\/o\/r\.git is not a GitHub repository URL$/, ['remote.leak.url', `https://x-access-token:${SECRET}@gitlab.com/o/r.git`]],
+      ['leak', /but git pushes it to https:\/\/\*\*\*@github\.com\/o\/mirror\.git$/, ['remote.leak.url', 'https://github.com/o/r.git'], ['remote.leak.pushurl', `https://x-access-token:${SECRET}@github.com/o/mirror.git`]],
+      ['leak', /but git pushes it to https:\/\/\*\*\*@github\.com\/o\/mirror\.git$/, ['remote.leak.url', 'https://github.com/o/r.git'], [`url.https://x-access-token:${SECRET}@github.com/o/mirror.git.insteadOf`, 'https://github.com/o/r.git']],
+      [
+        'leak',
+        /but ls-remote reads https:\/\/\*\*\*@github\.com\/o\/r\.git$/,
+        ['remote.leak.url', 'https://github.com/o/r.git'],
+        ['remote.leak.pushurl', 'git@github.com:o/r.git'],
+        [`url.https://x-access-token:${SECRET}@github.com/o/r.git.insteadOf`, 'https://github.com/o/r.git'],
+      ],
+    ];
+    for (const [remote, error, ...entries] of leaks) {
+      withConfig(entries, () =>
+        assert.throws(() => pushLocal(records, { remote }), (thrown) => {
+          assert.match(thrown.message, error);
+          assert.doesNotMatch(thrown.message, new RegExp(SECRET), 'a URL prints without its userinfo');
+          return true;
+        }),
+      );
+    }
 
     assert.deepEqual([...remoteTags(dir, 'origin')], []);
     assert.equal(git(dir, 'tag', '--list').trim(), '');
     assert.equal(fs.existsSync(calls), false, 'gh was never called');
+  });
+
+  it('pushes to a remote git resolves to a local path only when the run opts in', () => {
+    const records = provenance(dir, 'HEAD', { registry, builder });
+    assert.throws(() => releaseRepository(dir, 'origin'), /git pushes origin to a local path/);
+    assert.throws(() => push(dir, records, { gh }), /git pushes origin to a local path/);
+    git(dir, 'remote', 'add', 'filed', 'https://github.com/o/filed.git');
+    git(dir, 'config', `url.file://${path.join(work, 'remote.git')}.insteadOf`, 'https://github.com/o/filed.git');
+    try {
+      assert.throws(() => releaseRepository(dir, 'filed'), /git pushes filed to a local path file:\/\//);
+      assert.equal(releaseRepository(dir, 'filed', { allowLocalRemote: true }), 'o/filed');
+    } finally {
+      git(dir, 'remote', 'remove', 'filed');
+      git(dir, 'config', '--remove-section', `url.file://${path.join(work, 'remote.git')}`);
+    }
+    assert.equal(releaseRepository(dir, 'origin', { allowLocalRemote: true }), GH_REPO, 'the opt-in lets a rehearsal push to a local repository');
+
+    assert.deepEqual([...remoteTags(dir, 'origin')], []);
+    assert.equal(git(dir, 'tag', '--list').trim(), '');
+    assert.equal(fs.existsSync(calls), false, 'gh was never called');
+  });
+
+  it('pushes nothing when gh is logged out or cannot push to the release repository', () => {
+    const records = provenance(dir, 'HEAD', { registry, builder });
+    for (const [file, error] of [[ghDown, /gh cannot push to fixture-owner\/fixture-repo: .*gh auth login/s], [ghNoPush, /gh cannot push to fixture-owner\/fixture-repo: no push permission/]]) {
+      fs.writeFileSync(file, '');
+      try {
+        assert.throws(() => pushLocal(records), error);
+      } finally {
+        fs.rmSync(file);
+      }
+    }
+
+    assert.deepEqual([...remoteTags(dir, 'origin')], []);
+    assert.equal(git(dir, 'tag', '--list').trim(), '');
+    const logged = fs.readFileSync(calls, 'utf8').split('\n').filter(Boolean);
+    assert.deepEqual(logged, Array(2).fill(`api repos/${GH_REPO} --jq .permissions.push`), 'gh only read the repository');
+    fs.rmSync(calls);
+  });
+
+  it('as a command, needs BACKFILL_ALLOW_LOCAL_REMOTE=1 for a local remote, and prints no URL credential', () => {
+    const copy = path.join(dir, 'packages/repo-checks');
+    fs.mkdirSync(path.join(copy, 'scripts'), { recursive: true });
+    fs.copyFileSync(path.join(import.meta.dirname, '../scripts/backfill-tags.mjs'), path.join(copy, 'scripts/backfill-tags.mjs'));
+    fs.writeFileSync(path.join(copy, 'release-provenance.json'), '[]\n');
+    const cli = (env) =>
+      spawnSync('node', [path.join(copy, 'scripts/backfill-tags.mjs'), '--push'], { encoding: 'utf8', env: { ...process.env, PATH: `${work}:${process.env.PATH}`, ...env } });
+    try {
+      const refused = cli({});
+      assert.notEqual(refused.status, 0);
+      assert.match(refused.stderr, /git pushes origin to a local path/);
+      assert.equal(cli({ BACKFILL_ALLOW_LOCAL_REMOTE: '1' }).status, 0);
+
+      git(dir, 'config', 'remote.origin.pushurl', `https://x-access-token:${SECRET}@github.com/o/mirror.git`);
+      const leaked = cli({ BACKFILL_ALLOW_LOCAL_REMOTE: '1' });
+      git(dir, 'config', '--unset', 'remote.origin.pushurl');
+      assert.notEqual(leaked.status, 0);
+      assert.match(leaked.stderr, /but git pushes it to https:\/\/\*\*\*@github\.com\/o\/mirror\.git/);
+      assert.doesNotMatch(leaked.stderr, new RegExp(SECRET), 'stderr carries no URL credential');
+    } finally {
+      fs.rmSync(copy, { recursive: true, force: true });
+      fs.rmSync(calls, { force: true });
+    }
   });
 
   it('runs as a command through a symlink, and does nothing when only imported', () => {
@@ -325,11 +418,11 @@ describe('backfill-tags', () => {
     git(dir, 'config', 'push.followTags', 'true');
     git(dir, 'tag', '-a', 'unplanned', sha.first, '-m', 'an annotated tag on an ancestor of the tagged commit');
     fs.writeFileSync(failNext, '');
-    assert.throws(() => push(dir, records, { gh }), /release create/, 'gh fails after the tag push');
+    assert.throws(() => pushLocal(records), /release create/, 'gh fails after the tag push');
     assert.deepEqual([...remoteTags(dir, 'origin')], atDocs);
 
-    push(dir, records, { gh });
-    push(dir, records, { gh });
+    pushLocal(records);
+    pushLocal(records);
 
     assert.deepEqual([...remoteTags(dir, 'origin')], atDocs);
     assert.doesNotMatch(git(dir, 'ls-remote', '--tags', 'origin'), /unplanned/, 'push.followTags carries no other tag along');

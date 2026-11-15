@@ -8,7 +8,8 @@
  *     pnpm --filter repo-checks backfill-tags --write     write release-provenance.json
  *     pnpm --filter repo-checks backfill-tags --push      tag, push and release what release-provenance.json names
  *
- * `--ref <rev>` names the history the first two search, `origin/main` by default.
+ * `--ref <rev>` names the history the first two search, `origin/main` by default. `--push` refuses an origin that git
+ * resolves to a local path unless BACKFILL_ALLOW_LOCAL_REMOTE=1, which only a rehearsal sets.
  */
 import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -294,10 +295,13 @@ const GITHUB_URLS = [
   /^ssh:\/\/git@github\.com(?::\d+)?\/([\w.-]+\/[\w.-]+?)(?:\.git)?$/,
 ];
 
+/** A remote URL can carry a token, so every message prints it with the userinfo replaced. */
+const redact = (url) => url.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/]*@/i, '$1***@').replace(/^[^/:]+@/, '***@');
+
 /** The GitHub repository a remote URL names, so gh releases where git pushes, whatever `gh repo set-default` says. */
 export function githubRepo(url) {
   const repo = GITHUB_URLS.map((pattern) => pattern.exec(url)?.[1]).find((match) => match !== undefined);
-  if (repo === undefined || repo.endsWith('.git')) throw new Error(`${url} is not a GitHub repository URL`);
+  if (repo === undefined || repo.endsWith('.git')) throw new Error(`${redact(url)} is not a GitHub repository URL`);
   return repo;
 }
 
@@ -306,10 +310,11 @@ const isLocalPath = (url) => url.startsWith('file://') || !/^[^/]*:/.test(url);
 /**
  * The GitHub repository the remote's configured URL names, once git's own resolution shows the tags go there too.
  * A second URL, a pushurl and an insteadOf or pushInsteadOf rule can each send a push elsewhere, or make ls-remote read
- * another repository than the one pushed to. A rewrite to a local path is allowed: the tag stays on this machine, and
- * `gh release create --verify-tag` refuses a tag GitHub does not hold. The rehearsal and the test fixture rely on it.
+ * another repository than the one pushed to. A rewrite to a local path is refused unless `allowLocalRemote` is set:
+ * the tags then go to that path, and the check for a tag at another commit reads it, not GitHub, while
+ * `gh release create --verify-tag` only asks GitHub whether the tag exists. Only the tests and the rehearsal set it.
  */
-export function releaseRepository(repo, remote) {
+export function releaseRepository(repo, remote, { allowLocalRemote = false } = {}) {
   const urls = (...args) => {
     try {
       return git(repo, ...args).split('\n').filter(Boolean);
@@ -327,15 +332,32 @@ export function releaseRepository(repo, remote) {
   const place = (url) => {
     if (isLocalPath(url)) return url;
     try {
-      return githubRepo(url);
+      return githubRepo(url).toLowerCase();
     } catch {
       return url;
     }
   };
   const [pushed] = pushes;
-  if (!isLocalPath(pushed) && place(pushed) !== ghRepo) throw new Error(`${remote} is ${configured[0]}, but git pushes it to ${pushed}`);
-  if (place(pushed) !== place(fetched)) throw new Error(`git pushes ${remote} to ${pushed}, but ls-remote reads ${fetched}`);
+  const local = [pushed, fetched].find(isLocalPath);
+  if (local !== undefined && !allowLocalRemote) {
+    throw new Error(`git pushes ${remote} to a local path ${redact(local)}, and BACKFILL_ALLOW_LOCAL_REMOTE=1 is for a rehearsal only`);
+  }
+  if (!isLocalPath(pushed) && place(pushed) !== ghRepo.toLowerCase()) {
+    throw new Error(`${remote} is ${redact(configured[0])}, but git pushes it to ${redact(pushed)}`);
+  }
+  if (place(pushed) !== place(fetched)) throw new Error(`git pushes ${remote} to ${redact(pushed)}, but ls-remote reads ${redact(fetched)}`);
   return ghRepo;
+}
+
+/** A tag push is permanent, so gh must be able to release in the repository before the first one. */
+function checkCanRelease(gh, repo, ghRepo) {
+  let canPush;
+  try {
+    canPush = run(gh, ['api', `repos/${ghRepo}`, '--jq', '.permissions.push'], repo).trim();
+  } catch (error) {
+    throw new Error(`gh cannot push to ${ghRepo}: ${String(error.stderr).trim()}`);
+  }
+  if (canPush !== 'true') throw new Error(`gh cannot push to ${ghRepo}: no push permission`);
 }
 
 function hasRelease(gh, repo, ghRepo, tag) {
@@ -349,11 +371,11 @@ function hasRelease(gh, repo, ghRepo, tag) {
 }
 
 /**
- * Every check runs before the first push: the release repository, each release's notes, and each local tag that
- * already exists. A pushed tag is permanent, so a run that stops leaves nothing it would not push again.
+ * Every check runs before the first push: the release repository, each release's notes, each local tag that already
+ * exists, and gh's push permission. A pushed tag is permanent, so a run that stops leaves nothing it would not push again.
  */
-export function push(repo, records, { remote = 'origin', gh = 'gh', log = () => {} } = {}) {
-  const ghRepo = releaseRepository(repo, remote);
+export function push(repo, records, { remote = 'origin', gh = 'gh', log = () => {}, allowLocalRemote = false } = {}) {
+  const ghRepo = releaseRepository(repo, remote, { allowLocalRemote });
   const table = packageTable(repo, 'HEAD');
   const plan = tagPlan(records, remoteTags(repo, remote));
   const notes = new Map(
@@ -370,6 +392,7 @@ export function push(repo, records, { remote = 'origin', gh = 'gh', log = () => 
     if (git(repo, 'cat-file', '-t', `refs/tags/${tag}`).trim() !== 'tag') throw new Error(`local ${tag} is a lightweight tag, not an annotated one`);
     if (git(repo, 'rev-parse', `${tag}^{commit}`).trim() !== commit) throw new Error(`local ${tag} is not at ${commit}`);
   }
+  checkCanRelease(gh, repo, ghRepo);
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'backfill-notes-'));
   const release = (tag) => {
     const file = path.join(work, 'notes.md');
@@ -409,7 +432,7 @@ function main(argv) {
   }
   if (mode === '--push') {
     const records = JSON.parse(fs.readFileSync(path.join(repo, PROVENANCE), 'utf8'));
-    push(repo, records, { log });
+    push(repo, records, { log, allowLocalRemote: process.env.BACKFILL_ALLOW_LOCAL_REMOTE === '1' });
     return 0;
   }
 
