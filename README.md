@@ -6,8 +6,7 @@
 [![License](https://img.shields.io/npm/l/@skkuverse/miniapp)](LICENSE)
 
 The SDK, the design system and the tools for skkuverse miniapps, the small Vite and React pages that run inside the skkuverse app.
-Each tool ends in a check that can fail, so a person or an LLM that changes a miniapp can prove the change works before it ships.
-To watch a miniapp run outside the app, open the [stage timetable example in StackBlitz](https://stackblitz.com/github/spencer0124/skkuverse-miniapp/tree/main/examples/stage-timetable?file=src%2FApp.tsx). It runs on the fake host and lists every message it sends to the app.
+Each tool ends in a check that can fail, so a person or an LLM can prove that a change works before it ships.
 
 | Package | What it is |
 | --- | --- |
@@ -19,17 +18,21 @@ To watch a miniapp run outside the app, open the [stage timetable example in Sta
 
 ## In production
 
-Six miniapps built on `@skkuverse/miniapp` ran inside the skkuverse app at ESKARA 2026, Sungkyunkwan University's festival, on 2026-10-01 and 2026-10-02 (KST).
+<img align="right" width="200" src="./docs/explanation/assets/eskara-2026.png" alt="The skkuverse app's home screen during ESKARA 2026: the festival banner above tiles for the six festival miniapps">
 
-| Counted by the app's analytics over the two days | Devices |
-| --- | --- |
-| Used the app | 2,118 |
-| Used one of the six miniapps or the map's festival layer | 1,477 |
-| Used the festival shuttle, the most used miniapp | 1,070 |
+Six miniapps built on `@skkuverse/miniapp` ran inside the skkuverse app at ESKARA 2026, Sungkyunkwan University's festival, on 2026-10-01 and 2026-10-02 (KST). The app's analytics counted, over those two days:
 
-<img src="./docs/explanation/assets/eskara-2026.png" width="300" alt="The skkuverse app's home screen during ESKARA 2026: the festival banner above tiles for the six festival miniapps">
+- 2,118 devices that used the app
+- 1,477 devices that used one of the six miniapps or the map's festival layer
+- 1,070 devices that used the festival shuttle, the most used miniapp
 
-The miniapps' source lives outside this repository. The [ESKARA 2026 case study](docs/explanation/case-study-eskara-2026.md) defines each number and lists what the festival changed in the SDK.
+The miniapps' source lives outside this repository. The [ESKARA 2026 case study](docs/explanation/case-study-eskara-2026.md) defines each number and lists what the festival changed in the SDK. To watch a miniapp of the same shape run outside the app, open the [stage timetable example in StackBlitz](https://stackblitz.com/github/spencer0124/skkuverse-miniapp/tree/main/examples/stage-timetable?file=src%2FApp.tsx). It runs on the fake host and lists every message it sends to the app.
+
+<br clear="right">
+
+## Get started
+
+Each entry point holds one layer of the SDK:
 
 ```tsx
 import { SDSProvider, Button } from '@skkuverse/ui';
