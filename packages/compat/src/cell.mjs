@@ -102,13 +102,8 @@ async function cell(mode, page, host, build, install) {
 
   async function loadHost(version) {
     const url = entry(version, 'protocol');
-    let proto;
-    try {
-      proto = await import(url);
-    } catch (e) {
-      if (e?.code === 'ERR_MODULE_NOT_FOUND' && String(e.message).includes(fileURLToPath(url))) return { error: 'no protocol entry' };
-      throw e;
-    }
+    if (!fs.existsSync(fileURLToPath(url))) return { error: 'no protocol entry' };
+    const proto = await import(url);
     if (typeof proto.hostBootstrapScript !== 'function') return { error: 'no hostBootstrapScript export' };
     return { proto };
   }

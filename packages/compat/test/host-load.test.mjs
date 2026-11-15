@@ -37,6 +37,13 @@ describe('loading a host protocol entry', () => {
     assert.match(result.crash ?? '', /boom from host entry/);
   });
 
+  it('crashes when the entry exists but imports a missing file', async () => {
+    const dir = install('gone-chunk', (protocol) => fs.writeFileSync(path.join(protocol, 'index.js'), 'import "./gone-chunk.js";\n'));
+    const result = await runCell('mini', 'workspace', HOST, 'esm', dir);
+    assert.match(result.crash ?? '', /gone-chunk/);
+    assert.equal(result.scenarios, undefined);
+  });
+
   it('is n/a when the host has no protocol entry', async () => {
     const dir = install('missing', (protocol) => fs.rmSync(protocol, { recursive: true, force: true }));
     const result = await runCell('mini', 'workspace', HOST, 'esm', dir);
