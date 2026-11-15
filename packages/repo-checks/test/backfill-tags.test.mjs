@@ -5,11 +5,12 @@
  * published on day 4, 0.2.0 with one built byte changed, and a 0.0.0-stage that no commit holds.
  */
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
+import { pathToFileURL } from 'node:url';
 import {
   candidates,
   changelogSection,
@@ -167,6 +168,19 @@ describe('backfill-tags', () => {
     assert.deepEqual(tagPlan(records, new Map()), { create: [tag], present: [] });
     assert.deepEqual(tagPlan(records, new Map([[tag.tag, sha.first]])), { create: [], present: [tag] });
     assert.throws(() => tagPlan(records, new Map([[`${CLI}@0.1.0`, sha.second]])), /already exists at/);
+  });
+
+  it('runs as a command through a symlink, and does nothing when only imported', () => {
+    const script = path.join(import.meta.dirname, '../scripts/backfill-tags.mjs');
+    const link = path.join(work, 'linked-backfill-tags.mjs');
+    fs.symlinkSync(script, link);
+    const usage = spawnSync('node', [link], { encoding: 'utf8' });
+    assert.equal(usage.status, 2, usage.stderr);
+    assert.match(usage.stderr, /^usage: backfill-tags/);
+
+    const imported = spawnSync('node', ['--input-type=module', '-e', `await import(${JSON.stringify(pathToFileURL(script).href)})`], { encoding: 'utf8' });
+    assert.equal(imported.status, 0, imported.stderr);
+    assert.equal(imported.stderr, '');
   });
 
   it('pushes an annotated tag and a release with the CHANGELOG section, once', () => {

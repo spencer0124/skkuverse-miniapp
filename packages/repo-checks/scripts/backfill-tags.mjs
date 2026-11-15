@@ -349,4 +349,7 @@ function main(argv) {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = main(process.argv.slice(2));
+// A symlink in the path would make the two URLs differ and the script exit 0 without running. A process that only
+// imports this module has no file in argv[1].
+const entry = process.argv[1] && fs.existsSync(process.argv[1]) ? pathToFileURL(fs.realpathSync(process.argv[1])).href : undefined;
+if (import.meta.url === entry) process.exitCode = main(process.argv.slice(2));
