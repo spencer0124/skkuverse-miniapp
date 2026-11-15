@@ -61,6 +61,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 
 | Document | Summary |
 | --- | --- |
+| [compatibility.md](reference/compatibility.md) | Which `@skkuverse/miniapp` page version works with which host version, measured from the published packages and the workspace, with a link to the release tag of each version. For anyone deciding whether a page built on one SDK runs in an app built on another. |
 | [miniapp-spec.md](reference/miniapp-spec.md) | What a miniapp or a game has to be before skkuverse hosts it: its identity, its package, its build output, its page and its manifest. For anyone building one, first-party or a club's. |
 | [protocol.md](reference/protocol.md) | How a miniapp or game page and the skkuverse app talk, what shell the app draws around a page, and where a page may put its content. For anyone building a miniapp or a game, or changing the app's mini-app shell or game host. |
 | [api/README.md](reference/api/README.md) | The API of every package entry point, generated from the TypeScript source by TypeDoc |

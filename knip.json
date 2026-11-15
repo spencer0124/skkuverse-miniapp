@@ -22,6 +22,10 @@
         "@skkuverse/miniapp-cli"
       ]
     },
+    "packages/compat": {
+      "entry": ["src/{matrix,cell,versions}.mjs", "test/*.test.mjs"],
+      "ignoreDependencies": ["@skkuverse/miniapp", "happy-dom", "sdk-.*"]
+    },
     "packages/miniapp-contract": {
       "vitest": false,
       "entry": ["vitest.config.ts", "test/**/*.test.ts", "test/global-setup.ts", "test/fixtures/*/src/main.tsx"]
