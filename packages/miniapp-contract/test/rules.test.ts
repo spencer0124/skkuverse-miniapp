@@ -395,6 +395,16 @@ afterWork(() => {
     assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 0, stdout: '' }, run.stderr);
   });
 
+  test.concurrent('a change at the end of queued work starts the quiet window over, so a root marked 100 ms later keeps N3', async () => {
+    const script = `${AFTER_WORK}document.documentElement.removeAttribute('data-sv-chrome');
+afterWork(() => {
+  document.body.append('ready');
+  setTimeout(() => document.documentElement.setAttribute('data-sv-chrome', ''), 100);
+});`;
+    const run = await judge(page(script));
+    assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 0, stdout: '' }, run.stderr);
+  });
+
   test.concurrent('a debug key whose text appears after 600 ms of queued work breaks N2', async () => {
     const script = `${AFTER_WORK}const debug = new URLSearchParams(location.search).get('debug');
 afterWork(() => document.body.append(debug ? 'debug on' : 'ready'));`;
