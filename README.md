@@ -22,6 +22,7 @@ skkuverse-miniapp is the SDK, the design system and the tools for skkuverse mini
 | [`@skkuverse/miniapp-cli`](packages/cli) | check, new and ship for a repository of skkuverse miniapps and games. | [![npm](https://img.shields.io/npm/v/@skkuverse/miniapp-cli)](https://www.npmjs.com/package/@skkuverse/miniapp-cli) |
 | [`@skkuverse/game-contract`](packages/game-contract) | Plays a built skkuverse game page against the SDK fake host and holds it to the game protocol contract. | [![npm](https://img.shields.io/npm/v/@skkuverse/game-contract)](https://www.npmjs.com/package/@skkuverse/game-contract) |
 | [`@skkuverse/miniapp-contract`](packages/miniapp-contract) | Opens a built skkuverse miniapp in Chromium under the production headers and judges the spec's runtime rules N1 to N4. | [![npm](https://img.shields.io/npm/v/@skkuverse/miniapp-contract)](https://www.npmjs.com/package/@skkuverse/miniapp-contract) |
+| [`@skkuverse/vite-plugin-miniapp`](packages/vite-plugin) | A Vite plugin that gives `vite dev` a host, so a miniapp or game page runs the same in-app code path it runs inside the skkuverse app. | [![npm](https://img.shields.io/npm/v/@skkuverse/vite-plugin-miniapp)](https://www.npmjs.com/package/@skkuverse/vite-plugin-miniapp) |
 
 <!-- docs-gen:end package-table -->
 
