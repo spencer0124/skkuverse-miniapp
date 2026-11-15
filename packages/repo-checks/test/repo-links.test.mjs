@@ -453,7 +453,9 @@ describe('the tracked tree', () => {
   it('reads the README badges, the issue template and every package.json repository field', () => {
     const manifests = files.filter(({ file }) => /(^|\/)package\.json$/.test(file)).filter(({ text }) => JSON.parse(text).repository?.url);
 
-    assert.equal(hitsIn('README.md').filter((hit) => hit.line === 3).length, 2);
+    const badgeLine = files.find(({ file }) => file === 'README.md').text.split('\n').findIndex((line) => line.startsWith('# skkuverse-miniapp ')) + 1;
+    assert.ok(badgeLine > 0, 'README.md opens with the name and badge heading');
+    assert.equal(hitsIn('README.md').filter((hit) => hit.line === badgeLine).length, 2);
     assert.equal(hitsIn('.github/ISSUE_TEMPLATE/config.yml').length, 1);
     assert.ok(manifests.length > 0);
     for (const { file, text } of manifests) {
