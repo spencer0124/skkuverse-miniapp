@@ -459,6 +459,13 @@ describe('runner errors exit 2', () => {
     assert.match(run.stderr, /the production CSP blocked eval \(script-src\) during the load of \//);
   });
 
+  test('a page that shows other text on a second plain load is not judged, and the error says what differs', async () => {
+    const run = await judge(page(`new URLSearchParams(location.search).get('ref');
+document.body.append(String(crypto.getRandomValues(new Uint32Array(1))[0]));`));
+    assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 2, stdout: '' });
+    assert.match(run.stderr, /two plain loads of \/ differ: the second one shows other text \("\d+"\) than the first, so N2 cannot compare/);
+  });
+
   test('a folder with no build is a usage error', async () => {
     const run = await contract(['--dir', join(pkg, 'src'), '--json']);
     assert.equal(run.status, 2);

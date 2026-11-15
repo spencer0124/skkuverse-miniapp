@@ -21,33 +21,35 @@ export function queryKeys(dist: string): string[] {
 
 const snapshot = (visit: Visit) => ({ text: visit.text, posted: JSON.stringify(visit.posted), requests: [...visit.requests].sort() });
 
+type Snapshot = ReturnType<typeof snapshot>;
+
 function firstNewLine(base: string, text: string): string {
   const seen = new Set(base.split('\n'));
   const line = text.split('\n').find((l) => !seen.has(l)) ?? '';
   return line.length > 60 ? `${line.slice(0, 57)}...` : line;
 }
 
+/** What the page does differently in `other` than in `base`, or undefined when nothing differs. */
+function difference(base: Snapshot, other: Snapshot): string | undefined {
+  if (other.text !== base.text) return `shows other text ("${firstNewLine(base.text, other.text)}")`;
+  if (other.posted !== base.posted) return 'posts other messages to the host';
+  if (other.requests.join('\n') === base.requests.join('\n')) return undefined;
+  const changed = other.requests.find((r) => !base.requests.includes(r)) ?? base.requests.find((r) => !other.requests.includes(r));
+  return `requests other addresses (${changed ?? 'the same ones, a different number of times'})`;
+}
+
 export async function judgeN2(session: Session, keys: readonly string[]): Promise<Finding[]> {
   if (keys.length === 0) return [];
   const plain = snapshot(await session.visit('/', { host: true, click: false }));
-  const again = snapshot(await session.visit('/', { host: true, click: false }));
-  if (plain.text !== again.text || plain.posted !== again.posted || plain.requests.join('\n') !== again.requests.join('\n')) {
-    throw new RunnerError('two plain loads of / differ in their text, host messages or requests, so N2 cannot compare a load with a query key against one');
+  const unstable = difference(plain, snapshot(await session.visit('/', { host: true, click: false })));
+  if (unstable !== undefined) {
+    throw new RunnerError(`two plain loads of / differ: the second one ${unstable} than the first, so N2 cannot compare a load with a query key against one`);
   }
   const findings: Finding[] = [];
   for (const key of keys) {
     for (const value of VALUES) {
       const query = `?${encodeURIComponent(key)}=${value}`;
-      const loaded = snapshot(await session.visit(`/${query}`, { host: true, click: false }));
-      const newRequest = loaded.requests.find((r) => !plain.requests.includes(r)) ?? plain.requests.find((r) => !loaded.requests.includes(r));
-      const what =
-        loaded.text !== plain.text
-          ? `shows other text ("${firstNewLine(plain.text, loaded.text)}")`
-          : loaded.posted !== plain.posted
-            ? 'posts other messages to the host'
-            : loaded.requests.join('\n') !== plain.requests.join('\n')
-              ? `requests other addresses (${newRequest ?? 'the same ones, a different number of times'})`
-              : undefined;
+      const what = difference(plain, snapshot(await session.visit(`/${query}`, { host: true, click: false })));
       if (what === undefined) continue;
       findings.push({
         rule: 'N2',
