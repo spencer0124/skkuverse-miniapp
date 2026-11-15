@@ -317,7 +317,7 @@ describe('the tracked tree', () => {
     t.diagnostic(`pattern ${GREP_PATTERN}`);
 
     assert.ok(files.length > 0);
-    assert.deepEqual(report, []);
+    assert.ok(report.length === 0, `\n${report.join('\n')}`);
   });
 
   it('reads the README badges, the issue template and every package.json repository field', () => {
