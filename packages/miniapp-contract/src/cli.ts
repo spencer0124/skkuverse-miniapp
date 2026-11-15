@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-/**
- * `miniapp-contract`: opens every built miniapp in Chromium under the
- * production headers, with the app's host installed, and judges the spec's
- * runtime rules N1 to N4 from what the page does. `USAGE` says how to run it.
- */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -38,15 +33,11 @@ browser, a page that does not load, or a backend that cannot be reached.`;
 const CONFIG_FILE = 'deploy.config.json';
 const require = createRequire(import.meta.url);
 
-/** One built miniapp, and what the operator's config says about it. */
 interface Target {
   id: string;
   dir: string;
-  /** The origin it is served from in production, which N4's preflight names. */
   productionOrigin: string;
-  /** Operator pages N3 leaves alone (spec N3), from its config entry. */
   operatorPaths: string[];
-  /** Query keys that are part of the miniapp, not debug switches, which N2 leaves alone. */
   queryParams: string[];
 }
 

@@ -1,9 +1,3 @@
-/**
- * Serves a built miniapp the way its host does: the files of `dist/`, the
- * headers `ship` writes into `_headers`, and the single-page fallback of
- * `_redirects`. Both files come from `@skkuverse/miniapp-cli/platform`, so
- * the page runs under the production CSP and nothing here restates it.
- */
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -77,7 +71,6 @@ const { _headers, _redirects } = platformFiles('app');
 const HEADER_RULES = parseHeaders(_headers);
 const REWRITES = parseRewrites(_redirects);
 
-/** The file under `dist` a path names: the file itself, then `index.html` in a folder of that name. */
 function fileFor(dist: string, path: string): string | undefined {
   let decoded: string;
   try {
@@ -93,8 +86,7 @@ function fileFor(dist: string, path: string): string | undefined {
   return undefined;
 }
 
-/** What the host sends for a path: the file and the headers, or nothing for a 404. */
-export function resolve(dist: string, path: string): { file: string; headers: Record<string, string> } | undefined {
+function answerFor(dist: string, path: string): { file: string; headers: Record<string, string> } | undefined {
   let file = fileFor(dist, path);
   for (const { from, to } of REWRITES) {
     if (file === undefined && matches(from, path)) file = fileFor(dist, to);
@@ -109,16 +101,14 @@ export function resolve(dist: string, path: string): { file: string; headers: Re
 
 export interface Served {
   server: Server;
-  /** The origin the page is served on, such as `http://127.0.0.1:53124`. */
   origin: string;
 }
 
-/** Serves `dist` on 127.0.0.1, on `port` or on any free port. */
 export function serve(dist: string, port = 0): Promise<Served> {
   const root = normalize(dist);
   const server = createServer((request, response) => {
     const path = new URL(request.url ?? '/', 'http://localhost').pathname;
-    const found = request.method === 'GET' || request.method === 'HEAD' ? resolve(root, path) : undefined;
+    const found = request.method === 'GET' || request.method === 'HEAD' ? answerFor(root, path) : undefined;
     if (found === undefined) {
       response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('not found');
       return;

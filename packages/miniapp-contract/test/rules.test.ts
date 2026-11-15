@@ -1,9 +1,3 @@
-/**
- * Each bad fixture breaks its rule and only its rule, and the good fixture and
- * the miniapp template keep all four, judged by the built command the way a
- * user runs it. Asserts with `node:assert`, which the spec coverage test in
- * packages/cli reads.
- */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -108,7 +102,7 @@ describe('N4 preflight', () => {
     path: '/',
     posted: [],
     departures: [],
-    outbound: [{ url, method: 'PUT', headers: ['authorization'], trigger: 'the load of /' }],
+    outbound: [{ url, method: 'PUT', preflightHeaders: ['authorization'], trigger: 'the load of /' }],
     cookieAsks: [],
     routes: ['/'],
     text: '',

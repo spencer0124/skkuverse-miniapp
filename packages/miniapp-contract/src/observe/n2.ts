@@ -1,10 +1,3 @@
-/**
- * N2: a debug switch works only under `import.meta.env.DEV`. The production
- * bundle is searched for the query keys it reads (`URLSearchParams`,
- * `searchParams.get`, `location.search`), and the page is loaded with each
- * key set. Fails on a key whose load posts other messages, or shows other
- * text, than the plain load.
- */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Finding } from '../rules.ts';
@@ -15,7 +8,6 @@ const KEY_READ = /\.(?:get|getAll|has)\(\s*(["'`])([^"'`\\$]{1,64})\1\s*\)/g;
 /** The values each key is loaded with: one a number reads, one a flag compared to "true" reads. */
 const VALUES = ['1', 'true'];
 
-/** The keys the built scripts under `dist` read from a query string. */
 export function queryKeys(dist: string): string[] {
   const keys = new Set<string>();
   for (const name of readdirSync(dist, { recursive: true, encoding: 'utf8' })) {
@@ -29,7 +21,6 @@ export function queryKeys(dist: string): string[] {
 
 const snapshot = (visit: Visit) => ({ text: visit.text, posted: JSON.stringify(visit.posted) });
 
-/** The first line of `text` that `base` lacks, cut short. */
 function firstNewLine(base: string, text: string): string {
   const seen = new Set(base.split('\n'));
   const line = text.split('\n').find((l) => !seen.has(l)) ?? '';

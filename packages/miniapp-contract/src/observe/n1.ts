@@ -1,8 +1,3 @@
-/**
- * N1: inside the app, a page leaves its origin only through `link.open`.
- * Fails on each navigation or popup to another origin, during a load or after
- * a click, with no `link.open` post for that URL in the same visit.
- */
 import type { Finding } from '../rules.ts';
 import { MAX_CLICKS, type Visit } from '../session.ts';
 

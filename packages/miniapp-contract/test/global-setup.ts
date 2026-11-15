@@ -1,8 +1,3 @@
-/**
- * Before any test file: builds the runner, downloads the Chromium it drives,
- * and builds every fixture and the miniapp template, so each test judges a
- * production build the way a user's run does.
- */
 import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';

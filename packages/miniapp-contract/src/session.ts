@@ -1,17 +1,9 @@
 /**
- * Opens a built miniapp in Chromium and records what it does: the messages it
- * posts to the host, the navigations and popups that would leave its origin,
- * the requests it makes to other origins, and the routes it reaches.
- *
- * Each visit is one page load in a fresh browser context, under the headers
- * `ship` writes (`serve.ts`). With a host, the context gets the app's real
- * `hostBootstrapScript` with the `granted` preset and a recording
- * `ReactNativeWebView` before the page's own script runs, as the app injects
- * them. The page never leaves 127.0.0.1: a navigation to another origin is
- * answered 204, which keeps the page where it is, and any other request to
- * another origin is aborted, so a click on a button that writes to a backend
- * writes nothing. The clock is pinned and `Math.random` is seeded, so two
- * loads of one URL render the same.
+ * The page never leaves 127.0.0.1. A navigation to another origin is answered
+ * 204, which a browser treats as "stay on the current document", and every
+ * other request to another origin is aborted, so a click on a button that
+ * writes to a backend writes nothing. The clock is pinned and `Math.random`
+ * seeded so two loads of one URL render the same, which N2 relies on.
  */
 import type { Server } from 'node:http';
 import { chromium, type Browser, type Locator, type Page, type Request } from 'playwright';
@@ -25,26 +17,21 @@ export interface Posted {
   params: unknown;
 }
 
-/** What the runner was doing when something happened: the load of a path, or a click on it. */
 type Trigger = string;
 
-/** A top-level navigation, in the page or in a popup it opened, to another origin. */
 export interface Departure {
   url: string;
   via: 'navigation' | 'popup';
   trigger: Trigger;
 }
 
-/** A fetch, XHR or EventSource request to another origin. */
 export interface Outbound {
   url: string;
   method: string;
-  /** The request headers the page's code set, beyond the ones the browser adds itself. */
-  headers: string[];
+  preflightHeaders: string[];
   trigger: Trigger;
 }
 
-/** A request to another origin for which the page asked the browser to send cookies. */
 export interface CookieAsk {
   url: string;
   how: 'credentials' | 'cookie-header';
@@ -52,37 +39,27 @@ export interface CookieAsk {
 }
 
 export interface Visit {
-  /** The path and query loaded. */
   path: string;
   posted: Posted[];
   departures: Departure[];
   outbound: Outbound[];
   cookieAsks: CookieAsk[];
-  /** Same-origin paths the visit navigated to or found in an `<a href>`. */
   routes: string[];
-  /** The page's visible text once the load settled, before any click. */
   text: string;
-  /** Whether `<html>` carries `data-sv-chrome`, which `<MiniappRoot>` sets outside the app. Only a visit with no host reads it. */
+  /** Read only on a visit with no host, where only `<MiniappRoot>` sets the attribute. */
   rootMarked: boolean;
-  /** Controls left unclicked because the visit reached `MAX_CLICKS`. */
   unclicked: number;
 }
 
 export interface VisitOptions {
-  /** Install the fake host before the page loads, as the app does. */
   host: boolean;
-  /** Click every anchor and button in DOM order after the load. */
   click: boolean;
 }
 
-/** The binding the page's instrumentation reports through. */
 const BINDING = '__miniappContract';
-/** Every control the crawl clicks, in DOM order. */
 const CLICKABLE = 'a[href], button, [role="button"], input[type="button"], input[type="submit"]';
 export const MAX_CLICKS = 50;
-/** The most routes a crawl visits, and the most N3 loads. */
 export const MAX_ROUTES = 20;
-/** How long a visit stays quiet (no message, request or DOM change) before it counts as settled. */
 const QUIET_MS = 150;
 const SETTLE_MAX_MS = 3_000;
 const CLICK_TIMEOUT_MS = 1_500;
@@ -91,18 +68,15 @@ const LOAD_TIMEOUT_MS = 15_000;
 const FIXED_TIME = Date.UTC(2026, 2, 2, 3, 0, 0);
 /** The iPhone the `granted` preset's viewport was measured on. */
 const VIEWPORT = { width: 390, height: 844 };
-/** The request types that reach a backend. A stylesheet, font or image from a CDN is not one. */
+/** A stylesheet, font or image from a CDN is not a backend call, so N4 leaves it alone. */
 const BACKEND_TYPES = new Set(['fetch', 'xhr', 'eventsource']);
-/** Headers the browser sets itself, or that CORS allows without a preflight. */
-const BROWSER_HEADERS = new Set(['accept', 'accept-language', 'content-language', 'range', 'user-agent', 'referer', 'origin', 'cookie', 'host', 'connection', 'accept-encoding']);
+const NO_PREFLIGHT_HEADERS = new Set(['accept', 'accept-language', 'content-language', 'range', 'user-agent', 'referer', 'origin', 'cookie', 'host', 'connection', 'accept-encoding']);
 const SIMPLE_CONTENT_TYPES = new Set(['application/x-www-form-urlencoded', 'multipart/form-data', 'text/plain']);
 
 /**
- * Runs in every document before its own script, host or not: seeds
- * `Math.random`, reports DOM changes so a visit knows when it settled,
- * reports a fetch or XHR to another origin that asks for cookies, which the
- * request itself does not show once it is intercepted, and reports what the
- * production CSP blocks.
+ * Cookie asks are reported from inside the page because the routed request
+ * cannot show them: Playwright's `Request` has no credentials mode, and the
+ * browser silently drops a `Cookie` header the page sets.
  */
 const INSTRUMENT = `(function () {
   var report = window[${JSON.stringify(BINDING)}];
@@ -157,11 +131,6 @@ const INSTRUMENT = `(function () {
   report('ready', '');
 })();`;
 
-/**
- * The app's side, in the top window: a `ReactNativeWebView` that reports each
- * post and answers each request with `null`, as `createFakeHost` does, then
- * the real bootstrap with the `granted` preset.
- */
 function hostScript(): string {
   const { capabilities = [], viewport } = resolvePreset('granted');
   if (viewport === undefined) throw new Error('the granted preset names no viewport');
@@ -184,16 +153,13 @@ ${hostBootstrapScript({ capabilities, viewport })}
 }`;
 }
 
-/** Something kept the runner from a verdict. The command exits 2. */
 export class RunnerError extends Error {}
 
-/** Chromium is not installed. The command exits 2 and says how to install it. */
 export class BrowserMissingError extends RunnerError {}
 
 export class Session {
   private readonly browser: Browser;
   private readonly server: Server;
-  /** The origin the page is served on. */
   readonly origin: string;
 
   private constructor(browser: Browser, server: Server, origin: string) {
@@ -202,7 +168,6 @@ export class Session {
     this.origin = origin;
   }
 
-  /** Serves `dist` and starts Chromium. */
   static async open(dist: string): Promise<Session> {
     let browser: Browser;
     try {
@@ -227,7 +192,6 @@ export class Session {
     await new Promise<void>((done) => this.server.close(() => done()));
   }
 
-  /** Loads `path` in a fresh context and records it, clicking every control when `click` is set. */
   async visit(path: string, { host, click }: VisitOptions): Promise<Visit> {
     const { origin } = this;
     const context = await this.browser.newContext({ viewport: VIEWPORT, serviceWorkers: 'block' });
@@ -271,7 +235,7 @@ export class Session {
         return route.fulfill({ status: 204 });
       }
       if (BACKEND_TYPES.has(request.resourceType())) {
-        visit.outbound.push({ url: request.url(), method: request.method(), headers: setByPage(request.headers()), trigger });
+        visit.outbound.push({ url: request.url(), method: request.method(), preflightHeaders: preflightHeaders(request.headers()), trigger });
       }
       return route.abort('blockedbyclient');
     });
@@ -334,11 +298,7 @@ function posted(raw: string): Posted {
   return message ? { method: message.method, params: message.params } : { method: '?', params: raw };
 }
 
-/**
- * How a top-level navigation leaves the page: in the page itself or in a popup.
- * A popup's first navigation is issued before its frame exists, so Playwright
- * has no frame for it. A frame inside the page is not leaving it.
- */
+/** Playwright's `request.frame()` throws for a popup's first navigation, which is issued before the popup's frame exists. */
 function leaves(request: Request, page: Page | undefined): Departure['via'] | undefined {
   let frame;
   try {
@@ -350,23 +310,24 @@ function leaves(request: Request, page: Page | undefined): Departure['via'] | un
   return frame.page() === page ? 'navigation' : 'popup';
 }
 
-/** The headers a preflight would name: the page's own, not the browser's, and a content type CORS does not allow as is. */
-function setByPage(headers: Record<string, string>): string[] {
+function preflightHeaders(headers: Record<string, string>): string[] {
   return Object.entries(headers)
     .filter(([name, value]) => {
       if (name === 'content-type') return !SIMPLE_CONTENT_TYPES.has(value.split(';')[0]!.trim().toLowerCase());
-      return !BROWSER_HEADERS.has(name) && !name.startsWith('sec-');
+      return !NO_PREFLIGHT_HEADERS.has(name) && !name.startsWith('sec-');
     })
     .map(([name]) => name)
     .sort();
 }
 
-/** Adds the same-origin paths of every `<a href>` on the page, a file other than a page aside. */
+/** A path with no extension, or an `.html` one: a route rather than a file such as `/report.pdf`. */
+const isPage = (pathname: string) => !/\.(?!html?$)[a-z0-9]+$/i.test(pathname);
+
 async function linkedRoutes(page: Page, origin: string, routes: Set<string>): Promise<void> {
   const hrefs = await page.locator('a[href]').evaluateAll((anchors) => anchors.map((a) => (a as HTMLAnchorElement).href));
   for (const href of hrefs) {
     const url = new URL(href);
-    if (url.origin === origin && !/\.(?!html?$)[a-z0-9]+$/i.test(url.pathname)) routes.add(url.pathname);
+    if (url.origin === origin && isPage(url.pathname)) routes.add(url.pathname);
   }
 }
 
@@ -377,7 +338,6 @@ async function describe(target: Locator): Promise<string> {
   });
 }
 
-/** Opens a session on `dist`, runs `work`, and closes it whatever happens. */
 export async function withSession<T>(dist: string, work: (session: Session) => Promise<T>): Promise<T> {
   const session = await Session.open(dist);
   try {
@@ -388,13 +348,10 @@ export async function withSession<T>(dist: string, work: (session: Session) => P
 }
 
 export interface Crawl {
-  /** One visit with the host per route, clicking every control, from `/` outward. */
   visits: Visit[];
-  /** Every same-origin route found, visited or not. */
   routes: string[];
 }
 
-/** Visits `/` with the host, then every route it reaches, up to `MAX_ROUTES`. */
 export async function crawl(session: Session): Promise<Crawl> {
   const routes = ['/'];
   const visits: Visit[] = [];

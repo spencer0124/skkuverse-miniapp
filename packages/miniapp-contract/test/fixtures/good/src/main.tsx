@@ -1,4 +1,3 @@
-/** Keeps N1 to N4: every rule's bad fixture is this page with one thing changed. */
 import { createRoot } from 'react-dom/client';
 import { handleLinkClick, haptic, openUrl } from '@skkuverse/miniapp';
 import { MiniappRoot } from '@skkuverse/miniapp/react';

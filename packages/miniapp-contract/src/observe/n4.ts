@@ -1,12 +1,3 @@
-/**
- * N4: a backend is an absolute URL from a `VITE_*` value in the committed
- * `.env.production`, it allows the miniapp's origin through CORS, and the page
- * authenticates with a token rather than a cookie. Fails on a fetch, XHR or
- * EventSource request to an origin no such value names, on a request that asks
- * for cookies (`credentials: 'include'`, `withCredentials` or a `Cookie`
- * header), and on a backend whose CORS preflight from the production origin
- * does not allow it.
- */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Finding } from '../rules.ts';
@@ -17,7 +8,6 @@ const PREFLIGHT_TIMEOUT_MS = 10_000;
 /** The methods CORS allows without naming them in `Access-Control-Allow-Methods`. */
 const SIMPLE_METHODS = new Set(['GET', 'HEAD', 'POST']);
 
-/** The origins the `VITE_*` values of the package's `.env.production` name. */
 export function backendOrigins(dir: string): Set<string> {
   const file = join(dir, ENV_FILE);
   const origins = new Set<string>();
@@ -26,22 +16,13 @@ export function backendOrigins(dir: string): Set<string> {
     const match = /^\s*(?:export\s+)?(VITE_[A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
     if (!match) continue;
     const value = match[2]!.replace(/^(["'`])(.*)\1$/, '$2');
-    try {
-      const url = new URL(value);
-      if (url.protocol === 'https:' || url.protocol === 'http:') origins.add(url.origin);
-    } catch {
-      // A value that is not an absolute URL names no backend.
-    }
+    const url = URL.parse(value);
+    if (url?.protocol === 'https:' || url?.protocol === 'http:') origins.add(url.origin);
   }
   return origins;
 }
 
-/**
- * Sends the preflight a browser on `origin` sends before `request`. Returns
- * why the backend refuses it, or undefined when it allows it. Throws a
- * `RunnerError` when the backend cannot be reached, since then nothing is known.
- */
-export async function preflight(request: Pick<Outbound, 'url' | 'method' | 'headers'>, origin: string): Promise<string | undefined> {
+export async function corsRefusal(request: Pick<Outbound, 'url' | 'method' | 'preflightHeaders'>, origin: string): Promise<string | undefined> {
   let response: Response;
   try {
     response = await fetch(request.url, {
@@ -51,7 +32,7 @@ export async function preflight(request: Pick<Outbound, 'url' | 'method' | 'head
       headers: {
         Origin: origin,
         'Access-Control-Request-Method': request.method,
-        ...(request.headers.length > 0 ? { 'Access-Control-Request-Headers': request.headers.join(',') } : {}),
+        ...(request.preflightHeaders.length > 0 ? { 'Access-Control-Request-Headers': request.preflightHeaders.join(',') } : {}),
       },
     });
   } catch (error) {
@@ -67,7 +48,7 @@ export async function preflight(request: Pick<Outbound, 'url' | 'method' | 'head
     return `Access-Control-Allow-Methods does not allow ${request.method}`;
   }
   const headers = list('access-control-allow-headers');
-  const missing = request.headers.filter((h) => !headers.includes('*') && !headers.includes(h));
+  const missing = request.preflightHeaders.filter((h) => !headers.includes('*') && !headers.includes(h));
   if (missing.length > 0) return `Access-Control-Allow-Headers does not allow ${missing.join(', ')}`;
   return undefined;
 }
@@ -101,7 +82,7 @@ export async function judgeN4(visits: readonly Visit[], allowed: ReadonlySet<str
     }
   }
   for (const [origin, request] of checked) {
-    const refused = await preflight(request, productionOrigin);
+    const refused = await corsRefusal(request, productionOrigin);
     if (refused) once(`cors ${origin}`, `${origin} does not allow ${productionOrigin} through CORS: ${refused}`);
   }
   return findings;
