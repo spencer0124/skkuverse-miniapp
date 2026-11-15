@@ -179,6 +179,12 @@ describe('the plugin', () => {
     }
   });
 
+  it('writes the characters that could end a script as escapes', () => {
+    const script = hostScript({ ...config('granted'), preset: '</script>\u2028x' }, '', { hot: false });
+    expect(script).not.toMatch(/[<\u2028]\/?script|\u2028/);
+    expect(script).toContain('\\u003c\\u002fscript\\u003e\\u2028x');
+  });
+
   it('throws for a preset it does not know, naming the known ones', () => {
     expect(() => resolveHostConfig('nope' as HostPresetName, false)).toThrow(/unknown host preset "nope"/);
   });

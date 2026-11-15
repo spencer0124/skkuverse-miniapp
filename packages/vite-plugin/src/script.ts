@@ -47,14 +47,21 @@ export function resolveHostConfig(name: HostPresetName, publicDir: string | fals
   };
 }
 
+const UNSAFE_IN_SCRIPT = /[<>/\u2028\u2029]/g;
+
+/** JSON as script text, with the characters that can end a `<script>` or a string literal written as `\u` escapes, as `hostBootstrapScript` does. */
+function embed(value: unknown): string {
+  return JSON.stringify(value).replace(UNSAFE_IN_SCRIPT, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+}
+
 /** The bootstrap goes in as a function, not a string, so a page under a CSP without `unsafe-eval` still runs it. */
 export function hostScript(config: DevHostConfig, hostEntry: string, { hot }: { hot: boolean }): string {
   const bootstrap = hostBootstrapScript({
     capabilities: config.capabilities,
     viewport: viewportFor(config.viewport, config.header),
   });
-  const log = hot ? `, log: import.meta.hot ? function (entry) { import.meta.hot.send(${JSON.stringify(LOG_EVENT)}, entry); } : undefined` : '';
-  return `window.${SENTINEL} = Object.assign(${JSON.stringify(config)}, { bootstrap: function () {\n${bootstrap}\n}${log} });\n${hostEntry}\n`;
+  const log = hot ? `, log: import.meta.hot ? function (entry) { import.meta.hot.send(${embed(LOG_EVENT)}, entry); } : undefined` : '';
+  return `window.${SENTINEL} = Object.assign(${embed(config)}, { bootstrap: function () {\n${bootstrap}\n}${log} });\n${hostEntry}\n`;
 }
 
 export const PARENT_SCRIPT = `/* ${SENTINEL}: the parent page hosts this one */
