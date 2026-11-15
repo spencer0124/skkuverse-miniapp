@@ -23,7 +23,8 @@ The check reads links only. Eight things stay manual: the `source` field of each
 
 - The new repository exists, is empty, and you can push to it.
 - Every repository on the `public` list of `repo-links.json`, including `skkuverse-server` and `skkuverse-app`, exists under the new owner. The rewrite points links at all of them. A repository that stays behind cannot be linked: a link to a repository outside `public` fails under every owner, so remove that link.
-- Perl and Git are on your `PATH`. The rewrite command uses both.
+- Perl, Git and `jq` are on your `PATH`. The rewrite command uses Perl and Git, and the later steps use `jq`.
+- `gh` is signed in as an admin of the new repository. Creating rulesets, the environment and its secret, and `compare.sh --keep-bypass` all need an admin token.
 - A clean working tree on a branch cut from `main`.
 
 ## Steps
@@ -71,14 +72,27 @@ The check reads links only. Eight things stay manual: the `source` field of each
     jq -r '.rules[] | select(.type == "code_scanning") | .parameters.code_scanning_tools[].tool' .github/rulesets/main.json
     ```
 
-    The first command lists each required check and the id of the GitHub App that reports it. The id `15368` is GitHub Actions, which needs Actions enabled on the new repository. Install every other app on the new repository (the ruleset names GitGuardian and CodeRabbit today). The second command lists the code scanning tools. For `CodeQL`, enable default setup, and for each secret or environment that `.github/workflows/` uses, such as the `claude` environment and its `CLAUDE_CODE_OAUTH_TOKEN`, create it too:
+    The first command lists each required check and the id of the GitHub App that reports it. The id `15368` is GitHub Actions, which needs Actions enabled on the new repository. Install every other app on the new repository (the ruleset names GitGuardian and CodeRabbit today). The second command lists the code scanning tools. For `CodeQL`, enable default setup:
 
     ```sh
     gh api -X PATCH repos/<new-owner>/skkuverse-miniapp/code-scanning/default-setup -f state=configured
     gh api repos/<new-owner>/skkuverse-miniapp/code-scanning/default-setup --jq .state
     ```
 
-    The last command prints `configured`. Then open a test pull request from a throwaway branch and list what reports on its head commit:
+    The last command prints `configured`.
+
+    Then create each secret and environment that `.github/workflows/` uses. The `claude` environment holds `CLAUDE_CODE_OAUTH_TOKEN`, and `.github/workflows/claude.yml` relies on the environment admitting only `main`, so a workflow pushed to another branch cannot read the token. Create the environment with a custom branch policy, add the `main` policy, set the secret on the environment (the command prompts for the value), and read the policies back:
+
+    ```sh
+    echo '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}' \
+      | gh api -X PUT repos/<new-owner>/skkuverse-miniapp/environments/claude --input -
+    gh api -X POST repos/<new-owner>/skkuverse-miniapp/environments/claude/deployment-branch-policies -f name=main -f type=branch
+    gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <new-owner>/skkuverse-miniapp --env claude
+    gh api repos/<new-owner>/skkuverse-miniapp/environments/claude/deployment-branch-policies --jq '[.branch_policies[] | "\(.type):\(.name)"]'
+    gh secret list -R <new-owner>/skkuverse-miniapp --env claude
+    ```
+
+    The policy list must print exactly `["branch:main"]`, and the secret list must name `CLAUDE_CODE_OAUTH_TOKEN`. Any other policy lets another branch read the token, so delete it. Then open a test pull request from a throwaway branch and list what reports on its head commit:
 
     ```sh
     gh api repos/<new-owner>/skkuverse-miniapp/commits/<test-pr-head-sha>/check-runs --jq '.check_runs[] | "\(.name)\t\(.app.id)"'
@@ -93,7 +107,7 @@ The check reads links only. Eight things stay manual: the `source` field of each
     gh label create owner-approved -R <new-owner>/skkuverse-miniapp --description "<description>" --color "<color>"
     ```
 
-    Then confirm that an account listed in `.github/owner-gate-owners` can apply it: that account adds the label to a throwaway test pull request, and the `gate` check on that pull request turns green. Close the pull request afterwards.
+    Then confirm that an account listed in `.github/owner-gate-owners` can apply it. `gate` passes on any pull request that changes no file listed in `.github/owner-gate-paths`, so the test pull request must change a listed file: on a throwaway branch, add a comment line to `.github/CODEOWNERS` and open the pull request. Its `gate` check must fail. Then that account adds the label, and `gate` must turn green. If `gate` is green before the label, the pull request touches no listed file and proves nothing. Close the pull request afterwards.
 13. Recreate the rulesets on the new repository. Nothing in this repository applies the files under `.github/rulesets/` for you, so until you create each ruleset there from its file, `main` is unprotected and the daily drift job fails on the new repository. Create each one, then compare the live rulesets with the files:
 
     ```sh
