@@ -22,7 +22,7 @@ audience: public
 
 ## Steps
 
-1. **Write a test that installs the fake host.** This test boots a game, plays one run and checks the record against the game contract:
+1. **Write a test that installs the fake host.** In this test, the calls to `bootGame`, `start` and `over` stand in for a game page's own code. Replace them with the code that starts your page, so that `host.log` records what the page sends:
 
    ```ts
    import { afterEach, expect, it, vi } from 'vitest';

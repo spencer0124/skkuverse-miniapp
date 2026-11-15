@@ -41,10 +41,10 @@ audience: public
 5. **Check it against the spec.** Build the page, then run `check`:
 
    ```sh
-   pnpm --filter ./apps/<id> build                      # write apps/<id>/dist
-   pnpm exec miniapp-cli check <id>                     # one package in the repository
-   pnpm exec miniapp-cli check                          # every package in the repository
-   npx @skkuverse/miniapp-cli check --dir . --id <id>   # one miniapp folder, no repository needed
+   pnpm --filter ./apps/<id> build                          # write apps/<id>/dist, or ./games/<id> for a game
+   pnpm exec miniapp-cli check <id>                         # one package in the repository
+   pnpm exec miniapp-cli check                              # every package in the repository
+   npx @skkuverse/miniapp-cli check --dir <path> --id <id>  # one miniapp folder, no deploy.config.json needed
    ```
 
    `check` enforces each rule the [miniapp spec](../reference/miniapp-spec.md) marks `checked`. The rules are in `packages/cli/src/check.ts`. Each failure prints its rule ID, and the command exits 1.
