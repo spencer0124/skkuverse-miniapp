@@ -77,6 +77,9 @@ let calls;
 let failNext;
 
 before(() => {
+  // Every remote the fixture names is on github.com; insteadOf sends origin to a local bare repository, and this keeps a
+  // broken guard from pushing anywhere else.
+  process.env.GIT_ALLOW_PROTOCOL = 'file';
   work = fs.mkdtempSync(path.join(os.tmpdir(), 'backfill-test-'));
   dir = path.join(work, 'repo');
   fs.mkdirSync(dir);
@@ -181,13 +184,15 @@ describe('backfill-tags', () => {
     }
   });
 
-  it('names a file whose mode differs', () => {
+  it('names a file whose mode differs, also where the umask would mask the difference on extraction', () => {
     // pnpm pack writes 0644 for every file outside `bin`, so the tarball is repacked by hand.
-    const tree = fs.mkdtempSync(path.join(work, 'mode-'));
-    sh(tree, 'tar', ['-xpzf', published[`${CLI}@0.1.0`]]);
-    fs.chmodSync(path.join(tree, 'package/dist/out.txt'), 0o755);
-    sh(tree, 'tar', ['-czf', path.join(work, 'mode.tgz'), 'package']);
-    assert.deepEqual(differingFiles(published[`${CLI}@0.1.0`], path.join(work, 'mode.tgz')), ['dist/out.txt']);
+    for (const mode of [0o755, 0o664]) {
+      const tree = fs.mkdtempSync(path.join(work, 'mode-'));
+      sh(tree, 'tar', ['-xpzf', published[`${CLI}@0.1.0`]]);
+      fs.chmodSync(path.join(tree, 'package/dist/out.txt'), mode);
+      sh(tree, 'tar', ['-czf', path.join(tree, 'mode.tgz'), 'package']);
+      assert.deepEqual(differingFiles(published[`${CLI}@0.1.0`], path.join(tree, 'mode.tgz')), ['dist/out.txt'], mode.toString(8));
+    }
   });
 
   it('cuts one version out of a Changesets CHANGELOG', () => {
@@ -209,11 +214,32 @@ describe('backfill-tags', () => {
     assert.throws(() => tagPlan(records, new Map([[tag.tag, { commit: sha.first, annotated: false }]])), /lightweight/);
   });
 
-  it('reads the GitHub repository from a remote URL', () => {
-    for (const url of ['https://github.com/o/r.git', 'https://github.com/o/r', 'git@github.com:o/r.git', 'ssh://git@github.com/o/r.git']) {
-      assert.equal(githubRepo(url), 'o/r', url);
-    }
-    assert.throws(() => githubRepo('/srv/git/r.git'), /not a GitHub repository URL/);
+  it('reads the GitHub repository from a github.com remote URL, and refuses any other host', () => {
+    const valid = [
+      'https://github.com/o/r.git',
+      'https://github.com/o/r',
+      'https://github.com/o/r/',
+      'https://github.com/o/r.git/',
+      'git@github.com:o/r.git',
+      'git@github.com:o/r',
+      'ssh://git@github.com/o/r.git',
+      'ssh://git@github.com:22/o/r.git',
+      'ssh://git@github.com/o/r',
+    ];
+    for (const url of valid) assert.equal(githubRepo(url), 'o/r', url);
+    assert.equal(githubRepo('https://github.com/my-org/my.repo_2.git'), 'my-org/my.repo_2');
+    const invalid = [
+      'git@notgithub.com:o/r.git',
+      'https://mygithub.com/o/r.git',
+      'https://evil.example/github.com/o/r.git',
+      'https://github.com.evil.example/o/r.git',
+      'https://github.com/o/r.git.git',
+      'https://github.com/o/r/extra',
+      'http://github.com/o/r.git',
+      'https://user@github.com/o/r.git',
+      '/srv/git/r.git',
+    ];
+    for (const url of invalid) assert.throws(() => githubRepo(url), /not a GitHub repository URL/, url);
   });
 
   it('pushes nothing when a tag it would push is lightweight, locally or on the remote, or a package is gone from HEAD', () => {
@@ -230,6 +256,37 @@ describe('backfill-tags', () => {
 
     const gone = { name: '@skkuverse/gone', version: '1.0.0', reproducible: true, tag: '@skkuverse/gone@1.0.0', commit: sha.first, rule: RULE };
     assert.throws(() => push(dir, [...records, gone], { gh }), /@skkuverse\/gone is not a package at HEAD/);
+
+    assert.deepEqual([...remoteTags(dir, 'origin')], []);
+    assert.equal(git(dir, 'tag', '--list').trim(), '');
+    assert.equal(fs.existsSync(calls), false, 'gh was never called');
+  });
+
+  it('pushes nothing when git would push somewhere other than the remote\'s configured URL', () => {
+    const records = provenance(dir, 'HEAD', { registry, builder });
+    const url = `https://github.com/${GH_REPO}.git`;
+    const mirror = 'https://github.com/o/mirror.git';
+    const withConfig = (entries, check) => {
+      for (const [key, value] of entries) git(dir, 'config', '--add', key, value);
+      try {
+        check();
+      } finally {
+        for (const [key, value] of entries) git(dir, 'config', '--fixed-value', '--unset', key, value);
+      }
+    };
+    const refusals = [
+      [/origin has 2 urls/, ['remote.origin.url', mirror]],
+      [/origin has 2 pushurls/, ['remote.origin.pushurl', url], ['remote.origin.pushurl', mirror]],
+      [/origin pushes to https:\/\/github\.com\/o\/mirror\.git, not its url/, ['remote.origin.pushurl', mirror]],
+      [/pushinsteadof https:\/\/github\.com\/ rewrites where origin pushes/, ['url.https://github.com/o/.pushInsteadOf', 'https://github.com/']],
+    ];
+    for (const [error, ...entries] of refusals) withConfig(entries, () => assert.throws(() => push(dir, records, { gh }), error));
+
+    const gone = { name: '@skkuverse/gone', version: '1.0.0', reproducible: true, tag: '@skkuverse/gone@1.0.0', commit: sha.first, rule: RULE };
+    const harmless = [['remote.origin.pushurl', url], ['url.https://gitlab.com/o/.pushInsteadOf', 'https://gitlab.com/']];
+    withConfig(harmless, () =>
+      assert.throws(() => push(dir, [...records, gone], { gh }), /@skkuverse\/gone is not a package at HEAD/, 'a pushurl equal to the url, and a pushInsteadOf for another host, pass'),
+    );
 
     assert.deepEqual([...remoteTags(dir, 'origin')], []);
     assert.equal(git(dir, 'tag', '--list').trim(), '');

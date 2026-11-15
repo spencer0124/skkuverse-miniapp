@@ -288,23 +288,43 @@ export function releaseNotes(repo, { dir, name }, version, commit) {
   return (text === null ? null : changelogSection(text, version)) ?? `${name}@${version} has no CHANGELOG section.`;
 }
 
+const GITHUB_URLS = [
+  /^https:\/\/github\.com\/([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/,
+  /^git@github\.com:([\w.-]+\/[\w.-]+?)(?:\.git)?$/,
+  /^ssh:\/\/git@github\.com(?::\d+)?\/([\w.-]+\/[\w.-]+?)(?:\.git)?$/,
+];
+
 /** The GitHub repository a remote URL names, so gh releases where git pushes, whatever `gh repo set-default` says. */
 export function githubRepo(url) {
-  const match = /github\.com[:/]([^/]+\/[^/]+?)(?:\.git)?\/?$/.exec(url);
-  if (match === null) throw new Error(`${url} is not a GitHub repository URL`);
-  return match[1];
+  const repo = GITHUB_URLS.map((pattern) => pattern.exec(url)?.[1]).find((match) => match !== undefined);
+  if (repo === undefined || repo.endsWith('.git')) throw new Error(`${url} is not a GitHub repository URL`);
+  return repo;
 }
 
-function pushUrl(repo, remote) {
-  const configured = (key) => {
+/**
+ * The remote's configured URL. git pushes somewhere else when the remote has a second `url`, a `pushurl` that differs
+ * or a `pushInsteadOf` rule that matches, so each of those stops the run. Without them, `ls-remote` also reads the
+ * repository the tags go to.
+ */
+function remoteUrl(repo, remote) {
+  const all = (...args) => {
     try {
-      return git(repo, 'config', '--get', key).trim();
+      return git(repo, 'config', '--null', ...args).split('\0').filter(Boolean);
     } catch {
-      return '';
+      return [];
     }
   };
-  const url = configured(`remote.${remote}.pushurl`) || configured(`remote.${remote}.url`);
-  if (url === '') throw new Error(`no remote named ${remote}`);
+  const urls = all('--get-all', `remote.${remote}.url`);
+  const pushUrls = all('--get-all', `remote.${remote}.pushurl`);
+  if (urls.length === 0) throw new Error(`no remote named ${remote}`);
+  if (urls.length > 1) throw new Error(`${remote} has ${urls.length} urls, and git pushes to every one`);
+  if (pushUrls.length > 1) throw new Error(`${remote} has ${pushUrls.length} pushurls, and git pushes to every one`);
+  const [url] = urls;
+  if (pushUrls.length === 1 && pushUrls[0] !== url) throw new Error(`${remote} pushes to ${pushUrls[0]}, not its url ${url}`);
+  for (const entry of all('--get-regexp', '^url\\..*\\.pushinsteadof$')) {
+    const [key, prefix] = entry.split('\n');
+    if (url.startsWith(prefix)) throw new Error(`${key} ${prefix} rewrites where ${remote} pushes`);
+  }
   return url;
 }
 
@@ -323,7 +343,7 @@ function hasRelease(gh, repo, ghRepo, tag) {
  * already exists. A pushed tag is permanent, so a run that stops leaves nothing it would not push again.
  */
 export function push(repo, records, { remote = 'origin', gh = 'gh', log = () => {} } = {}) {
-  const ghRepo = githubRepo(pushUrl(repo, remote));
+  const ghRepo = githubRepo(remoteUrl(repo, remote));
   const table = packageTable(repo, 'HEAD');
   const plan = tagPlan(records, remoteTags(repo, remote));
   const notes = new Map(
