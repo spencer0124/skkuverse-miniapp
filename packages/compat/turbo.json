@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/docs/reference/compatibility.md",
+        "$TURBO_ROOT$/repo-links.json",
+        "$TURBO_ROOT$/packages/repo-checks/release-provenance.json"
+      ]
+    }
+  }
+}

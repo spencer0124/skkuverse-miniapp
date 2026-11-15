@@ -54,7 +54,6 @@ export function renderPage(compat, changelog) {
 
   const sameEvidence = (page, host) => JSON.stringify(compat.cells.esm[page][host]) === JSON.stringify(compat.cells.global[page][host]);
   const homeOf = (build, page, host) => {
-    const cell = compat.cells[build][page][host];
     if (build === 'global' && sameEvidence(page, host)) return anchor('esm', page, host);
     return anchor(build, page, host);
   };

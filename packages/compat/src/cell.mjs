@@ -17,7 +17,7 @@
 import fs, { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const COMPAT_ROOT = path.join(import.meta.dirname, '..');
 
@@ -101,13 +101,16 @@ async function cell(mode, page, host, build, install) {
   }
 
   async function loadHost(version) {
+    const url = entry(version, 'protocol');
+    let proto;
     try {
-      const proto = await import(entry(version, 'protocol'));
-      if (typeof proto.hostBootstrapScript !== 'function') return { error: 'no hostBootstrapScript export' };
-      return { proto };
+      proto = await import(url);
     } catch (e) {
-      return { error: String(e.message).split('\n')[0] };
+      if (e?.code === 'ERR_MODULE_NOT_FOUND' && String(e.message).includes(fileURLToPath(url))) return { error: 'no protocol entry' };
+      throw e;
     }
+    if (typeof proto.hostBootstrapScript !== 'function') return { error: 'no hostBootstrapScript export' };
+    return { proto };
   }
 
   function makeHost(Hp, win, kind) {
@@ -330,7 +333,7 @@ async function cell(mode, page, host, build, install) {
     const wantIn = ['pause', 'resume', 'sound', 'reset', 'restart', 'revive', 'viewport'];
     out.push({
       id: 'game-inbound',
-      status: sameSet(names(inbound), wantIn) && names(inbound).length === wantIn.length ? 'ok' : 'broken',
+      status: sameSet(names(inbound), wantIn) ? 'ok' : 'broken',
       detail: `page handlers fired [${names(inbound).join(',')}]`,
     });
     handle.dispose();

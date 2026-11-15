@@ -62,7 +62,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   }
   if (missing.length > 0) {
     process.stderr.write(`compat-versions: ${PACKAGE} has released ${missing.join(', ')} with no alias in ${manifestPath}.\n`);
-    process.stderr.write(`Add "sdk-<version>": "npm:${PACKAGE}@<version>" for each, run pnpm install, then pnpm --filter compat generate.\n`);
+    process.stderr.write(`In order: run pnpm --filter repo-checks backfill-tags --write, add "sdk-<version>": "npm:${PACKAGE}@<version>" for each, run pnpm install, then pnpm --filter compat generate.\n`);
     process.exit(1);
   }
   process.stdout.write(`compat-versions: every release of ${PACKAGE} has an alias (${aliasedVersions(manifest).join(', ')}).\n`);
