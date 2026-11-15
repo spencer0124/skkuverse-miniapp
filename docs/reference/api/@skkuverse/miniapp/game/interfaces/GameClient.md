@@ -41,7 +41,7 @@ Stop listening and looking for the host. For tests and hot reloads.
 
 ##### style
 
-[`GameHapticStyle`](../../protocol/type-aliases/GameHapticStyle.md)
+[`GameHapticStyle`](../../protocol/README.md#gamehapticstyle)
 
 #### Returns
 
@@ -93,7 +93,7 @@ The run ended. Send it once a run, again only after `onRevive`.
 
 ##### phase
 
-[`GamePhase`](../../protocol/type-aliases/GamePhase.md)
+[`GamePhase`](../../protocol/README.md#gamephase)
 
 #### Returns
 

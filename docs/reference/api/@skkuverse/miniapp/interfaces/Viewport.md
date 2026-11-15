@@ -13,7 +13,7 @@ audience: public
 
 ### chrome
 
-> **chrome**: [`Chrome`](../type-aliases/Chrome.md)
+> **chrome**: [`Chrome`](../README.md#chrome)
 
 ***
 

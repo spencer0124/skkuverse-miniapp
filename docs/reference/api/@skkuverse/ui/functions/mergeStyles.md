@@ -20,7 +20,7 @@ every converted component funnels its style layers through this.
 
 ### styles
 
-...([`Style`](../type-aliases/Style.md) \| [`Style`](../type-aliases/Style.md)[])[]
+...([`Style`](../README.md#style) \| [`Style`](../README.md#style)[])[]
 
 ## Returns
 

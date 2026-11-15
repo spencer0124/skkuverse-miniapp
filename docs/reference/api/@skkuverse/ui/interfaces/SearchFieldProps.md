@@ -3274,7 +3274,7 @@ Use `onKeyUpCapture` or `onKeyDownCapture` instead
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 

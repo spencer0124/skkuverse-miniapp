@@ -22,12 +22,31 @@ audience: public
 
 ## Type Aliases
 
-- [ContractEntry](type-aliases/ContractEntry.md)
-- [ContractRule](type-aliases/ContractRule.md)
+### ContractEntry
+
+> **ContractEntry** = \{ `from`: `"page"`; `message`: [`PageMessage`](../protocol/README.md#pagemessage) \| `null`; `raw`: `string`; \} \| \{ `data`: `unknown`; `event`: `string`; `from`: `"host"`; \}
+
+One message in either direction, in the order they happened.
+
+***
+
+### ContractRule
+
+> **ContractRule** = `"every-message-parses"` \| `"first-message-ready"` \| `"no-start-before-init"` \| `"start-before-over"` \| `"one-over-per-run"`
+
+The protocol contract every game page keeps, by name:
+
+- `every-message-parses`: each message parses as a `game.*` notification.
+- `first-message-ready`: the first message is `game.ready`.
+- `no-start-before-init`: no `game.start` before the host sent `game.init`.
+- `start-before-over`: every `game.over` belongs to a run that `game.start` began.
+- `one-over-per-run`: at most one `game.over` per run, and one more after each `game.revive`.
 
 ## Variables
 
-- [BOUND\_FIXTURES](variables/BOUND_FIXTURES.md)
+### BOUND\_FIXTURES
+
+> `const` **BOUND\_FIXTURES**: [`BoundFixtures`](interfaces/BoundFixtures.md) = `bounds`
 
 ## Functions
 

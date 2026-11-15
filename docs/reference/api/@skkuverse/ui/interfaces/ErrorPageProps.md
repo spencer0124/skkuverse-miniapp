@@ -55,7 +55,7 @@ audience: public
 
 ### statusCode?
 
-> `optional` **statusCode?**: [`ErrorStatusCode`](../type-aliases/ErrorStatusCode.md)
+> `optional` **statusCode?**: [`ErrorStatusCode`](../README.md#errorstatuscode)
 
 #### Default
 
@@ -65,7 +65,7 @@ audience: public
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 

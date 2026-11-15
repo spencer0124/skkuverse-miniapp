@@ -31,7 +31,7 @@ audience: public
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 

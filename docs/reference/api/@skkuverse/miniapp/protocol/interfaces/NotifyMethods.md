@@ -54,7 +54,7 @@ The page has rendered.
 
 #### style
 
-> **style**: [`GameHapticStyle`](../type-aliases/GameHapticStyle.md)
+> **style**: [`GameHapticStyle`](../README.md#gamehapticstyle)
 
 #### Inherited from
 
@@ -94,7 +94,7 @@ A rectangle the host draws over moved, after a resize for example.
 
 #### phase
 
-> **phase**: [`GamePhase`](../type-aliases/GamePhase.md)
+> **phase**: [`GamePhase`](../README.md#gamephase)
 
 #### Inherited from
 
@@ -136,7 +136,7 @@ A run began. Never before `game.init`.
 
 #### style
 
-> **style**: [`HapticStyle`](../../type-aliases/HapticStyle.md)
+> **style**: [`HapticStyle`](../../README.md#hapticstyle)
 
 #### Inherited from
 
@@ -220,7 +220,7 @@ The sheet's outcome is the user's business: the page is not told.
 
 ### shell.set
 
-> **shell.set**: [`ShellPatch`](../../type-aliases/ShellPatch.md)
+> **shell.set**: [`ShellPatch`](../../README.md#shellpatch)
 
 #### Inherited from
 

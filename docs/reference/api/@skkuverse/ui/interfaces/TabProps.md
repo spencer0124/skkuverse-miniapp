@@ -13,7 +13,7 @@ audience: public
 
 ### alignment?
 
-> `optional` **alignment?**: [`TabAlignment`](../type-aliases/TabAlignment.md)
+> `optional` **alignment?**: [`TabAlignment`](../README.md#tabalignment)
 
 #### Default
 
@@ -51,7 +51,7 @@ audience: public
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 

@@ -1328,7 +1328,7 @@ Specify that a standard HTML element should behave like a defined custom built-i
 
 ### labelOption?
 
-> `optional` **labelOption?**: [`TextFieldLabelOption`](../type-aliases/TextFieldLabelOption.md)
+> `optional` **labelOption?**: [`TextFieldLabelOption`](../README.md#textfieldlabeloption)
 
 #### Default
 
@@ -3394,7 +3394,7 @@ Use `onKeyUpCapture` or `onKeyDownCapture` instead
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 #### Inherited from
 
@@ -3504,7 +3504,7 @@ Use `onKeyUpCapture` or `onKeyDownCapture` instead
 
 ### variant
 
-> **variant**: [`TextFieldVariant`](../type-aliases/TextFieldVariant.md)
+> **variant**: [`TextFieldVariant`](../README.md#textfieldvariant)
 
 #### Inherited from
 

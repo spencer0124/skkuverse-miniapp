@@ -17,7 +17,7 @@ Whether the app grants `method` to this page.
 
 ### method
 
-[`Method`](../type-aliases/Method.md)
+[`Method`](../README.md#method)
 
 ## Returns
 

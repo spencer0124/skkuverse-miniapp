@@ -9,7 +9,7 @@ audience: public
 
 # Function: parseMessage()
 
-> **parseMessage**(`raw`): [`PageMessage`](../type-aliases/PageMessage.md) \| `null`
+> **parseMessage**(`raw`): [`PageMessage`](../README.md#pagemessage) \| `null`
 
 One message from the page, validated, or null. For the app: anything that
 does not parse is dropped without a word, like any other untrusted input.
@@ -26,4 +26,4 @@ must name a known method with valid params.
 
 ## Returns
 
-[`PageMessage`](../type-aliases/PageMessage.md) \| `null`
+[`PageMessage`](../README.md#pagemessage) \| `null`

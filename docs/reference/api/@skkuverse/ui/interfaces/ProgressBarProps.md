@@ -47,7 +47,7 @@ audience: public
 
 ### size?
 
-> `optional` **size?**: [`ProgressBarSize`](../type-aliases/ProgressBarSize.md)
+> `optional` **size?**: [`ProgressBarSize`](../README.md#progressbarsize)
 
 #### Default
 
@@ -57,4 +57,4 @@ audience: public
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)

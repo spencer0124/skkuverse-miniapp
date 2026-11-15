@@ -59,13 +59,13 @@ Radial only.
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 
 ### type?
 
-> `optional` **type?**: [`GradientType`](../type-aliases/GradientType.md)
+> `optional` **type?**: [`GradientType`](../README.md#gradienttype)
 
 #### Default
 

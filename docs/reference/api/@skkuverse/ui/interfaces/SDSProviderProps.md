@@ -45,7 +45,7 @@ which import `react-native` directly.
 
 ### colorPreference?
 
-> `optional` **colorPreference?**: [`ColorPreference`](../type-aliases/ColorPreference.md)
+> `optional` **colorPreference?**: [`ColorPreference`](../README.md#colorpreference)
 
 Light or dark color scheme.
 
@@ -57,7 +57,7 @@ Light or dark color scheme.
 
 ### token?
 
-> `optional` **token?**: `DeepPartial`\<[`ThemeToken`](../type-aliases/ThemeToken.md)\>
+> `optional` **token?**: `DeepPartial`\<[`ThemeToken`](../README.md#themetoken)\>
 
 #### Inherited from
 

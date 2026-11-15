@@ -61,7 +61,7 @@ audience: public
 
 ### size?
 
-> `optional` **size?**: [`NumericSpinnerSize`](../type-aliases/NumericSpinnerSize.md)
+> `optional` **size?**: [`NumericSpinnerSize`](../README.md#numericspinnersize)
 
 #### Default
 
@@ -81,7 +81,7 @@ audience: public
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 

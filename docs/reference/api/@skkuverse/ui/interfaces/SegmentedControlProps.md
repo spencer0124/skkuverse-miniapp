@@ -13,7 +13,7 @@ audience: public
 
 ### alignment?
 
-> `optional` **alignment?**: [`SegmentedControlAlignment`](../type-aliases/SegmentedControlAlignment.md)
+> `optional` **alignment?**: [`SegmentedControlAlignment`](../README.md#segmentedcontrolalignment)
 
 #### Default
 
@@ -51,7 +51,7 @@ audience: public
 
 ### size?
 
-> `optional` **size?**: [`SegmentedControlSize`](../type-aliases/SegmentedControlSize.md)
+> `optional` **size?**: [`SegmentedControlSize`](../README.md#segmentedcontrolsize)
 
 #### Default
 
@@ -61,7 +61,7 @@ audience: public
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 

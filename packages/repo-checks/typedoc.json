@@ -28,7 +28,10 @@
   "disableSources": true,
   "useCodeBlocks": false,
   "entryFileName": "README",
+  // A page for each class, interface and function. Type aliases and variables sit on their module's page. One page for
+  // every export would put 300 files in one diff, which is more than the owner gate's compare can list.
   "outputFileStrategy": "members",
+  "membersWithOwnFile": ["Class", "Interface", "Function"],
   // The pages are rewritten from the source on every run, so a date that moved with each run would put a diff in every
   // page. The date is the day the generator's output format last changed.
   "frontmatterGlobals": {

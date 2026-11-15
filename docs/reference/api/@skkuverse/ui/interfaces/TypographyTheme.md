@@ -13,4 +13,4 @@ audience: public
 
 ### typography
 
-> **typography**: [`TypographyMap`](../type-aliases/TypographyMap.md)
+> **typography**: [`TypographyMap`](../README.md#typographymap)

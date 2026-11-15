@@ -23,4 +23,4 @@ audience: public
 
 ### token?
 
-> `optional` **token?**: `DeepPartial`\<[`ThemeToken`](../type-aliases/ThemeToken.md)\>
+> `optional` **token?**: `DeepPartial`\<[`ThemeToken`](../README.md#themetoken)\>

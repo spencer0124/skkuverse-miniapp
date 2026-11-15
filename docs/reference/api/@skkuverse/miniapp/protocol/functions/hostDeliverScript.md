@@ -23,7 +23,7 @@ since the request arrived, and a response must never reach another site.
 
 ### message
 
-[`HostMessage`](../type-aliases/HostMessage.md)
+[`HostMessage`](../README.md#hostmessage)
 
 ## Returns
 

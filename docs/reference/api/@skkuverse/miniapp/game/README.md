@@ -17,9 +17,27 @@ audience: public
 
 ## Variables
 
-- [HOST\_POLL\_MS](variables/HOST_POLL_MS.md)
-- [HOST\_SLOW\_POLL\_MS](variables/HOST_SLOW_POLL_MS.md)
-- [HOST\_WAIT\_MS](variables/HOST_WAIT_MS.md)
+### HOST\_POLL\_MS
+
+> `const` **HOST\_POLL\_MS**: `50` = `50`
+
+How often `bootGame` looks for the host while it is not there yet.
+
+***
+
+### HOST\_SLOW\_POLL\_MS
+
+> `const` **HOST\_SLOW\_POLL\_MS**: `1000` = `1_000`
+
+How often `bootGame` keeps looking for the host after `HOST_WAIT_MS`.
+
+***
+
+### HOST\_WAIT\_MS
+
+> `const` **HOST\_WAIT\_MS**: `10000` = `10_000`
+
+How long `bootGame` looks every `HOST_POLL_MS` before it calls `onNoHost`.
 
 ## Functions
 
@@ -33,13 +51,13 @@ audience: public
 
 ### GAME\_PROTOCOL
 
-Re-exports [GAME_PROTOCOL](../protocol/variables/GAME_PROTOCOL.md)
+Re-exports [GAME_PROTOCOL](../protocol/README.md#game_protocol)
 
 ***
 
 ### GameHapticStyle
 
-Re-exports [GameHapticStyle](../protocol/type-aliases/GameHapticStyle.md)
+Re-exports [GameHapticStyle](../protocol/README.md#gamehapticstyle)
 
 ***
 
@@ -57,7 +75,7 @@ Re-exports [GameOver](../protocol/interfaces/GameOver.md)
 
 ### GamePhase
 
-Re-exports [GamePhase](../protocol/type-aliases/GamePhase.md)
+Re-exports [GamePhase](../protocol/README.md#gamephase)
 
 ***
 
@@ -69,7 +87,7 @@ Re-exports [GameRect](../protocol/interfaces/GameRect.md)
 
 ### GameStats
 
-Re-exports [GameStats](../protocol/type-aliases/GameStats.md)
+Re-exports [GameStats](../protocol/README.md#gamestats)
 
 ***
 

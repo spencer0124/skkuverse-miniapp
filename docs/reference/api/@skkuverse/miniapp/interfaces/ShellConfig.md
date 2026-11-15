@@ -21,7 +21,7 @@ audience: public
 
 ### bar
 
-> **bar**: [`ShellBar`](../protocol/type-aliases/ShellBar.md)
+> **bar**: [`ShellBar`](../protocol/README.md#shellbar)
 
 Where the app draws the miniapp's name pill.
 - `top`: in the header, beside the back button.
@@ -32,7 +32,7 @@ Where the app draws the miniapp's name pill.
 
 ### header
 
-> **header**: [`ShellHeader`](../protocol/type-aliases/ShellHeader.md)
+> **header**: [`ShellHeader`](../protocol/README.md#shellheader)
 
 - `opaque`: the header is a solid band and the page starts below it.
 - `overlay`: the page starts at the top of the screen, under the status
@@ -42,6 +42,6 @@ Where the app draws the miniapp's name pill.
 
 ### statusBar
 
-> **statusBar**: [`ShellStatusBar`](../protocol/type-aliases/ShellStatusBar.md)
+> **statusBar**: [`ShellStatusBar`](../protocol/README.md#shellstatusbar)
 
 Status bar icon colour: `dark` icons for a light page, `light` for a dark one.

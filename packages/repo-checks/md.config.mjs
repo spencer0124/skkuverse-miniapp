@@ -50,7 +50,11 @@ function word(n) {
 }
 
 const capitalize = (text) => text[0].toUpperCase() + text.slice(1);
-const cell = (text) => text.replaceAll('|', '\\|');
+function cell(text) {
+  // A backslash before a pipe would cancel the escape. No generated cell holds one, so stop if one ever does.
+  if (text.includes('\\')) throw new Error(`a table cell holds a backslash, which docs-gen does not escape: ${text}`);
+  return text.split('|').join('\\|');
+}
 const code = (text) => `\`${text}\``;
 
 function sentenceList(items) {

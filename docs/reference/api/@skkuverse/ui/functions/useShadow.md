@@ -15,7 +15,7 @@ audience: public
 
 ### shadow
 
-[`ShadowConfig`](../interfaces/ShadowConfig.md) \| [`ShadowPreset`](../type-aliases/ShadowPreset.md)
+[`ShadowConfig`](../interfaces/ShadowConfig.md) \| [`ShadowPreset`](../README.md#shadowpreset)
 
 ## Returns
 

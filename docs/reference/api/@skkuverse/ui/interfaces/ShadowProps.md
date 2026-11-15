@@ -19,10 +19,10 @@ audience: public
 
 ### shadow?
 
-> `optional` **shadow?**: [`ShadowConfig`](ShadowConfig.md) \| [`ShadowPreset`](../type-aliases/ShadowPreset.md)
+> `optional` **shadow?**: [`ShadowConfig`](ShadowConfig.md) \| [`ShadowPreset`](../README.md#shadowpreset)
 
 ***
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)

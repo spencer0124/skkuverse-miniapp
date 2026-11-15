@@ -27,4 +27,4 @@ The entry in the log that broke it, or -1 for a log with no page message.
 
 ### rule
 
-> **rule**: [`ContractRule`](../type-aliases/ContractRule.md)
+> **rule**: [`ContractRule`](../README.md#contractrule)

@@ -17,7 +17,7 @@ One tap of haptic feedback from the app, or the `vibrate` fallback, or nothing.
 
 ### style
 
-[`HapticStyle`](../type-aliases/HapticStyle.md)
+[`HapticStyle`](../README.md#hapticstyle)
 
 ### options?
 

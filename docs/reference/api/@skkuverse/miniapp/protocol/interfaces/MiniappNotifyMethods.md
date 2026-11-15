@@ -45,7 +45,7 @@ The page has rendered.
 
 #### style
 
-> **style**: [`HapticStyle`](../../type-aliases/HapticStyle.md)
+> **style**: [`HapticStyle`](../../README.md#hapticstyle)
 
 ***
 
@@ -109,4 +109,4 @@ The sheet's outcome is the user's business: the page is not told.
 
 ### shell.set
 
-> **shell.set**: [`ShellPatch`](../../type-aliases/ShellPatch.md)
+> **shell.set**: [`ShellPatch`](../../README.md#shellpatch)

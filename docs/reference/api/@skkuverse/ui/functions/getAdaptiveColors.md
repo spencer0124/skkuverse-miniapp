@@ -18,7 +18,7 @@ Currently light-only; dark theme values will be added later.
 
 ### preference
 
-[`ColorPreference`](../type-aliases/ColorPreference.md)
+[`ColorPreference`](../README.md#colorpreference)
 
 ## Returns
 

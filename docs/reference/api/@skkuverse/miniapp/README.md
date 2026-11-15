@@ -25,11 +25,46 @@ audience: public
 
 ## Type Aliases
 
-- [Chrome](type-aliases/Chrome.md)
-- [HapticStyle](type-aliases/HapticStyle.md)
-- [Method](type-aliases/Method.md)
-- [ShareResult](type-aliases/ShareResult.md)
-- [ShellPatch](type-aliases/ShellPatch.md)
+### Chrome
+
+> **Chrome** = `"glass"` \| `"opaque"`
+
+- `glass`: the app's header and bars are translucent Liquid Glass (iOS 26+),
+  so a background painted beneath them shows through, blurred.
+- `opaque`: they are solid (earlier iOS, Android); nothing beneath shows.
+
+***
+
+### HapticStyle
+
+> **HapticStyle** = `"light"` \| `"medium"` \| `"heavy"`
+
+A mini app's haptic styles (`haptic.impact`). A game has its own set, `GameHapticStyle`.
+
+***
+
+### Method
+
+> **Method** = [`NotifyMethod`](protocol/README.md#notifymethod) \| [`RequestMethod`](protocol/README.md#requestmethod)
+
+***
+
+### ShareResult
+
+> **ShareResult** = `"shared"` \| `"copied"` \| `"cancelled"` \| `"failed"`
+
+How a `share` call ended. `shared` means a share sheet was shown, not that
+anything was sent: neither the app's sheet nor the browser's says.
+`copied` means there was no sheet and the link went to the clipboard, which
+the page should say out loud.
+
+***
+
+### ShellPatch
+
+> **ShellPatch** = `Partial`\<`Pick`\<[`ShellConfig`](interfaces/ShellConfig.md), `"header"` \| `"statusBar"` \| `"background"`\>\>
+
+What `shell.set` may change at runtime. `bar` is layout, so manifest only.
 
 ## Functions
 

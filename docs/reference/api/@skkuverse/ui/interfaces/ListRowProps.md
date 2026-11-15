@@ -47,13 +47,13 @@ audience: public
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 
 ### verticalPadding?
 
-> `optional` **verticalPadding?**: [`ListRowVerticalPadding`](../type-aliases/ListRowVerticalPadding.md)
+> `optional` **verticalPadding?**: [`ListRowVerticalPadding`](../README.md#listrowverticalpadding)
 
 #### Default
 

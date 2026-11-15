@@ -19,7 +19,7 @@ miniapp's `public/skkuverse.json`, so the first frame never waits for this.
 
 ### patch
 
-[`ShellPatch`](../type-aliases/ShellPatch.md)
+[`ShellPatch`](../README.md#shellpatch)
 
 ## Returns
 

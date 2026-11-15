@@ -885,7 +885,7 @@ Renders an anchor instead of a button.
 
 ### color?
 
-> `optional` **color?**: [`ButtonColor`](../type-aliases/ButtonColor.md)
+> `optional` **color?**: [`ButtonColor`](../README.md#buttoncolor)
 
 #### Default
 
@@ -899,7 +899,7 @@ Renders an anchor instead of a button.
 
 ### containerStyle?
 
-> `optional` **containerStyle?**: [`Style`](../type-aliases/Style.md)
+> `optional` **containerStyle?**: [`Style`](../README.md#style)
 
 #### Inherited from
 
@@ -3129,7 +3129,7 @@ Use `onKeyUpCapture` or `onKeyDownCapture` instead
 
 ### size?
 
-> `optional` **size?**: [`ButtonSize`](../type-aliases/ButtonSize.md)
+> `optional` **size?**: [`ButtonSize`](../README.md#buttonsize)
 
 #### Default
 
@@ -3163,7 +3163,7 @@ Use `onKeyUpCapture` or `onKeyDownCapture` instead
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 #### Inherited from
 
@@ -3225,7 +3225,7 @@ Overrides the resolved text colour.
 
 ### textStyle?
 
-> `optional` **textStyle?**: [`Style`](../type-aliases/Style.md)
+> `optional` **textStyle?**: [`Style`](../README.md#style)
 
 #### Inherited from
 
@@ -3295,7 +3295,7 @@ Overrides the resolved text colour.
 
 ### variant?
 
-> `optional` **variant?**: [`ButtonVariant`](../type-aliases/ButtonVariant.md)
+> `optional` **variant?**: [`ButtonVariant`](../README.md#buttonvariant)
 
 #### Default
 

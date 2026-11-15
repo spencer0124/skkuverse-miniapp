@@ -49,7 +49,7 @@ Thrown by `request` when the app answers with an error, or never answers.
 
 ### code
 
-> `readonly` **code**: [`ErrorCode`](../protocol/type-aliases/ErrorCode.md)
+> `readonly` **code**: [`ErrorCode`](../protocol/README.md#errorcode)
 
 ***
 

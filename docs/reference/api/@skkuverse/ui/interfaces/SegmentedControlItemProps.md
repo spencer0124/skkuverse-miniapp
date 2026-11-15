@@ -19,7 +19,7 @@ audience: public
 
 ### size?
 
-> `optional` **size?**: [`SegmentedControlSize`](../type-aliases/SegmentedControlSize.md)
+> `optional` **size?**: [`SegmentedControlSize`](../README.md#segmentedcontrolsize)
 
 ***
 

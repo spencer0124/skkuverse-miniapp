@@ -9,7 +9,7 @@ audience: public
 
 # Function: useColorScheme()
 
-> **useColorScheme**(): [`ColorSchemeName`](../type-aliases/ColorSchemeName.md)
+> **useColorScheme**(): [`ColorSchemeName`](../README.md#colorschemename)
 
 Browser equivalent of React Native's `useColorScheme`.
 
@@ -19,4 +19,4 @@ immediately after mount.
 
 ## Returns
 
-[`ColorSchemeName`](../type-aliases/ColorSchemeName.md)
+[`ColorSchemeName`](../README.md#colorschemename)

@@ -13,7 +13,7 @@ audience: public
 
 ### background?
 
-> `optional` **background?**: [`SkeletonBackground`](../type-aliases/SkeletonBackground.md)
+> `optional` **background?**: [`SkeletonBackground`](../README.md#skeletonbackground)
 
 #### Default
 
@@ -23,7 +23,7 @@ audience: public
 
 ### custom?
 
-> `optional` **custom?**: [`SkeletonModule`](../type-aliases/SkeletonModule.md)[]
+> `optional` **custom?**: [`SkeletonModule`](../README.md#skeletonmodule)[]
 
 ***
 
@@ -35,7 +35,7 @@ audience: public
 
 ### pattern?
 
-> `optional` **pattern?**: [`SkeletonPattern`](../type-aliases/SkeletonPattern.md)
+> `optional` **pattern?**: [`SkeletonPattern`](../README.md#skeletonpattern)
 
 #### Default
 
@@ -67,4 +67,4 @@ audience: public
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)

@@ -992,7 +992,7 @@ Defines the human readable text alternative of aria-valuenow for a range widget.
 
 ### fontWeight?
 
-> `optional` **fontWeight?**: [`ParagraphFontWeight`](../type-aliases/ParagraphFontWeight.md)
+> `optional` **fontWeight?**: [`ParagraphFontWeight`](../README.md#paragraphfontweight)
 
 ***
 
@@ -3056,7 +3056,7 @@ Use `onKeyUpCapture` or `onKeyDownCapture` instead
 
 ### typography?
 
-> `optional` **typography?**: [`TypographyKeys`](../type-aliases/TypographyKeys.md)
+> `optional` **typography?**: [`TypographyKeys`](../README.md#typographykeys)
 
 ***
 

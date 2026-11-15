@@ -31,4 +31,4 @@ Pins to the viewport bottom.
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)

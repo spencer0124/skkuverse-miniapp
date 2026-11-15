@@ -23,7 +23,7 @@ points of the ranked games.
 
 ### log
 
-> `readonly` **log**: readonly [`ContractEntry`](../type-aliases/ContractEntry.md)[]
+> `readonly` **log**: readonly [`ContractEntry`](../README.md#contractentry)[]
 
 Everything sent both ways, in order: what the contract assertions read.
 
@@ -31,7 +31,7 @@ Everything sent both ways, in order: what the contract assertions read.
 
 ### messages
 
-> `readonly` **messages**: readonly ([`PageMessage`](../../protocol/type-aliases/PageMessage.md) \| `null`)[]
+> `readonly` **messages**: readonly ([`PageMessage`](../../protocol/README.md#pagemessage) \| `null`)[]
 
 What the page posted, parsed (`null` for a message that does not parse).
 

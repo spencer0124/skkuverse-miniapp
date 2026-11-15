@@ -13,7 +13,7 @@ audience: public
 
 ### borderType?
 
-> `optional` **borderType?**: [`ListFooterBorderType`](../type-aliases/ListFooterBorderType.md)
+> `optional` **borderType?**: [`ListFooterBorderType`](../README.md#listfooterbordertype)
 
 #### Default
 
@@ -39,7 +39,7 @@ audience: public
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 

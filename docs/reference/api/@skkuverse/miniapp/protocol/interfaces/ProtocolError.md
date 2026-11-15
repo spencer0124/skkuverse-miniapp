@@ -20,7 +20,7 @@ areas in `viewport.ts`, and the injected `window.skkuverse` in `host.ts`.
 
 ### code
 
-> **code**: [`ErrorCode`](../type-aliases/ErrorCode.md)
+> **code**: [`ErrorCode`](../README.md#errorcode)
 
 ***
 

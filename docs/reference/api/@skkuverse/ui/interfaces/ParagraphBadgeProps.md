@@ -19,10 +19,10 @@ audience: public
 
 ### color
 
-> **color**: [`BadgeColor`](../type-aliases/BadgeColor.md)
+> **color**: [`BadgeColor`](../README.md#badgecolor)
 
 ***
 
 ### variant
 
-> **variant**: [`BadgeVariant`](../type-aliases/BadgeVariant.md)
+> **variant**: [`BadgeVariant`](../README.md#badgevariant)

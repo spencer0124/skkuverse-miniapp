@@ -13,7 +13,7 @@ audience: public
 
 ### badgeColor?
 
-> `optional` **badgeColor?**: [`BadgeColor`](../type-aliases/BadgeColor.md)
+> `optional` **badgeColor?**: [`BadgeColor`](../README.md#badgecolor)
 
 #### Default
 
@@ -29,7 +29,7 @@ audience: public
 
 ### badgeVariant?
 
-> `optional` **badgeVariant?**: [`BadgeVariant`](../type-aliases/BadgeVariant.md)
+> `optional` **badgeVariant?**: [`BadgeVariant`](../README.md#badgevariant)
 
 #### Default
 
@@ -67,4 +67,4 @@ audience: public
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)

@@ -19,22 +19,22 @@ audience: public
 
 ### color
 
-> **color**: [`BadgeColor`](../type-aliases/BadgeColor.md)
+> **color**: [`BadgeColor`](../README.md#badgecolor)
 
 ***
 
 ### size
 
-> **size**: [`BadgeSize`](../type-aliases/BadgeSize.md)
+> **size**: [`BadgeSize`](../README.md#badgesize)
 
 ***
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 
 ### variant
 
-> **variant**: [`BadgeVariant`](../type-aliases/BadgeVariant.md)
+> **variant**: [`BadgeVariant`](../README.md#badgevariant)

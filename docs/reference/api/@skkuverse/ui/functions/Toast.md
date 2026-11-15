@@ -15,7 +15,7 @@ audience: public
 
 ### \_\_namedParameters
 
-[`ToastProps`](../type-aliases/ToastProps.md)
+[`ToastProps`](../README.md#toastprops)
 
 ## Returns
 

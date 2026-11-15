@@ -17,7 +17,7 @@ Every violation in a fake host's log, in order. Empty when the page kept the con
 
 ### log
 
-readonly [`ContractEntry`](../type-aliases/ContractEntry.md)[]
+readonly [`ContractEntry`](../README.md#contractentry)[]
 
 ## Returns
 

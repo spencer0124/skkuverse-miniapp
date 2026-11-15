@@ -1006,7 +1006,7 @@ Defines the human readable text alternative of aria-valuenow for a range widget.
 
 ### fontWeight?
 
-> `optional` **fontWeight?**: [`ParagraphFontWeight`](../type-aliases/ParagraphFontWeight.md)
+> `optional` **fontWeight?**: [`ParagraphFontWeight`](../README.md#paragraphfontweight)
 
 #### Default
 
@@ -3054,7 +3054,7 @@ Use `onKeyUpCapture` or `onKeyDownCapture` instead
 
 ### size
 
-> **size**: [`TextButtonSize`](../type-aliases/TextButtonSize.md)
+> **size**: [`TextButtonSize`](../README.md#textbuttonsize)
 
 ***
 
@@ -3080,7 +3080,7 @@ Use `onKeyUpCapture` or `onKeyDownCapture` instead
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 
@@ -3156,7 +3156,7 @@ Use `onKeyUpCapture` or `onKeyDownCapture` instead
 
 ### typography?
 
-> `optional` **typography?**: [`TypographyKeys`](../type-aliases/TypographyKeys.md)
+> `optional` **typography?**: [`TypographyKeys`](../README.md#typographykeys)
 
 Overrides the typography implied by `size`.
 
@@ -3184,7 +3184,7 @@ Overrides the typography implied by `size`.
 
 ### variant?
 
-> `optional` **variant?**: [`TextButtonVariant`](../type-aliases/TextButtonVariant.md)
+> `optional` **variant?**: [`TextButtonVariant`](../README.md#textbuttonvariant)
 
 #### Default
 

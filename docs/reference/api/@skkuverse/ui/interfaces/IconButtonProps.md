@@ -3096,7 +3096,7 @@ Icon URL. Mutually exclusive with `name` and `icon`.
 
 ### style?
 
-> `optional` **style?**: [`Style`](../type-aliases/Style.md)
+> `optional` **style?**: [`Style`](../README.md#style)
 
 ***
 
@@ -3192,7 +3192,7 @@ Icon URL. Mutually exclusive with `name` and `icon`.
 
 ### variant?
 
-> `optional` **variant?**: [`IconButtonVariant`](../type-aliases/IconButtonVariant.md)
+> `optional` **variant?**: [`IconButtonVariant`](../README.md#iconbuttonvariant)
 
 #### Default
 

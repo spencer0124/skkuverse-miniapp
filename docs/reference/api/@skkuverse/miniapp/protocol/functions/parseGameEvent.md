@@ -9,7 +9,7 @@ audience: public
 
 # Function: parseGameEvent()
 
-> **parseGameEvent**(`message`): [`GameEventMessage`](../type-aliases/GameEventMessage.md) \| `null`
+> **parseGameEvent**(`message`): [`GameEventMessage`](../README.md#gameeventmessage) \| `null`
 
 One game event as the page receives it (the `detail` of `MESSAGE_EVENT`),
 validated and rebuilt, or null. For the page: the host is trusted, but a
@@ -23,4 +23,4 @@ malformed event is still ignored rather than acted on.
 
 ## Returns
 
-[`GameEventMessage`](../type-aliases/GameEventMessage.md) \| `null`
+[`GameEventMessage`](../README.md#gameeventmessage) \| `null`

@@ -23,7 +23,7 @@ Methods a game page sends and forgets.
 
 #### style
 
-> **style**: [`GameHapticStyle`](../type-aliases/GameHapticStyle.md)
+> **style**: [`GameHapticStyle`](../README.md#gamehapticstyle)
 
 ***
 
@@ -51,7 +51,7 @@ A rectangle the host draws over moved, after a resize for example.
 
 #### phase
 
-> **phase**: [`GamePhase`](../type-aliases/GamePhase.md)
+> **phase**: [`GamePhase`](../README.md#gamephase)
 
 ***
 

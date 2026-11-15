@@ -17,7 +17,7 @@ Throws a `GameContractError` unless the log keeps the contract.
 
 ### log
 
-readonly [`ContractEntry`](../type-aliases/ContractEntry.md)[]
+readonly [`ContractEntry`](../README.md#contractentry)[]
 
 ## Returns
 

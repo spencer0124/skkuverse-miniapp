@@ -25,7 +25,7 @@ audience: public
 
 ### fontWeight?
 
-> `optional` **fontWeight?**: [`ParagraphFontWeight`](../type-aliases/ParagraphFontWeight.md)
+> `optional` **fontWeight?**: [`ParagraphFontWeight`](../README.md#paragraphfontweight)
 
 ***
 

@@ -33,7 +33,7 @@ Text below the spinner. Supports multiple lines.
 
 ### size?
 
-> `optional` **size?**: [`LoaderSize`](../type-aliases/LoaderSize.md)
+> `optional` **size?**: [`LoaderSize`](../README.md#loadersize)
 
 #### Default
 
@@ -49,7 +49,7 @@ Text below the spinner. Supports multiple lines.
 
 ### type?
 
-> `optional` **type?**: [`LoaderType`](../type-aliases/LoaderType.md)
+> `optional` **type?**: [`LoaderType`](../README.md#loadertype)
 
 #### Default
 
