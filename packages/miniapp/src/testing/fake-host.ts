@@ -104,6 +104,23 @@ function recordingDocument(css: Map<string, string>) {
   };
 }
 
+/** The longest delay `setTimeout` honours; a larger one fires at once. */
+const MAX_DELAY_MS = 2 ** 31 - 1;
+
+/** A delay is `Infinity` (never) or a whole span `setTimeout` can keep. Anything else would fire at once, so it throws. */
+function checkDelay(field: string, value: number | undefined): void {
+  if (value === undefined || value === Infinity) return;
+  if (!Number.isFinite(value) || value < 0 || value > MAX_DELAY_MS) {
+    throw new RangeError(`${field} must be Infinity or between 0 and ${MAX_DELAY_MS} ms, got ${value}`);
+  }
+}
+
+function checkModes(modes: FailureModes): void {
+  for (const mode of Object.values(modes)) {
+    if (typeof mode === 'object') checkDelay('slowMs', mode.slowMs);
+  }
+}
+
 /**
  * A stand-in for the app's game host, for SDK and contract tests. It uses
  * the scope's `window` (a browser, jsdom, or a test's own stub) and its
@@ -122,6 +139,9 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
   const autoInit = initOption === false ? null : (initOption ?? {});
   const hostDelayMs = pick('hostDelayMs') ?? 0;
   const initDelayMs = pick('initDelayMs') ?? 0;
+  checkDelay('hostDelayMs', hostDelayMs);
+  checkDelay('initDelayMs', initDelayMs);
+  checkModes(options.failureModes ?? {});
   const baseModes = new Map<string, FailureMode>(Object.entries(options.failureModes ?? {}));
   const overrides = new Map<string, { mode: FailureMode; once: boolean }[]>();
   const log: ContractEntry[] = [];
@@ -140,8 +160,9 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
     return win as Window & { skkuverse?: HostReceiver };
   };
 
-  /** Run `fn` after `ms`, or on a microtask for 0. `dispose()` cancels it. */
+  /** Run `fn` after `ms`, or on a microtask for 0, or never for `Infinity`. `dispose()` cancels it. */
   const after = (ms: number, fn: () => void) => {
+    if (ms === Infinity) return;
     const born = epoch;
     if (ms <= 0) {
       queueMicrotask(() => {
@@ -151,7 +172,7 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
     }
     const timer = setTimeout(() => {
       timers.delete(timer);
-      if (born === epoch) fn();
+      fn();
     }, ms);
     timers.add(timer);
   };
@@ -260,6 +281,7 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
       deliver('viewport.changed', next);
     },
     use(overrides_, { once = false } = {}) {
+      checkModes(overrides_);
       for (const method of Object.keys(overrides_)) {
         if (installed && !granted.has(method)) {
           throw new Error(

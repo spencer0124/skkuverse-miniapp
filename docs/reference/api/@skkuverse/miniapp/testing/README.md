@@ -57,7 +57,7 @@ the method it names.
 - `'denied'`: answers at once with a `denied` error.
 - `'failed'`: answers at once with a `failed` error.
 - `'timeout'`: never answers, so the page's own timeout fires.
-- `{ slowMs }`: answers `null` after that many milliseconds.
+- `{ slowMs }`: answers `null` after that many milliseconds, or never for `Infinity`.
 
 ***
 

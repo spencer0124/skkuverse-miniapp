@@ -3,7 +3,8 @@ import { GAME_NOTIFY_METHODS, NOTIFY_METHODS, type GameInit, type Viewport } fro
 /**
  * A partial host state: what `createFakeHost` takes from a named preset. A field
  * the preset leaves out keeps `createFakeHost`'s own default, and a field the
- * caller passes beside the preset wins over it.
+ * caller passes beside the preset wins over it. A delay is `Infinity` or 0 to 2147483647 ms;
+ * `createFakeHost` throws a `RangeError` for any other value.
  */
 export interface HostPreset {
   /** Methods the host grants. */
@@ -16,7 +17,7 @@ export interface HostPreset {
    * host appears later. `Infinity` is a host that never appears.
    */
   hostDelayMs?: number;
-  /** Milliseconds the host waits before it answers `game.ready` with `game.init`. */
+  /** Milliseconds the host waits before it answers `game.ready` with `game.init`. `Infinity` is never. */
   initDelayMs?: number;
 }
 
@@ -27,7 +28,7 @@ export interface HostPreset {
  * - `'denied'`: answers at once with a `denied` error.
  * - `'failed'`: answers at once with a `failed` error.
  * - `'timeout'`: never answers, so the page's own timeout fires.
- * - `{ slowMs }`: answers `null` after that many milliseconds.
+ * - `{ slowMs }`: answers `null` after that many milliseconds, or never for `Infinity`.
  */
 export type FailureMode = 'denied' | 'timeout' | 'failed' | { slowMs: number };
 
@@ -119,6 +120,9 @@ export type HostPresetName = keyof typeof HOST_PRESETS | `old-host:${OldHostVers
 
 /** The capability list of the app that shipped with `version`. */
 export function oldHostCapabilities(version: OldHostVersion): readonly string[] {
+  if (!Object.prototype.hasOwnProperty.call(HOST_METHODS_ADDED, version)) {
+    throw new Error(`unknown old-host version "${version}". Known versions: ${Object.keys(HOST_METHODS_ADDED).join(', ')}`);
+  }
   const versions = Object.keys(HOST_METHODS_ADDED);
   const upTo = versions.slice(0, versions.indexOf(version) + 1) as OldHostVersion[];
   return upTo.flatMap((v) => HOST_METHODS_ADDED[v]);

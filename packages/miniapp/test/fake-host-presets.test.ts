@@ -303,6 +303,8 @@ describe('use and resetHandlers', () => {
 });
 
 describe('dispose', () => {
+  const echo = () => sdk.request('demo.echo');
+
   it('cancels a delayed install and a delayed game.init', async () => {
     vi.useFakeTimers();
     const late = host({ preset: 'late-host' });
@@ -312,5 +314,113 @@ describe('dispose', () => {
 
     expect(late.installed).toBe(false);
     expect(win.skkuverse).toBeUndefined();
+  });
+
+  it('cancels a game.init that is still on its way', async () => {
+    vi.useFakeTimers();
+    const onInit = vi.fn();
+    const h = host({ preset: 'slow-init' });
+    h.install();
+    boot({ onInit });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.methods()).toEqual(['game.ready']);
+
+    h.dispose();
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(onInit).not.toHaveBeenCalled();
+    expect(h.log.some((entry) => entry.from === 'host')).toBe(false);
+  });
+
+  it('cancels a slowMs answer that is still on its way', async () => {
+    vi.useFakeTimers();
+    const h = host({ capabilities: ['demo.echo'], failureModes: { 'demo.echo': { slowMs: 1_000 } } });
+    h.install();
+    void echo().catch(() => {});
+    expect(h.methods()).toEqual(['demo.echo']);
+
+    h.dispose();
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(h.log.some((entry) => entry.from === 'host' && entry.event === 'response')).toBe(false);
+  });
+
+  it('cancels an answer that waits on a microtask', async () => {
+    const h = host({ capabilities: ['demo.echo'] });
+    h.install();
+    void echo().catch(() => {});
+    expect(h.methods()).toEqual(['demo.echo']);
+
+    h.dispose();
+    await h.flush();
+
+    expect(h.log.some((entry) => entry.from === 'host')).toBe(false);
+  });
+});
+
+describe('delay validation', () => {
+  const bad = [Number.NaN, -1, 2 ** 31, -Infinity];
+
+  it.each(bad)('rejects %s for every delay, naming the field', (value) => {
+    expect(() => testing.createFakeHost({ hostDelayMs: value })).toThrow(/hostDelayMs/);
+    expect(() => testing.createFakeHost({ initDelayMs: value })).toThrow(/initDelayMs/);
+    expect(() => testing.createFakeHost({ failureModes: { 'demo.echo': { slowMs: value } } })).toThrow(/slowMs/);
+    const h = host({ capabilities: ['demo.echo'] });
+    expect(() => h.use({ 'demo.echo': { slowMs: value } })).toThrow(/slowMs/);
+  });
+
+  it('throws a RangeError, and 2147483647 is still allowed', () => {
+    expect(() => testing.createFakeHost({ initDelayMs: -Infinity })).toThrow(RangeError);
+    expect(() => testing.createFakeHost({ initDelayMs: 2 ** 31 - 1, hostDelayMs: 2 ** 31 - 1 })).not.toThrow();
+  });
+
+  it('use() throws before it records anything', async () => {
+    const h = host({ capabilities: ['demo.echo'] });
+    expect(() => h.use({ 'demo.echo': { slowMs: Number.NaN } })).toThrow(RangeError);
+    h.install();
+
+    await expect(sdk.request('demo.echo')).resolves.toBeNull();
+  });
+
+  it('Infinity means never, for hostDelayMs, initDelayMs and slowMs', async () => {
+    vi.useFakeTimers();
+    const onInit = vi.fn();
+    const never = host({ capabilities: ['demo.echo'], hostDelayMs: Infinity });
+    never.install();
+    await vi.advanceTimersByTimeAsync(2 ** 31);
+    expect(never.installed).toBe(false);
+
+    const noInit = host({ capabilities: ['demo.echo', 'game.ready'], initDelayMs: Infinity });
+    noInit.install();
+    boot({ onInit });
+    await vi.advanceTimersByTimeAsync(2 ** 31);
+    expect(noInit.log.some((entry) => entry.from === 'host')).toBe(false);
+    expect(onInit).not.toHaveBeenCalled();
+  });
+
+  it('slowMs Infinity never answers', async () => {
+    vi.useFakeTimers();
+    const h = host({ capabilities: ['demo.echo'], failureModes: { 'demo.echo': { slowMs: Infinity } } });
+    h.install();
+    const settled = vi.fn();
+    void sdk.request('demo.echo', {}, { timeoutMs: 10_000 }).then(settled, settled);
+    await vi.advanceTimersByTimeAsync(9_999);
+
+    expect(h.log.some((entry) => entry.from === 'host')).toBe(false);
+    expect(settled).not.toHaveBeenCalled();
+  });
+});
+
+describe('preset data', () => {
+  it('nothing-granted and old-host stand on the iPhone viewport', () => {
+    expect(testing.resolvePreset('nothing-granted').viewport).toEqual(testing.IPHONE_VIEWPORT);
+    for (const version of Object.keys(testing.HOST_METHODS_ADDED)) {
+      expect(testing.resolvePreset(`old-host:${version}` as never).viewport).toEqual(testing.IPHONE_VIEWPORT);
+    }
+  });
+
+  it('oldHostCapabilities throws for a version it does not know', () => {
+    expect(() => testing.oldHostCapabilities('9.9.9' as never)).toThrow(/9\.9\.9/);
+    expect(() => testing.oldHostCapabilities('toString' as never)).toThrow();
   });
 });

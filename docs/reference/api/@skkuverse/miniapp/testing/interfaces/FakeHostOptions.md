@@ -72,7 +72,7 @@ What the host answers `game.ready` with, or `false` to leave `init()` to the tes
 
 > `optional` **initDelayMs?**: `number`
 
-Milliseconds the host waits before it answers `game.ready` with `game.init`.
+Milliseconds the host waits before it answers `game.ready` with `game.init`. `Infinity` is never.
 
 #### Inherited from
 

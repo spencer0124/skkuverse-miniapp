@@ -11,7 +11,8 @@ audience: public
 
 A partial host state: what `createFakeHost` takes from a named preset. A field
 the preset leaves out keeps `createFakeHost`'s own default, and a field the
-caller passes beside the preset wins over it.
+caller passes beside the preset wins over it. A delay is `Infinity` or 0 to 2147483647 ms;
+`createFakeHost` throws a `RangeError` for any other value.
 
 ## Extended by
 
@@ -49,7 +50,7 @@ What the host answers `game.ready` with, or `false` to leave `init()` to the tes
 
 > `optional` **initDelayMs?**: `number`
 
-Milliseconds the host waits before it answers `game.ready` with `game.init`.
+Milliseconds the host waits before it answers `game.ready` with `game.init`. `Infinity` is never.
 
 ***
 
