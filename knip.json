@@ -15,8 +15,7 @@
         "@skkuverse/miniapp",
         "@skkuverse/ui",
         "@skkuverse/tokens",
-        "@skkuverse/miniapp-cli",
-        "@skkuverse/game-contract"
+        "@skkuverse/miniapp-cli"
       ]
     },
     "packages/game-contract": {

@@ -188,24 +188,24 @@ const memberName = (node) => (node.name !== undefined && (ts.isIdentifier(node.n
 
 const isFunctionValue = (node) => node !== undefined && (ts.isArrowFunction(node) || ts.isFunctionExpression(node));
 
-/** The top-level functions of a file: `function f` and `const f = () => ...`, with whether the file exports each. */
+/** The top-level functions of a file: `function f` and `const f = () => ...`, with whether the file exports each and under which name. */
 function topLevelFunctions(source, checker) {
-  const exportedNames = new Set();
+  const exportedNames = new Map();
   for (const statement of source.statements) {
     if (ts.isExportDeclaration(statement) && statement.moduleSpecifier === undefined && statement.exportClause !== undefined && ts.isNamedExports(statement.exportClause)) {
-      for (const element of statement.exportClause.elements) exportedNames.add((element.propertyName ?? element.name).text);
+      for (const element of statement.exportClause.elements) exportedNames.set((element.propertyName ?? element.name).text, element.name.text);
     }
   }
   const hasExport = (node) => ts.canHaveModifiers(node) && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
   const found = new Map();
   for (const statement of source.statements) {
     if (ts.isFunctionDeclaration(statement) && statement.name !== undefined) {
-      found.set(statement, { name: statement.name.text, symbol: checker.getSymbolAtLocation(statement.name), exported: hasExport(statement) || exportedNames.has(statement.name.text) });
+      found.set(statement, { name: exportedNames.get(statement.name.text) ?? statement.name.text, symbol: checker.getSymbolAtLocation(statement.name), exported: hasExport(statement) || exportedNames.has(statement.name.text) });
     }
     if (ts.isVariableStatement(statement)) {
       for (const declaration of statement.declarationList.declarations) {
         if (!ts.isIdentifier(declaration.name) || !isFunctionValue(declaration.initializer)) continue;
-        found.set(declaration, { name: declaration.name.text, symbol: checker.getSymbolAtLocation(declaration.name), exported: hasExport(statement) || exportedNames.has(declaration.name.text) });
+        found.set(declaration, { name: exportedNames.get(declaration.name.text) ?? declaration.name.text, symbol: checker.getSymbolAtLocation(declaration.name), exported: hasExport(statement) || exportedNames.has(declaration.name.text) });
       }
     }
   }
@@ -237,8 +237,9 @@ function enclosingFunction(node, tops, checker) {
     const isMethod = ts.isMethodDeclaration(up) && ts.isObjectLiteralExpression(up.parent);
     const isProperty = ts.isPropertyAssignment(up) && ts.isObjectLiteralExpression(up.parent) && isFunctionValue(up.initializer);
     if (isMethod || isProperty) {
-      const owner = checker.getContextualType(up.parent)?.symbol?.name;
-      return { member: owner === undefined ? `${memberName(up)}()` : `${owner}.${memberName(up)}()` };
+      const type = checker.getContextualType(up.parent);
+      const owner = type?.aliasSymbol?.name ?? type?.getSymbol()?.name;
+      return owner === undefined || owner.startsWith('__') ? undefined : { member: `${owner}.${memberName(up)}()` };
     }
     if (tops.has(up)) return { top: up };
   }
@@ -276,16 +277,14 @@ export function methodSenders(spec, base = root) {
           for (const [candidate, top] of tops) if (top.exported && reaches(candidate, where.top)) names.push(`${top.name}()`);
         }
         const method = node.arguments[0].text;
+        if (names.length === 0) {
+          throw new Error(`notify('${method}', ...) in ${file} sits in a function docs-gen cannot name. Move the call into an exported function, a private function an exported one calls, or a method of a typed object.`);
+        }
         found.set(method, [...new Set([...(found.get(method) ?? []), ...names])]);
       }
       ts.forEachChild(node, visit);
     };
     visit(source);
-  }
-  for (const [method, names] of found) {
-    if (names.length === 0) {
-      throw new Error(`notify('${method}', ...) in ${spec} sits in a function docs-gen cannot name. Move the call into an exported function, a private function an exported one calls, or a method of a typed object.`);
-    }
   }
   return found;
 }

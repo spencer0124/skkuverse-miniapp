@@ -82,6 +82,66 @@ export function boot(): Client { return { start() { notify('game.start', {}); } 
     assert.deepEqual(senders.get('game.start'), ['Client.start()']);
   });
 
+  it('names a method of an object typed by a type alias, not by the compiler-internal name', () => {
+    const senders = withSources(
+      {
+        'a.ts': `declare function notify(m: string, p: object): void;
+type Client = { start(): void };
+export function boot(): Client { return { start() { notify('game.start', {}); } }; }
+`,
+      },
+      (dir) => methodSenders('a.ts', dir),
+    );
+
+    assert.deepEqual(senders.get('game.start'), ['Client.start()']);
+  });
+
+  it('fails for a method of an unannotated object', () => {
+    withSources(
+      { 'a.ts': `declare function notify(m: string, p: object): void;\nexport function boot() { return { start() { notify('game.start', {}); } }; }\n` },
+      (dir) => {
+        assert.throws(() => methodSenders('a.ts', dir), /notify\('game\.start', \.\.\.\) in a\.ts sits in a function docs-gen cannot name/);
+      },
+    );
+  });
+
+  it('fails for a method of an object typed inline, which has no name to print', () => {
+    withSources(
+      { 'a.ts': `declare function notify(m: string, p: object): void;\nexport function boot(): { start(): void } { return { start() { notify('game.start', {}); } }; }\n` },
+      (dir) => {
+        assert.throws(() => methodSenders('a.ts', dir), /notify\('game\.start', \.\.\.\) in a\.ts sits in a function docs-gen cannot name/);
+      },
+    );
+  });
+
+  it('prints the exported name of a function exported under another name', () => {
+    const senders = withSources(
+      {
+        'a.ts': `declare function notify(m: string, p: object): void;
+function openUrlImpl(url: string): void { notify('link.open', { url }); }
+export { openUrlImpl as openUrl };
+`,
+      },
+      (dir) => methodSenders('a.ts', dir),
+    );
+
+    assert.deepEqual(senders.get('link.open'), ['openUrl()']);
+  });
+
+  it('fails for an unnamed notify even when another call site names the same method', () => {
+    withSources(
+      {
+        'a.ts': `declare function notify(m: string, p: object): void;
+function orphan(): void { notify('app.ready', {}); }
+export function ready(): void { notify('app.ready', {}); }
+`,
+      },
+      (dir) => {
+        assert.throws(() => methodSenders('a.ts', dir), /notify\('app\.ready', \.\.\.\) in a\.ts sits in a function docs-gen cannot name/);
+      },
+    );
+  });
+
   it('fails, naming the method, when a notify sits where no function can be named', () => {
     withSources(
       { 'a.ts': `declare function notify(m: string, p: object): void;\nfunction orphan(): void { notify('map.openPlace', {}); }\nexport function unrelated(): void {}\n` },
@@ -111,7 +171,14 @@ describe('the architecture table check', () => {
 
 describe('the docs index', () => {
   it('lists the API reference whether or not the folder exists yet', () => {
-    assert.match(transforms['docs-index']({ folder: 'reference' }), /\[api\/README\.md\]\(reference\/api\/README\.md\)/);
+    const exists = fs.existsSync;
+    const missing = path.join('reference', 'api', 'README.md');
+    const stub = mock.method(fs, 'existsSync', (file) => (String(file).endsWith(missing) ? false : exists(file)));
+    try {
+      assert.match(transforms['docs-index']({ folder: 'reference' }), /\[api\/README\.md\]\(reference\/api\/README\.md\)/);
+    } finally {
+      stub.mock.restore();
+    }
   });
 });
 
@@ -131,6 +198,20 @@ describe('the API reference render', () => {
       failing.mock.restore();
       syncBuiltinESMExports();
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('the API reference plan', () => {
+  it('fails when TypeDoc writes no README.md, which the docs index links to', async () => {
+    const write = fs.writeFileSync;
+    const stub = mock.method(fs, 'writeFileSync', (file, ...rest) => (/docs-gen-[^/\\]+[/\\]README\.md$/.test(String(file)) ? undefined : write(file, ...rest)));
+    syncBuiltinESMExports();
+    try {
+      await assert.rejects(plan(), /wrote no README\.md/);
+    } finally {
+      stub.mock.restore();
+      syncBuiltinESMExports();
     }
   });
 });
