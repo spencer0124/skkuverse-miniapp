@@ -52,6 +52,16 @@ describe('the generated matrix', () => {
     }
   });
 
+  it('links every non-ok cell to an anchor that survives the docs site', () => {
+    const ids = [...generated.page.matchAll(/<a id="([^"]+)"><\/a>/g)].map((m) => m[1]);
+    assert.ok(ids.length > 0, 'the page has no anchors');
+    for (const id of ids) assert.match(id, /^[a-z0-9-]+$/, `${id} holds a character the docs site rewrites in a link fragment, so the link would break there`);
+    const cellLinks = [...generated.page.matchAll(/\]\(#((?:esm|global|late)-[^)]+)\)/g)].map((m) => m[1]);
+    assert.ok(cellLinks.length > 0, 'the page links no cell');
+    for (const link of cellLinks) assert.ok(ids.includes(link), `a table cell links #${link}, which no anchor defines`);
+    for (const id of ids) assert.ok(cellLinks.includes(id), `anchor ${id} is linked from no cell`);
+  });
+
   it('gives every feature entry the three browser-compat-data fields', () => {
     for (const [name, { __compat: compat }] of Object.entries(generated.compat.features)) {
       for (const page of generated.compat.meta.pages) {

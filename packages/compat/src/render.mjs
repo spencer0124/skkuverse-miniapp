@@ -40,8 +40,10 @@ const firstSentence = (text) => {
   const end = text.indexOf('. ');
   return end < 0 ? text : text.slice(0, end + 1);
 };
-const anchor = (build, page, host) => `${build}-page-${page}-host-${host}`;
-const lateAnchor = (page) => `late-page-${page}`;
+// WHY: the docs site rewrites a dot in a link fragment to a dash, so an id with a dot would match on GitHub only.
+const slug = (text) => text.replaceAll('.', '-');
+const anchor = (build, page, host) => slug(`${build}-page-${page}-host-${host}`);
+const lateAnchor = (page) => slug(`late-page-${page}`);
 
 export function renderPage(compat, changelog) {
   const { pages, hosts } = compat.meta;

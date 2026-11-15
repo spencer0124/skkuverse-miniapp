@@ -50,14 +50,14 @@ Rows are the page SDK and columns are the host bootstrap. Both load the ES modul
 
 | page \ host | [0.1.0] | [0.2.0] | [0.2.1] | [0.3.0] | [0.4.0] | [0.4.1] | [0.4.2] |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **[0.1.0]** | n/a | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.2.0) | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.2.1) | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.3.0) | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.4.0) | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.4.1) | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.4.2) |
+| **[0.1.0]** | n/a | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-2-0) | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-2-1) | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-3-0) | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-4-0) | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-4-1) | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-4-2) |
 | **[0.2.0]** | n/a | ok | ok | ok | ok | ok | ok |
 | **[0.2.1]** | n/a | ok | ok | ok | ok | ok | ok |
-| **[0.3.0]** | n/a | [fb: share](#esm-page-0.3.0-host-0.2.0) | [fb: share](#esm-page-0.3.0-host-0.2.1) | ok | ok | ok | ok |
-| **[0.4.0]** | n/a | [gap: game-handshake](#esm-page-0.4.0-host-0.2.0) | [gap: game-handshake](#esm-page-0.4.0-host-0.2.1) | [gap: game-handshake](#esm-page-0.4.0-host-0.3.0) | ok | ok | ok |
-| **[0.4.1]** | n/a | [gap: game-handshake](#esm-page-0.4.1-host-0.2.0) | [gap: game-handshake](#esm-page-0.4.1-host-0.2.1) | [gap: game-handshake](#esm-page-0.4.1-host-0.3.0) | ok | ok | ok |
-| **[0.4.2]** | n/a | [gap: game-handshake](#esm-page-0.4.2-host-0.2.0) | [gap: game-handshake](#esm-page-0.4.2-host-0.2.1) | [gap: game-handshake](#esm-page-0.4.2-host-0.3.0) | ok | ok | ok |
-| **workspace** | n/a | [gap: game-handshake](#esm-page-workspace-host-0.2.0) | [gap: game-handshake](#esm-page-workspace-host-0.2.1) | [gap: game-handshake](#esm-page-workspace-host-0.3.0) | ok | ok | ok |
+| **[0.3.0]** | n/a | [fb: share](#esm-page-0-3-0-host-0-2-0) | [fb: share](#esm-page-0-3-0-host-0-2-1) | ok | ok | ok | ok |
+| **[0.4.0]** | n/a | [gap: game-handshake](#esm-page-0-4-0-host-0-2-0) | [gap: game-handshake](#esm-page-0-4-0-host-0-2-1) | [gap: game-handshake](#esm-page-0-4-0-host-0-3-0) | ok | ok | ok |
+| **[0.4.1]** | n/a | [gap: game-handshake](#esm-page-0-4-1-host-0-2-0) | [gap: game-handshake](#esm-page-0-4-1-host-0-2-1) | [gap: game-handshake](#esm-page-0-4-1-host-0-3-0) | ok | ok | ok |
+| **[0.4.2]** | n/a | [gap: game-handshake](#esm-page-0-4-2-host-0-2-0) | [gap: game-handshake](#esm-page-0-4-2-host-0-2-1) | [gap: game-handshake](#esm-page-0-4-2-host-0-3-0) | ok | ok | ok |
+| **workspace** | n/a | [gap: game-handshake](#esm-page-workspace-host-0-2-0) | [gap: game-handshake](#esm-page-workspace-host-0-2-1) | [gap: game-handshake](#esm-page-workspace-host-0-3-0) | ok | ok | ok |
 
 ### Script-tag build
 
@@ -65,14 +65,14 @@ The same table with the page loaded from `dist/miniapp-sdk.global.js`. That buil
 
 | page \ host | [0.1.0] | [0.2.0] | [0.2.1] | [0.3.0] | [0.4.0] | [0.4.1] | [0.4.2] |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **[0.1.0]** | n/a | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.2.0) | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.2.1) | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.3.0) | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.4.0) | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.4.1) | [FAIL: 7 scenarios](#esm-page-0.1.0-host-0.4.2) |
+| **[0.1.0]** | n/a | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-2-0) | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-2-1) | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-3-0) | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-4-0) | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-4-1) | [FAIL: 7 scenarios](#esm-page-0-1-0-host-0-4-2) |
 | **[0.2.0]** | n/a | ok | ok | ok | ok | ok | ok |
 | **[0.2.1]** | n/a | ok | ok | ok | ok | ok | ok |
-| **[0.3.0]** | n/a | [fb: share](#esm-page-0.3.0-host-0.2.0) | [fb: share](#esm-page-0.3.0-host-0.2.1) | ok | ok | ok | ok |
-| **[0.4.0]** | n/a | [fb: share](#global-page-0.4.0-host-0.2.0) | [fb: share](#global-page-0.4.0-host-0.2.1) | ok | ok | ok | ok |
-| **[0.4.1]** | n/a | [fb: share](#global-page-0.4.1-host-0.2.0) | [fb: share](#global-page-0.4.1-host-0.2.1) | ok | ok | ok | ok |
-| **[0.4.2]** | n/a | [fb: share](#global-page-0.4.2-host-0.2.0) | [fb: share](#global-page-0.4.2-host-0.2.1) | ok | ok | ok | ok |
-| **workspace** | n/a | [fb: share](#global-page-workspace-host-0.2.0) | [fb: share](#global-page-workspace-host-0.2.1) | ok | ok | ok | ok |
+| **[0.3.0]** | n/a | [fb: share](#esm-page-0-3-0-host-0-2-0) | [fb: share](#esm-page-0-3-0-host-0-2-1) | ok | ok | ok | ok |
+| **[0.4.0]** | n/a | [fb: share](#global-page-0-4-0-host-0-2-0) | [fb: share](#global-page-0-4-0-host-0-2-1) | ok | ok | ok | ok |
+| **[0.4.1]** | n/a | [fb: share](#global-page-0-4-1-host-0-2-0) | [fb: share](#global-page-0-4-1-host-0-2-1) | ok | ok | ok | ok |
+| **[0.4.2]** | n/a | [fb: share](#global-page-0-4-2-host-0-2-0) | [fb: share](#global-page-0-4-2-host-0-2-1) | ok | ok | ok | ok |
+| **workspace** | n/a | [fb: share](#global-page-workspace-host-0-2-0) | [fb: share](#global-page-workspace-host-0-2-1) | ok | ok | ok | ok |
 
 ## Late host
 
@@ -80,7 +80,7 @@ The host appears after the page gave up waiting. The result belongs to the page,
 
 | page \ host | [0.1.0] | [0.2.0] | [0.2.1] | [0.3.0] | [0.4.0] | [0.4.1] | [0.4.2] |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **[0.4.0]** | n/a | gap | gap | gap | [FAIL](#late-page-0.4.0) | [FAIL](#late-page-0.4.0) | [FAIL](#late-page-0.4.0) |
+| **[0.4.0]** | n/a | gap | gap | gap | [FAIL](#late-page-0-4-0) | [FAIL](#late-page-0-4-0) | [FAIL](#late-page-0-4-0) |
 | **[0.4.1]** | n/a | gap | gap | gap | ok | ok | ok |
 | **[0.4.2]** | n/a | gap | gap | gap | ok | ok | ok |
 | **workspace** | n/a | gap | gap | gap | ok | ok | ok |
@@ -121,7 +121,7 @@ Each feature is a scenario, and `compat.json` records, per page version, the fir
 
 ## Non-ok cells
 
-<a id="esm-page-0.1.0-host-0.2.0"></a>
+<a id="esm-page-0-1-0-host-0-2-0"></a>
 
 ### Page 0.1.0 on host 0.2.0
 
@@ -137,7 +137,7 @@ Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/c
 
 CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.actions` capability derivation are gone.
 
-<a id="esm-page-0.1.0-host-0.2.1"></a>
+<a id="esm-page-0-1-0-host-0-2-1"></a>
 
 ### Page 0.1.0 on host 0.2.1
 
@@ -153,7 +153,7 @@ Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/c
 
 CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.actions` capability derivation are gone.
 
-<a id="esm-page-0.1.0-host-0.3.0"></a>
+<a id="esm-page-0-1-0-host-0-3-0"></a>
 
 ### Page 0.1.0 on host 0.3.0
 
@@ -169,7 +169,7 @@ Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/c
 
 CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.actions` capability derivation are gone.
 
-<a id="esm-page-0.1.0-host-0.4.0"></a>
+<a id="esm-page-0-1-0-host-0-4-0"></a>
 
 ### Page 0.1.0 on host 0.4.0
 
@@ -185,7 +185,7 @@ Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/c
 
 CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.actions` capability derivation are gone.
 
-<a id="esm-page-0.1.0-host-0.4.1"></a>
+<a id="esm-page-0-1-0-host-0-4-1"></a>
 
 ### Page 0.1.0 on host 0.4.1
 
@@ -201,7 +201,7 @@ Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/c
 
 CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.actions` capability derivation are gone.
 
-<a id="esm-page-0.1.0-host-0.4.2"></a>
+<a id="esm-page-0-1-0-host-0-4-2"></a>
 
 ### Page 0.1.0 on host 0.4.2
 
@@ -217,7 +217,7 @@ Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/c
 
 CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.actions` capability derivation are gone.
 
-<a id="esm-page-0.3.0-host-0.2.0"></a>
+<a id="esm-page-0-3-0-host-0-2-0"></a>
 
 ### Page 0.3.0 on host 0.2.0
 
@@ -227,7 +227,7 @@ Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs 
 
 CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
-<a id="esm-page-0.3.0-host-0.2.1"></a>
+<a id="esm-page-0-3-0-host-0-2-1"></a>
 
 ### Page 0.3.0 on host 0.2.1
 
@@ -237,7 +237,7 @@ Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs 
 
 CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
-<a id="esm-page-0.4.0-host-0.2.0"></a>
+<a id="esm-page-0-4-0-host-0-2-0"></a>
 
 ### Page 0.4.0 on host 0.2.0
 
@@ -250,7 +250,7 @@ CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-0.4.0-host-0.2.1"></a>
+<a id="esm-page-0-4-0-host-0-2-1"></a>
 
 ### Page 0.4.0 on host 0.2.1
 
@@ -263,7 +263,7 @@ CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-0.4.0-host-0.3.0"></a>
+<a id="esm-page-0-4-0-host-0-3-0"></a>
 
 ### Page 0.4.0 on host 0.3.0
 
@@ -273,7 +273,7 @@ Verdict `gap: game-handshake`. Rerun it with `pnpm --filter compat exec node src
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-0.4.1-host-0.2.0"></a>
+<a id="esm-page-0-4-1-host-0-2-0"></a>
 
 ### Page 0.4.1 on host 0.2.0
 
@@ -286,7 +286,7 @@ CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-0.4.1-host-0.2.1"></a>
+<a id="esm-page-0-4-1-host-0-2-1"></a>
 
 ### Page 0.4.1 on host 0.2.1
 
@@ -299,7 +299,7 @@ CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-0.4.1-host-0.3.0"></a>
+<a id="esm-page-0-4-1-host-0-3-0"></a>
 
 ### Page 0.4.1 on host 0.3.0
 
@@ -309,7 +309,7 @@ Verdict `gap: game-handshake`. Rerun it with `pnpm --filter compat exec node src
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-0.4.2-host-0.2.0"></a>
+<a id="esm-page-0-4-2-host-0-2-0"></a>
 
 ### Page 0.4.2 on host 0.2.0
 
@@ -322,7 +322,7 @@ CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-0.4.2-host-0.2.1"></a>
+<a id="esm-page-0-4-2-host-0-2-1"></a>
 
 ### Page 0.4.2 on host 0.2.1
 
@@ -335,7 +335,7 @@ CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-0.4.2-host-0.3.0"></a>
+<a id="esm-page-0-4-2-host-0-3-0"></a>
 
 ### Page 0.4.2 on host 0.3.0
 
@@ -345,7 +345,7 @@ Verdict `gap: game-handshake`. Rerun it with `pnpm --filter compat exec node src
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-workspace-host-0.2.0"></a>
+<a id="esm-page-workspace-host-0-2-0"></a>
 
 ### Page workspace on host 0.2.0
 
@@ -358,7 +358,7 @@ CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-workspace-host-0.2.1"></a>
+<a id="esm-page-workspace-host-0-2-1"></a>
 
 ### Page workspace on host 0.2.1
 
@@ -371,7 +371,7 @@ CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="esm-page-workspace-host-0.3.0"></a>
+<a id="esm-page-workspace-host-0-3-0"></a>
 
 ### Page workspace on host 0.3.0
 
@@ -381,7 +381,7 @@ Verdict `gap: game-handshake`. Rerun it with `pnpm --filter compat exec node src
 
 CHANGELOG 0.4.0: Add the `game.*` namespace for hosted games, beside the mini-app methods on the same envelope.
 
-<a id="global-page-0.4.0-host-0.2.0"></a>
+<a id="global-page-0-4-0-host-0-2-0"></a>
 
 ### Page 0.4.0 on host 0.2.0 (script-tag build)
 
@@ -391,7 +391,7 @@ Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs 
 
 CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
-<a id="global-page-0.4.0-host-0.2.1"></a>
+<a id="global-page-0-4-0-host-0-2-1"></a>
 
 ### Page 0.4.0 on host 0.2.1 (script-tag build)
 
@@ -401,7 +401,7 @@ Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs 
 
 CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
-<a id="global-page-0.4.1-host-0.2.0"></a>
+<a id="global-page-0-4-1-host-0-2-0"></a>
 
 ### Page 0.4.1 on host 0.2.0 (script-tag build)
 
@@ -411,7 +411,7 @@ Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs 
 
 CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
-<a id="global-page-0.4.1-host-0.2.1"></a>
+<a id="global-page-0-4-1-host-0-2-1"></a>
 
 ### Page 0.4.1 on host 0.2.1 (script-tag build)
 
@@ -421,7 +421,7 @@ Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs 
 
 CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
-<a id="global-page-0.4.2-host-0.2.0"></a>
+<a id="global-page-0-4-2-host-0-2-0"></a>
 
 ### Page 0.4.2 on host 0.2.0 (script-tag build)
 
@@ -431,7 +431,7 @@ Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs 
 
 CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
-<a id="global-page-0.4.2-host-0.2.1"></a>
+<a id="global-page-0-4-2-host-0-2-1"></a>
 
 ### Page 0.4.2 on host 0.2.1 (script-tag build)
 
@@ -441,7 +441,7 @@ Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs 
 
 CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
-<a id="global-page-workspace-host-0.2.0"></a>
+<a id="global-page-workspace-host-0-2-0"></a>
 
 ### Page workspace on host 0.2.0 (script-tag build)
 
@@ -451,7 +451,7 @@ Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs 
 
 CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
-<a id="global-page-workspace-host-0.2.1"></a>
+<a id="global-page-workspace-host-0-2-1"></a>
 
 ### Page workspace on host 0.2.1 (script-tag build)
 
@@ -461,7 +461,7 @@ Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs 
 
 CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
-<a id="late-page-0.4.0"></a>
+<a id="late-page-0-4-0"></a>
 
 ### Page 0.4.0, late host
 
