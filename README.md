@@ -60,12 +60,14 @@ This is the path one miniapp takes from a folder on disk to a screen in the app.
 `@skkuverse/miniapp/testing` stands in for the app. `createFakeHost()` runs the app's real `hostBootstrapScript` in the test's window and records every message both ways. `checkGameContract()` reads that record and names each rule of the game protocol the page broke.
 
 ```ts
-// @vitest-environment happy-dom
-import { expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { bootGame } from '@skkuverse/miniapp/game';
 import { checkGameContract, createFakeHost } from '@skkuverse/miniapp/testing';
 
+afterEach(() => vi.unstubAllGlobals());
+
 it('keeps the game contract for one run', async () => {
+  vi.stubGlobal('window', new EventTarget());
   const host = createFakeHost();
   host.install();
   const game = bootGame({ onInit: () => {} });
