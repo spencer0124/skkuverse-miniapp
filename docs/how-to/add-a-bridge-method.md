@@ -3,7 +3,7 @@ title: Add A Bridge Method
 type: how-to
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-10-21
+last-updated: 2026-11-16
 audience: internal
 ---
 
@@ -32,13 +32,14 @@ A method is one entry in the protocol, one SDK wrapper, and one handler in the a
    - Check `isGranted(method)` first, and give a browser fallback or a clear `unsupported` path.
    - Requests go through `request(method, params, { timeoutMs })`. Choose a timeout that fits the feature: seconds for data, minutes for anything the user watches or types.
 3. **Test it.** Add parser vectors in `test/protocol.test.ts` and a transport case in `test/sdk.test.ts`. Run `pnpm build && pnpm typecheck && pnpm test && pnpm lint`.
-4. **Document it.** Add a row to the methods table in [protocol](../reference/protocol.md), with its params and SDK function.
-5. **Release the SDK.** Add a `minor` changeset and follow [release-packages](release-packages.md).
-6. **Implement it in the app.** In skkuverse-app, handle the method in `apps/mobile/src/features/mini-app/dispatch.ts`.
+4. **Add its compatibility scenario.** In `packages/compat/src/cell.mjs`, add one line to `METHOD_SCENARIOS`: the scenario `id`, the `method`, the SDK function `fn` and a `call` that exercises it. A game method goes in `GAME_OUTBOUND` instead. Then run `pnpm build && pnpm --filter compat generate` and commit `packages/compat/compat.json` and `docs/reference/compatibility.md`. Without the line, `pnpm --filter compat test` fails and names the method, because the [compatibility matrix](../reference/compatibility.md) would otherwise say a page that sends it works on every host.
+5. **Document it.** Add a row to the methods table in [protocol](../reference/protocol.md), with its params and SDK function.
+6. **Release the SDK.** Add a `minor` changeset and follow [release-packages](release-packages.md). Once the version is on npm, add its `sdk-<version>` alias to `packages/compat/package.json` and regenerate. The daily `compat-versions` job fails until that alias exists.
+7. **Implement it in the app.** In skkuverse-app, handle the method in `apps/mobile/src/features/mini-app/dispatch.ts`.
    - Include it in the capabilities the mini-app shell grants.
    - Answer every request exactly once, including errors.
    - Bump `@skkuverse/miniapp` there so `parseMessage` knows the new method.
-7. **Ship the app before relying on it.** A page must check `hasCapability(method)` before offering the feature. An older app lacks the method, and a page built for it still runs, reduced.
+8. **Ship the app before relying on it.** A page must check `hasCapability(method)` before offering the feature. An older app lacks the method, and a page built for it still runs, reduced.
 
 ## Troubleshooting
 
@@ -51,4 +52,5 @@ A method is one entry in the protocol, one SDK wrapper, and one handler in the a
 ## Related
 
 - [protocol](../reference/protocol.md) — the envelope, rules and method table
+- [compatibility](../reference/compatibility.md) — which SDK version works with which host version
 - [architecture](../explanation/architecture.md) — where the dispatcher sits
