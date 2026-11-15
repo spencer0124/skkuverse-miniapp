@@ -349,11 +349,19 @@ export class Session {
       const idle = async (deadline: number) => {
         const since = quietSince;
         const ran = page!.evaluate(untilIdle).then(
-          () => true,
+          (broken) => {
+            if (broken) throw new RunnerError(`the runner cannot tell when ${path} is idle: ${broken}, so a load would run to the ${SETTLE_MAX_MS} ms cap every time`);
+            return true;
+          },
           () => false,
         );
-        const late = delay(deadline - Date.now(), false, { ref: false });
-        return (await Promise.race([ran, late])) && quietSince === since;
+        const cancel = new AbortController();
+        const late = delay(deadline - Date.now(), false, { ref: false, signal: cancel.signal }).catch(() => false);
+        try {
+          return (await Promise.race([ran, late])) && quietSince === since;
+        } finally {
+          cancel.abort();
+        }
       };
       const settle = async () => {
         const deadline = Date.now() + SETTLE_MAX_MS;
@@ -410,17 +418,23 @@ export class Session {
   }
 }
 
-declare const scheduler: { postTask(task: () => void, options: { priority: 'background' }): Promise<void> };
+declare const scheduler: { postTask(task: () => void, options: { priority: 'background' }): Promise<void> } | undefined;
 
 /**
  * Resolves once the page has no task queued above background priority. A page
  * that renders in queued tasks, as React does, sends no signal while it works,
  * so a quiet window alone can end in the middle of a render.
+ * Resolves to a reason when `scheduler.postTask` is missing or throws, which
+ * the caller turns into a RunnerError; a page that navigates mid-wait rejects instead.
  * `requestIdleCallback` is no substitute: it stops firing after a click in
  * headless Chromium, and the pinned clock replaces it with a timer.
  */
-function untilIdle(): Promise<void> {
-  return scheduler.postTask(() => {}, { priority: 'background' });
+async function untilIdle(): Promise<string | undefined> {
+  try {
+    await scheduler!.postTask(() => {}, { priority: 'background' });
+  } catch (error) {
+    return `scheduler.postTask is unavailable or throws (${String(error)})`;
+  }
 }
 
 function posted(raw: string): Posted {

@@ -476,6 +476,12 @@ document.body.append(String(crypto.getRandomValues(new Uint32Array(1))[0]));`));
     assert.match(run.stderr, /two plain loads of \/ differ: the second one shows other text \("\d+"\) than the first, so N2 cannot compare/);
   });
 
+  test('a page whose scheduler.postTask is gone is not judged, and the error names it', async () => {
+    const run = await judge(page(`Object.defineProperty(window, 'scheduler', { value: undefined, configurable: true });`));
+    assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 2, stdout: '' });
+    assert.match(run.stderr, /cannot tell when \/ is idle: scheduler\.postTask is unavailable or throws/);
+  });
+
   test('a folder with no build is a usage error', async () => {
     const run = await contract(['--dir', join(pkg, 'src'), '--json']);
     assert.equal(run.status, 2);
