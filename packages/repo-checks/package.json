@@ -10,7 +10,8 @@
   },
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "docs:gen": "node scripts/docs-gen.mjs"
+    "docs:gen": "node scripts/docs-gen.mjs",
+    "backfill-tags": "node scripts/backfill-tags.mjs"
   },
   "devDependencies": {
     "@skkuverse/miniapp": "workspace:*",

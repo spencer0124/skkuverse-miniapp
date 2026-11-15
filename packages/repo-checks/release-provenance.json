@@ -1,0 +1,128 @@
+[
+  {
+    "name": "@skkuverse/game-contract",
+    "version": "0.0.0-stage",
+    "reproducible": false,
+    "closest": null,
+    "reason": "no commit holds this version"
+  },
+  {
+    "name": "@skkuverse/game-contract",
+    "version": "0.1.0",
+    "reproducible": true,
+    "tag": "@skkuverse/game-contract@0.1.0",
+    "commit": "961ff52921d4544dd1e0c7665613e5a66216c21e",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/miniapp",
+    "version": "0.1.0",
+    "reproducible": true,
+    "tag": "@skkuverse/miniapp@0.1.0",
+    "commit": "e63cfae41750c9beaccbf7033ef9db254a7c047e",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/miniapp",
+    "version": "0.2.0",
+    "reproducible": true,
+    "tag": "@skkuverse/miniapp@0.2.0",
+    "commit": "c7b9ea25c1c2995e5fbcc5a9fe46a1ef6e0dd1cf",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/miniapp",
+    "version": "0.2.1",
+    "reproducible": true,
+    "tag": "@skkuverse/miniapp@0.2.1",
+    "commit": "b189db230cbb91134ee3ff654620eb52c8f219b5",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/miniapp",
+    "version": "0.3.0",
+    "reproducible": true,
+    "tag": "@skkuverse/miniapp@0.3.0",
+    "commit": "106f12532ec3860197ef44bcad161e9fbbaf1a39",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/miniapp",
+    "version": "0.4.0",
+    "reproducible": true,
+    "tag": "@skkuverse/miniapp@0.4.0",
+    "commit": "ba2e01f9873308275beef66c652fd2796a66619d",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/miniapp",
+    "version": "0.4.1",
+    "reproducible": true,
+    "tag": "@skkuverse/miniapp@0.4.1",
+    "commit": "ead1197d2c3c821c90afa5ce074d85cf15d6e6dd",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/miniapp",
+    "version": "0.4.2",
+    "reproducible": true,
+    "tag": "@skkuverse/miniapp@0.4.2",
+    "commit": "961ff52921d4544dd1e0c7665613e5a66216c21e",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/miniapp-cli",
+    "version": "0.0.0-stage",
+    "reproducible": false,
+    "closest": null,
+    "reason": "no commit holds this version"
+  },
+  {
+    "name": "@skkuverse/miniapp-cli",
+    "version": "0.2.0",
+    "reproducible": true,
+    "tag": "@skkuverse/miniapp-cli@0.2.0",
+    "commit": "961ff52921d4544dd1e0c7665613e5a66216c21e",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/tokens",
+    "version": "0.1.0",
+    "reproducible": true,
+    "tag": "@skkuverse/tokens@0.1.0",
+    "commit": "e63cfae41750c9beaccbf7033ef9db254a7c047e",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/tokens",
+    "version": "0.1.1",
+    "reproducible": true,
+    "tag": "@skkuverse/tokens@0.1.1",
+    "commit": "961ff52921d4544dd1e0c7665613e5a66216c21e",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/ui",
+    "version": "0.1.0",
+    "reproducible": true,
+    "tag": "@skkuverse/ui@0.1.0",
+    "commit": "e63cfae41750c9beaccbf7033ef9db254a7c047e",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/ui",
+    "version": "0.1.1",
+    "reproducible": true,
+    "tag": "@skkuverse/ui@0.1.1",
+    "commit": "b189db230cbb91134ee3ff654620eb52c8f219b5",
+    "rule": "rebuilds byte for byte"
+  },
+  {
+    "name": "@skkuverse/ui",
+    "version": "0.1.2",
+    "reproducible": true,
+    "tag": "@skkuverse/ui@0.1.2",
+    "commit": "961ff52921d4544dd1e0c7665613e5a66216c21e",
+    "rule": "rebuilds byte for byte"
+  }
+]
