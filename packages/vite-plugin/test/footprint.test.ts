@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
@@ -85,5 +85,17 @@ describe('the dev host in a build of the miniapp template', () => {
     expect(scripts[0]).toMatch(/^\/assets\/skkuverse-dev-host-[\w-]{8}\.js$/);
     expect(scripts.length).toBeGreaterThan(1);
     expect(html).not.toMatch(/<script(?![^>]*\bsrc=)[^>]*>\s*\S/);
+  });
+
+  // `ship` keeps its own copy of the sentinel, so a rename in the plugin alone would let it stop refusing without any other test failing.
+  it('is refused by ship when forced, and staged cleanly by ship by default', async () => {
+    // A computed specifier keeps the CLI's source out of this package's typecheck and its import graph.
+    const { stageSite } = (await import(pathToFileURL(join(repo, 'packages/cli/src/ship.ts')).href)) as {
+      stageSite(dist: string, site: string, files: Record<string, string>): void;
+    };
+    expect(() => stageSite(join(app, 'dist-forced'), join(scratch, 'site-forced'), {})).toThrow(/vite dev host/);
+    stageSite(join(app, 'dist'), join(scratch, 'site'), { _headers: 'x' });
+    expect(existsSync(join(scratch, 'site/index.html'))).toBe(true);
+    expect(readFileSync(join(scratch, 'site/_headers'), 'utf8')).toBe('x');
   });
 });

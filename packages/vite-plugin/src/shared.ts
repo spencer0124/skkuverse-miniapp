@@ -1,6 +1,6 @@
 import type { GameInit, ShellHeader, Viewport } from '@skkuverse/miniapp/protocol';
 
-/** The footprint test searches a build for this text: a build that holds it ships a dev host. */
+/** The footprint test and `ship` (`packages/cli/src/ship.ts`) search a build for this text: a build that holds it ships a dev host. */
 export const SENTINEL = '__SKKUVERSE_DEV_HOST__';
 
 export interface DevHostConfig {

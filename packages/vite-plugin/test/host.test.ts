@@ -153,6 +153,14 @@ describe('the page-side host', () => {
     expect(lines).toContain('[skkuverse] host -> page game.init {"gameProtocol":1,"hi":0,"sound":true}');
   });
 
+  it('answers game.ready on a microtask, not a timer, as the fake host does', async () => {
+    boot(gameConfig('granted'));
+    post({ method: 'game.ready', params: {} });
+    expect(events).toEqual([]);
+    for (let i = 0; i < 4; i++) await Promise.resolve();
+    expect(events).toEqual([{ event: 'game.init', data: { gameProtocol: 1, hi: 0, sound: true } }]);
+  });
+
   it('holds game.init back under slow-init', async () => {
     vi.useFakeTimers();
     boot(gameConfig('slow-init'));

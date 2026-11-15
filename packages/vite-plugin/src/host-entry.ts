@@ -34,7 +34,9 @@ const context: HostContext = {
   viewport: viewportFor(runtime.viewport, runtime.header),
   deliver: (event, data) => send(event, data, { event, data } as HostMessage),
   after: (ms, fn) => {
-    if (ms !== null) setTimeout(fn, ms);
+    if (ms === null) return;
+    if (ms <= 0) queueMicrotask(fn);
+    else setTimeout(fn, ms);
   },
 };
 
