@@ -20,9 +20,12 @@ function log(entry: LogEntry): void {
   else console.info(formatLogLine(entry));
 }
 
+/** The app answers through `injectJavaScript`, never inside the page's `postMessage`, so the page sees each answer on a later tick. */
 function send(name: string, data: unknown, message: HostMessage): void {
-  log({ dir: 'host', name, data });
-  win.skkuverse?.receive(JSON.stringify(message));
+  queueMicrotask(() => {
+    log({ dir: 'host', name, data });
+    win.skkuverse?.receive(JSON.stringify(message));
+  });
 }
 
 const context: HostContext = {

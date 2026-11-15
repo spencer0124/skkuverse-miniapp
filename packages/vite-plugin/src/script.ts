@@ -21,26 +21,31 @@ function finiteMs(ms: number | undefined): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 
+/** The app grants an origin one list by its kind (`docs/reference/protocol.md`, "Rules both sides follow"). */
+const GRANTS = { miniapp: NOTIFY_METHODS, game: GAME_NOTIFY_METHODS } as const satisfies Record<string, readonly string[]>;
+
 /** A page with no manifest is a game, which the app hosts full screen, so it starts `overlay`. */
-function startingHeader(publicDir: string | false): DevHostConfig['header'] {
+function readPage(publicDir: string | false): { kind: keyof typeof GRANTS; header: DevHostConfig['header'] } {
   const manifest = publicDir === false ? null : join(publicDir, 'skkuverse.json');
-  if (manifest === null || !existsSync(manifest)) return 'overlay';
+  if (manifest === null || !existsSync(manifest)) return { kind: 'game', header: 'overlay' };
   let json: unknown;
   try {
     json = JSON.parse(readFileSync(manifest, 'utf8'));
   } catch {
     json = null;
   }
-  return parseManifest(json).shell.header;
+  return { kind: 'miniapp', header: parseManifest(json).shell.header };
 }
 
 export function resolveHostConfig(name: HostPresetName, publicDir: string | false): DevHostConfig {
   const preset = resolvePreset(name);
+  const page = readPage(publicDir);
+  const grants: readonly string[] = GRANTS[page.kind];
   return {
     preset: name,
-    capabilities: preset.capabilities ?? [...NOTIFY_METHODS, ...GAME_NOTIFY_METHODS],
+    capabilities: (preset.capabilities ?? grants).filter((method) => grants.includes(method)),
     viewport: preset.viewport ?? ZERO_VIEWPORT,
-    header: startingHeader(publicDir),
+    header: page.header,
     installDelayMs: finiteMs(preset.hostDelayMs),
     initDelayMs: finiteMs(preset.initDelayMs),
     init: preset.init ?? {},

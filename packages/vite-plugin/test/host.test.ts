@@ -1,12 +1,12 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MESSAGE_EVENT } from '@skkuverse/miniapp/protocol';
+import { GAME_NOTIFY_METHODS, MESSAGE_EVENT, NOTIFY_METHODS } from '@skkuverse/miniapp/protocol';
 import type { HostPresetName } from '@skkuverse/miniapp/testing';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { skkuverseDevHost } from '../src';
 import { hostScript, readHostEntry, resolveHostConfig } from '../src/script';
-import type { DevHostConfig } from '../src/shared';
+import { formatLogLine, type DevHostConfig } from '../src/shared';
 
 type Page = EventTarget & {
   skkuverse?: { protocol: number; capabilities: string[]; getViewport(): { safeArea: { top: number } } };
@@ -29,10 +29,19 @@ function boot(config: DevHostConfig): void {
   new Function('window', 'document', 'console', hostScript(config, readHostEntry(), { hot: false }))(win, document, console);
 }
 
+/** A public folder with a manifest makes a miniapp page. Without one the page is a game. */
+const miniappPublic = mkdtempSync(join(tmpdir(), 'vite-plugin-miniapp-public-'));
+writeFileSync(join(miniappPublic, 'skkuverse.json'), JSON.stringify({ shell: { header: 'overlay' } }));
+afterAll(() => rmSync(miniappPublic, { recursive: true, force: true }));
+
 const config = (preset: HostPresetName, over: Partial<DevHostConfig> = {}): DevHostConfig => ({
-  ...resolveHostConfig(preset, false),
+  ...resolveHostConfig(preset, miniappPublic),
   ...over,
 });
+const gameConfig = (preset: HostPresetName): DevHostConfig => resolveHostConfig(preset, false);
+
+/** The host answers on a microtask, as the app answers through `injectJavaScript`. */
+const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 const post = (message: unknown) => win.ReactNativeWebView!.postMessage(JSON.stringify(message));
 
@@ -52,10 +61,21 @@ describe('the page-side host', () => {
   it('installs the app host before the page runs, with the preset granted', () => {
     boot(config('granted'));
     expect(win.skkuverse?.protocol).toBe(1);
-    expect(win.skkuverse?.capabilities).toContain('haptic.impact');
-    expect(win.skkuverse?.capabilities).toContain('game.ready');
+    expect(win.skkuverse?.capabilities).toEqual([...NOTIFY_METHODS]);
     expect(win.ReactNativeWebView).toBeDefined();
     expect(css.get('--sv-inset-top')).toBe('91px');
+  });
+
+  it('grants a game page only the game methods, as the app grants a game origin', () => {
+    boot(gameConfig('granted'));
+    expect(win.skkuverse?.capabilities).toEqual([...GAME_NOTIFY_METHODS]);
+    expect(() => post({ method: 'haptic.impact', params: { style: 'light' } })).toThrow('haptic.impact is not granted by the preset "granted"');
+    expect(() => post({ method: 'game.haptic', params: { style: 'light' } })).not.toThrow();
+  });
+
+  it('grants a miniapp page no game method', () => {
+    boot(config('granted'));
+    expect(() => post({ method: 'game.ready', params: {} })).toThrow('game.ready is not granted by the preset "granted"');
   });
 
   it('prints one line for each message the page posts', () => {
@@ -85,22 +105,38 @@ describe('the page-side host', () => {
     expect(() => post({ method: 'share.open', params: { url: 'https://example.com' } })).toThrow('share.open is not granted by the preset "nothing-granted"');
   });
 
-  it('answers a request it cannot handle with unsupported, as the app does', () => {
+  it('answers a request it cannot handle with unsupported, as the app does', async () => {
     boot(config('granted'));
     post({ id: 'r1', method: 'demo.echo', params: {} });
+    expect(events).toEqual([]);
+    await settle();
     expect(events).toEqual([{ id: 'r1', ok: false, error: { code: 'unsupported', message: 'demo.echo is not handled by the dev host' } }]);
   });
 
-  it('answers shell.set with viewport.changed and moves the CSS variable', () => {
+  it('answers shell.set with viewport.changed and moves the CSS variable', async () => {
     boot(config('granted'));
     post({ method: 'shell.set', params: { header: 'opaque' } });
+    await settle();
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ event: 'viewport.changed', data: { safeArea: { top: 0 }, contentSafeArea: { top: 0 } } });
     expect(css.get('--sv-inset-top')).toBe('0px');
     post({ method: 'shell.set', params: { header: 'overlay' } });
+    await settle();
     expect(css.get('--sv-inset-top')).toBe('91px');
     post({ method: 'shell.set', params: { statusBar: 'light' } });
+    await settle();
     expect(events).toHaveLength(2);
+  });
+
+  it('answers after postMessage returns, so a listener added right after the post still hears it', async () => {
+    // React runs a child's effect before its parent's: a child's setShell posts before the parent's useViewport subscribes.
+    boot(config('granted'));
+    post({ method: 'shell.set', params: { header: 'opaque' } });
+    const heard: unknown[] = [];
+    win.addEventListener(MESSAGE_EVENT, (e) => heard.push((e as CustomEvent).detail));
+    expect(heard).toEqual([]);
+    await settle();
+    expect(heard).toEqual([expect.objectContaining({ event: 'viewport.changed' })]);
   });
 
   it('starts a miniapp whose manifest says opaque below the header, as the app does', () => {
@@ -110,7 +146,7 @@ describe('the page-side host', () => {
 
   it('answers game.ready with game.init', async () => {
     vi.useFakeTimers();
-    boot(config('granted'));
+    boot(gameConfig('granted'));
     post({ method: 'game.ready', params: {} });
     await vi.advanceTimersByTimeAsync(0);
     expect(events).toEqual([{ event: 'game.init', data: { gameProtocol: 1, hi: 0, sound: true } }]);
@@ -119,7 +155,7 @@ describe('the page-side host', () => {
 
   it('holds game.init back under slow-init', async () => {
     vi.useFakeTimers();
-    boot(config('slow-init'));
+    boot(gameConfig('slow-init'));
     post({ method: 'game.ready', params: {} });
     await vi.advanceTimersByTimeAsync(1999);
     expect(events).toEqual([]);
@@ -150,6 +186,12 @@ describe('the page-side host', () => {
 });
 
 describe('the plugin', () => {
+  it('prints no terminal control character the page sends, in the method or the params', () => {
+    const line = formatLogLine({ dir: 'page', name: 'a\u001b[2Jb\u009b31m', data: { s: 'x\u007f\u009b2J\u0085y' } });
+    expect(line).toBe('[skkuverse] page -> host a?[2Jb?31m {"s":"x??2J?y"}');
+    expect(line).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+  });
+
   it('reads the starting header from the manifest in the public folder', () => {
     const publicDir = mkdtempSync(join(tmpdir(), 'vite-plugin-public-'));
     try {

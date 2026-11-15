@@ -260,10 +260,11 @@ importers:
         version: 5.9.3
 
   packages/vite-plugin:
-    devDependencies:
+    dependencies:
       '@skkuverse/miniapp':
         specifier: workspace:^
         version: link:../miniapp
+    devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.5

@@ -32,12 +32,13 @@
     "lint": "publint && attw --pack . --profile esm-only",
     "test": "vitest run --typecheck"
   },
+  "dependencies": {
+    "@skkuverse/miniapp": "workspace:^"
+  },
   "peerDependencies": {
-    "@skkuverse/miniapp": "workspace:^",
-    "vite": "^6.4.0"
+    "vite": "^6.4.0 || ^7.0.0 || ^8.0.0"
   },
   "devDependencies": {
-    "@skkuverse/miniapp": "workspace:^",
     "@types/node": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "react": "catalog:",

@@ -26,9 +26,9 @@ export interface DevHostRuntime extends DevHostConfig {
 
 export function formatLogLine({ dir, name, data }: LogEntry): string {
   const arrow = dir === 'page' ? 'page -> host ' : dir === 'host' ? 'host -> page ' : '';
-  // The page chooses `name`, so a control character in it must not reach a terminal.
-  const plain = name.replace(/[\u0000-\u001f\u007f]/g, '?');
-  return `[skkuverse] ${arrow}${plain}${data === undefined ? '' : ` ${JSON.stringify(data)}`}`;
+  const line = `[skkuverse] ${arrow}${name}${data === undefined ? '' : ` ${JSON.stringify(data)}`}`;
+  // The page chooses `name` and `data`, and `JSON.stringify` keeps DEL and the C1 controls, so a CSI could reach the terminal.
+  return line.replace(/[\u0000-\u001f\u007f-\u009f]/g, '?');
 }
 
 /** An `opaque` header is a band the page starts below, so the top edge is zero (`docs/reference/protocol.md`, "Shell"). */
