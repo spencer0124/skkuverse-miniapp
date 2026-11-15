@@ -53,6 +53,39 @@ function builtHtml(dir) {
   return found.sort();
 }
 
+const FENCE = /^\s*(```|~~~)/;
+
+/** Inline link targets and reference definitions outside code fences, with their line numbers. */
+function linksOf(text) {
+  const out = [];
+  let fenced = false;
+  text.split('\n').forEach((line, i) => {
+    if (FENCE.test(line)) fenced = !fenced;
+    if (fenced) return;
+    const bare = line.replace(/`[^`]*`/g, '');
+    for (const m of bare.matchAll(/\]\(<?([^)\s>]+)/g)) out.push({ href: m[1], line: i + 1 });
+    const def = /^\s{0,3}\[[^\]]+\]:\s*<?(\S+?)>?\s*$/.exec(bare);
+    if (def) out.push({ href: def[1], line: i + 1 });
+  });
+  return out;
+}
+
+function markdownCopies(dir) {
+  const found = [];
+  const walk = (d) => {
+    for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+      const full = path.join(d, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== 'assets') walk(full);
+      } else if (entry.name.endsWith('.md')) {
+        found.push(path.relative(dir, full).split(path.sep).join('/'));
+      }
+    }
+  };
+  walk(dir);
+  return found.sort();
+}
+
 describe('built site', () => {
   const sources = publishedSources(repoRoot);
 
@@ -94,5 +127,36 @@ describe('built site', () => {
 
   it('has llms-full.txt', () => {
     assert.ok(fs.statSync(path.join(dist, 'llms-full.txt')).size > 0);
+  });
+
+  it('resolves every link in the Markdown copies and llms-full.txt', () => {
+    const full = `${ORIGIN}${BASE}`;
+    const broken = [];
+    const check = (where, href, resolveRelative) => {
+      if (href.startsWith('#') || /^(mailto|tel):/i.test(href)) return;
+      const [target] = href.split(/[#?]/);
+      if (/^https?:/i.test(href)) {
+        if (target.startsWith(full)) {
+          if (!fs.existsSync(path.join(dist, target.slice(full.length)))) broken.push(`${where}: ${href} is not in the build`);
+        } else {
+          const blob = new RegExp(`^https://github\\.com/[^/]+/skkuverse-miniapp/(?:blob|tree)/main/(.+?)/?$`).exec(target);
+          if (blob && !fs.existsSync(path.join(repoRoot, decodeURI(blob[1])))) broken.push(`${where}: ${href} is not in the repository`);
+        }
+        return;
+      }
+      const resolved = resolveRelative(decodeURI(target));
+      if (resolved === null) broken.push(`${where}: ${href} is relative inside a single-file bundle`);
+      else if (!fs.existsSync(path.join(dist, resolved))) broken.push(`${where}: ${href} resolves to ${resolved}, which is not in the build`);
+    };
+    for (const copy of markdownCopies(dist)) {
+      const from = path.posix.dirname(copy);
+      for (const { href, line } of linksOf(fs.readFileSync(path.join(dist, copy), 'utf8'))) {
+        check(`${copy}:${line}`, href, (t) => (t.startsWith('/') ? t.replace(BASE, '') : path.posix.normalize(path.posix.join(from, t))));
+      }
+    }
+    for (const { href, line } of linksOf(fs.readFileSync(path.join(dist, 'llms-full.txt'), 'utf8'))) {
+      check(`llms-full.txt:${line}`, href, () => null);
+    }
+    assert.deepEqual(broken, [], `${broken.length} broken link(s)`);
   });
 });

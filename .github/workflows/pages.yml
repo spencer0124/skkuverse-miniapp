@@ -2,7 +2,8 @@ name: Pages
 
 # WHY: the docs site and its llms.txt are built from the Markdown in this repository and published on every push to
 # main. A pull request builds the same site through `pnpm test` in ci.yml, so a broken link or a page that drops out
-# fails before the merge. The build job holds no Pages permission, and the deploy job holds no repository code.
+# fails before the merge. The build job only reads the Pages settings, which configure-pages needs, and the deploy
+# job holds the write permission and no repository code.
 on:
   push:
     branches: [main]
@@ -21,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

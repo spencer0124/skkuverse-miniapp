@@ -1,9 +1,10 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitepress';
 import llmstxt from 'vitepress-plugin-llms';
+import { githubUrl, isPublishedPage, repoLinkOf, rewriteMarkdownOutputs } from './links.mts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const repoName = 'skkuverse-miniapp';
@@ -25,11 +26,6 @@ const srcExclude = [
   'docs/_template.md',
   '**/node_modules/**',
 ];
-
-const isPublishedPage = (rel: string) =>
-  rel === 'README.md' ||
-  /^packages\/[^/]+\/README\.md$/.test(rel) ||
-  (/^docs\/.+\.md$/.test(rel) && rel !== 'docs/_template.md');
 
 function pageTitle(file: string): string {
   const text = readFileSync(path.join(repoRoot, file), 'utf8');
@@ -54,8 +50,6 @@ const sidebar = [
   { text: 'Packages', items: packages.map((p) => ({ text: p, link: `/packages/${p}/` })) },
 ];
 
-const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
-
 export default defineConfig({
   title: repoName,
   description: 'The shared code every skkuverse miniapp imports, and the tools that check, test and ship one.',
@@ -69,6 +63,10 @@ export default defineConfig({
   },
   // WHY: with the repository root as srcDir, VitePress would load every config.ts under it, packages/cli/src/config.ts included.
   additionalConfig: {},
+  // WHY: the plugin writes the Markdown copies from the source text during the bundle, so their links are fixed afterwards.
+  buildEnd(siteConfig) {
+    rewriteMarkdownOutputs({ repoRoot, repoUrl, siteUrl: `${origin}${base}`, outDir: siteConfig.outDir });
+  },
   themeConfig: {
     nav: [
       { text: 'Docs', link: '/docs/README' },
@@ -92,17 +90,12 @@ export default defineConfig({
           for (const token of block.children ?? []) {
             if (token.type !== 'link_open') continue;
             const href = token.attrGet('href');
-            if (!href || href.startsWith('#') || href.startsWith('/') || SCHEME.test(href)) continue;
-            const [target, ...rest] = href.split(/(?=[#?])/);
-            const rel = path.posix.normalize(path.posix.join(from, decodeURI(target)));
-            if (rel.startsWith('..') || !existsSync(path.join(repoRoot, rel))) continue;
-            const suffix = rest.join('');
-            const pkg = /^packages\/([^/]+)(?:\/(?:README\.md)?)?$/.exec(rel);
-            if (pkg) {
-              token.attrSet('href', path.posix.relative(from, `packages/${pkg[1]}/index.md`) + suffix);
-            } else if (!isPublishedPage(rel)) {
-              const kind = statSync(path.join(repoRoot, rel)).isDirectory() ? 'tree' : 'blob';
-              token.attrSet('href', `${repoUrl}/${kind}/main/${rel.replace(/\/$/, '')}${suffix}`);
+            const link = href ? repoLinkOf(repoRoot, relativePath, href) : undefined;
+            if (!href || !link) continue;
+            if (link.pkg) {
+              token.attrSet('href', path.posix.relative(from, `packages/${link.pkg}/index.md`) + link.suffix);
+            } else if (!isPublishedPage(link.rel)) {
+              token.attrSet('href', githubUrl(repoUrl, link));
             }
           }
         }
