@@ -1,0 +1,46 @@
+{
+  "name": "@skkuverse/miniapp-contract",
+  "version": "0.0.0",
+  "description": "Opens a built skkuverse miniapp in Chromium under the production headers and judges the spec's runtime rules N1 to N4.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "miniapp-contract": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "homepage": "https://spencer0124.github.io/skkuverse-miniapp/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spencer0124/skkuverse-miniapp.git",
+    "directory": "packages/miniapp-contract"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "publint",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@skkuverse/miniapp": "workspace:^",
+    "@skkuverse/miniapp-cli": "workspace:^",
+    "playwright": "1.65.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "^8.3.7",
+    "vitest": "catalog:"
+  }
+}

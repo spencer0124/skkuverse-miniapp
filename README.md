@@ -21,6 +21,7 @@ skkuverse-miniapp is the SDK, the design system and the tools for skkuverse mini
 | [`@skkuverse/tokens`](packages/tokens) | SKKU Design System tokens for the web: colors, typography, spacing and radius, plus CSS adapters. | [![npm](https://img.shields.io/npm/v/@skkuverse/tokens)](https://www.npmjs.com/package/@skkuverse/tokens) |
 | [`@skkuverse/miniapp-cli`](packages/cli) | check, new and ship for a repository of skkuverse miniapps and games. | [![npm](https://img.shields.io/npm/v/@skkuverse/miniapp-cli)](https://www.npmjs.com/package/@skkuverse/miniapp-cli) |
 | [`@skkuverse/game-contract`](packages/game-contract) | Plays a built skkuverse game page against the SDK fake host and holds it to the game protocol contract. | [![npm](https://img.shields.io/npm/v/@skkuverse/game-contract)](https://www.npmjs.com/package/@skkuverse/game-contract) |
+| [`@skkuverse/miniapp-contract`](packages/miniapp-contract) | Opens a built skkuverse miniapp in Chromium under the production headers and judges the spec's runtime rules N1 to N4. | [![npm](https://img.shields.io/npm/v/@skkuverse/miniapp-contract)](https://www.npmjs.com/package/@skkuverse/miniapp-contract) |
 
 <!-- docs-gen:end package-table -->
 
