@@ -70,4 +70,39 @@ describe('loadConfig', () => {
       /apps\.b deploys to "miniapp-a", which apps\.a deploys to/,
     );
   });
+
+  it('accepts operatorPaths and queryParams on a miniapp, and refuses a path that would skip every route or none', () => {
+    const config = load({ apps: { club: { project: 'miniapp-club', operatorPaths: ['/admin', '/staff/'], queryParams: ['tab'] } } });
+    assert.deepEqual(entryOf(config, 'app', 'club')?.operatorPaths, ['/admin', '/staff/']);
+    assert.deepEqual(entryOf(config, 'app', 'club')?.queryParams, ['tab']);
+    for (const path of ['', '/', 'settings', '//admin']) {
+      assert.throws(
+        () => load({ apps: { club: { project: 'miniapp-club', operatorPaths: [path] } } }),
+        new RegExp(`apps\\.club\\.operatorPaths: "${path}" must start with / and name at least one segment, such as "/admin"`),
+      );
+    }
+    for (const [path, read] of [
+      ['/..', '/'],
+      ['/.', '/'],
+      ['/admin/../x', '/x'],
+      ['/admin/.', '/admin/'],
+      ['/%2e%2e', '/'],
+      ['/관리', '/%EA%B4%80%EB%A6%AC'], // conventions:allow-korean
+      ['/a<b', '/a%3Cb'],
+    ]) {
+      assert.throws(
+        () => load({ apps: { club: { project: 'miniapp-club', operatorPaths: [path] } } }),
+        new RegExp(`apps\\.club\\.operatorPaths: "${path}" never matches a route, because a browser reads it as "${read}"`),
+      );
+    }
+    for (const path of ['/admin*', '/*']) {
+      assert.throws(
+        () => load({ apps: { club: { project: 'miniapp-club', operatorPaths: [path] } } }),
+        new RegExp(`apps\\.club\\.operatorPaths: "${path.replaceAll('*', '\\*')}" holds \\*, but each path is matched as written, not as a pattern`),
+      );
+    }
+    assert.deepEqual(load({ apps: { club: { project: 'miniapp-club', operatorPaths: ['/%EA%B4%80%EB%A6%AC'] } } }).apps.club?.operatorPaths, ['/%EA%B4%80%EB%A6%AC']);
+    assert.throws(() => load({ apps: { club: { project: 'miniapp-club', operatorPaths: '/admin' } } }), /apps\.club\.operatorPaths must be a list of strings/);
+    assert.throws(() => load({ apps: { club: { project: 'miniapp-club', queryParams: [''] } } }), /apps\.club\.queryParams: a query key cannot be empty/);
+  });
 });

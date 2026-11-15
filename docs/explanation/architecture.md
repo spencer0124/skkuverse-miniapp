@@ -52,6 +52,7 @@ Three things used to be copied into every miniapp: the design system, the bridge
 | `@skkuverse/miniapp/react/ui` | SDS-styled components such as `MapButton` | `packages/miniapp/src/react/ui` |
 | `@skkuverse/miniapp-cli` | `check`, `new` and `ship`: the checker of the miniapp spec, the scaffold templates and the deploy | `packages/cli` |
 | `@skkuverse/game-contract` | Plays a built game against the fake host and holds it to the game protocol contract | `packages/game-contract` |
+| `@skkuverse/miniapp-contract` | Opens a built miniapp in Chromium under the production headers and judges the spec's runtime rules N1 to N4 | `packages/miniapp-contract` |
 | Mini-app shell | Injection, the message dispatcher, chrome and viewport | skkuverse-app `apps/mobile/app/mini-app.tsx` |
 | Registry | Identity, start URL, and the merged shell | skkuverse-server `src/miniapps` |
 
