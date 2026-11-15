@@ -7,6 +7,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   docBullets,
   eventHandlers,
@@ -93,6 +94,21 @@ function methodRows(listName, interfaceName, withKind) {
     const member = members.get(name);
     return withKind(name, member);
   });
+}
+
+/**
+ * The fake host's presets and failure-mode notes, read from the built `./testing` entry. The tables are data in the
+ * code, so a doc reads the values the host runs on instead of a description of them. `Infinity` is not JSON, so it
+ * crosses as the string `"Infinity"`.
+ */
+function testingData() {
+  const dist = path.join(root, 'packages/miniapp/dist/testing/index.js');
+  if (!fs.existsSync(dist)) throw new Error('packages/miniapp/dist/testing/index.js is missing. Run `pnpm build` first.');
+  const script = `import * as t from ${JSON.stringify(pathToFileURL(dist).href)};
+    const newest = Object.keys(t.HOST_METHODS_ADDED).at(-1);
+    const data = { presets: t.HOST_PRESETS, added: t.HOST_METHODS_ADDED, failures: t.FAILURE_MODE_NOTES, every: [...t.oldHostCapabilities(newest)].sort(), oldHost: t.resolvePreset('old-host:' + newest) };
+    process.stdout.write(JSON.stringify(data, (key, value) => (value === Infinity ? 'Infinity' : value)));`;
+  return JSON.parse(execFileSync('node', ['--input-type=module', '-e', script], { encoding: 'utf8' }));
 }
 
 function stepNames() {
@@ -297,6 +313,36 @@ export const transforms = {
   },
 
   'docs-index': ({ folder }) => docsIndex(folder),
+
+  'host-presets': () => {
+    const { presets, every, oldHost } = testingData();
+    const viewport = (preset) =>
+      preset.viewport === undefined ? '-' : `inset top ${preset.viewport.safeArea.top + preset.viewport.contentSafeArea.top} px, bottom ${preset.viewport.safeArea.bottom + preset.viewport.contentSafeArea.bottom} px`;
+    const grants = (preset) => {
+      if (preset.capabilities.length === 0) return 'none';
+      return [...preset.capabilities].sort().join() === every.join() ? 'every method' : sentenceList(preset.capabilities.map(code));
+    };
+    const rows = Object.entries(presets).map(([name, preset]) => [code(name), grants(preset), viewport(preset), preset.note]);
+    rows.push([code('old-host:<version>'), 'what that release grants, below', viewport(oldHost), 'An app built on an older SDK release, so a page meets the methods it lacks.']);
+    return table(['Preset', 'Grants', 'Viewport', 'What it is'], rows);
+  },
+
+  'old-host-versions': () => {
+    const { added } = testingData();
+    return table(
+      ['Version', 'Methods it added'],
+      Object.entries(added).map(([version, methods]) => [code(`old-host:${version}`), methods.length === 0 ? 'none' : sentenceList(methods.map(code))]),
+    );
+  },
+
+  'failure-modes': () => {
+    const { failures } = testingData();
+    const label = { denied: "'denied'", failed: "'failed'", timeout: "'timeout'", slowMs: '{ slowMs: number }' };
+    return table(
+      ['Failure mode', 'What the page sees'],
+      Object.entries(failures).map(([name, note]) => [code(label[name] ?? name), note]),
+    );
+  },
 
   'folder-state': ({ folder }) => {
     const dir = path.join(root, 'docs', folder);

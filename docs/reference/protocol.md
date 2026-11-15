@@ -292,6 +292,66 @@ The contract's rules, by the name `checkGameContract` reports:
 
 <!-- docs-gen:end contract-rules -->
 
+### Hosts and failures to test against
+
+`createFakeHost` takes a `preset`, a named host state, and `failureModes`, a table of what the host does to the request methods it names. A page is tested against the hosts and failures it will meet without the real app:
+
+```ts
+import { createFakeHost } from '@skkuverse/miniapp/testing';
+
+const host = createFakeHost({ preset: 'granted', failureModes: { 'demo.echo': 'denied' } });
+host.install();
+
+host.use({ 'demo.echo': 'failed' }, { once: true });
+host.resetHandlers();
+host.dispose();
+```
+
+The presets and the failure modes are two tables. A field passed beside `preset` wins over the preset's, so `createFakeHost({ preset: 'granted', capabilities: [] })` keeps the iPhone viewport and grants nothing.
+
+<!-- docs-gen:begin host-presets -->
+
+| Preset | Grants | Viewport | What it is |
+| --- | --- | --- | --- |
+| `granted` | every method | inset top 91 px, bottom 34 px | Grants every method of both lists, on the iPhone viewport. |
+| `nothing-granted` | none | inset top 91 px, bottom 34 px | The host is there and grants no method, so every SDK call takes its fallback. |
+| `no-host` | none | - | No host ever appears: `install()` does nothing, as in a plain browser. |
+| `late-host` | every method | inset top 91 px, bottom 34 px | The host appears 15000 ms after `install()`, later than a game page waits before it calls `onNoHost`. |
+| `slow-init` | every method | inset top 91 px, bottom 34 px | The host answers `game.ready` with `game.init` 2000 ms late. |
+| `old-host:<version>` | what that release grants, below | inset top 91 px, bottom 34 px | An app built on an older SDK release, so a page meets the methods it lacks. |
+
+<!-- docs-gen:end host-presets -->
+
+`old-host:<version>` grants every method added up to that release of `@skkuverse/miniapp`, which is what an app built on it grants:
+
+<!-- docs-gen:begin old-host-versions -->
+
+| Version | Methods it added |
+| --- | --- |
+| `old-host:0.2.0` | `haptic.impact`, `link.open`, `map.openPlace`, `miniapp.open`, `analytics.track`, `app.ready` and `shell.set` |
+| `old-host:0.2.1` | none |
+| `old-host:0.3.0` | `share.open` |
+| `old-host:0.4.0` | `game.ready`, `game.start`, `game.phase`, `game.layout`, `game.haptic` and `game.over` |
+| `old-host:0.4.1` | none |
+| `old-host:0.4.2` | none |
+
+<!-- docs-gen:end old-host-versions -->
+
+A failure mode changes only the method it names. A named method joins the host's capabilities, because `request()` rejects a method the host does not grant with `unsupported` before it posts anything, and without that every failure mode would measure the grant check. A request with no mode resolves `null`.
+
+<!-- docs-gen:begin failure-modes -->
+
+| Failure mode | What the page sees |
+| --- | --- |
+| `'denied'` | The request rejects at once with a `MiniappError` whose `code` is `denied`. |
+| `'failed'` | The request rejects at once with a `MiniappError` whose `code` is `failed`. |
+| `'timeout'` | The host never answers, so the request rejects with `timeout` after its own `timeoutMs`, 10 s by default. |
+| `{ slowMs: number }` | The host answers with a `null` result after the given milliseconds. |
+
+<!-- docs-gen:end failure-modes -->
+
+`use(overrides, { once })` layers modes over `failureModes`. The newest override of a method wins, a `once` override answers the next request to its method only, and `resetHandlers()` drops every override. `use()` on a host that is already installed throws for a method the host does not grant, because the bootstrap froze the capability list: name the method in `failureModes`, or call `use()` before `install()`. The host logs each answer as the event `response`.
+
 ## Outside the app
 
 `MiniappRoot` blocks a plain browser by default. It renders a full-screen "스꾸버스 앱에서 열기" page linking to `https://skkuverse.com/p/m/<id>`. <!-- conventions:allow-korean: the gate's button label, quoted as product copy --> That universal link opens the app when it is installed and shows the store links otherwise. A miniapp opts out with `browser="allow"`. On localhost and private addresses, or with `dev`, it never blocks and shows a small banner instead.

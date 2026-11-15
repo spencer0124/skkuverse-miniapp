@@ -9,9 +9,15 @@ audience: public
 
 # Interface: FakeHostOptions
 
-For tests, never for a page: a fake game host built on the app's real
-bootstrap, the protocol contract every game keeps, and the pinned bound
-points of the ranked games.
+Without a `preset`, the host grants `GAME_NOTIFY_METHODS` (what the app grants
+a game origin) on `ZERO_VIEWPORT`, and answers `game.ready` with `game.init`
+on a microtask, as the app's delivery is asynchronous. `init` defaults to this
+SDK's `GAME_PROTOCOL`, a best of 0 and sound on, and `false` leaves `init()` to
+the test. A field passed here wins over the same field of the preset.
+
+## Extends
+
+- [`HostPreset`](HostPreset.md)
 
 ## Properties
 
@@ -19,7 +25,34 @@ points of the ranked games.
 
 > `optional` **capabilities?**: readonly `string`[]
 
-Granted methods. Defaults to `GAME_NOTIFY_METHODS`, what the app grants a game origin.
+Methods the host grants.
+
+#### Inherited from
+
+[`HostPreset`](HostPreset.md).[`capabilities`](HostPreset.md#capabilities)
+
+***
+
+### failureModes?
+
+> `optional` **failureModes?**: `Readonly`\<`Record`\<`string`, [`FailureMode`](../README.md#failuremode)\>\>
+
+What the host does to the request methods it names. A named method joins the
+host's capabilities, because `request()` rejects a method the host does not
+grant with `unsupported` before anything is posted.
+
+***
+
+### hostDelayMs?
+
+> `optional` **hostDelayMs?**: `number`
+
+Milliseconds before `install()` takes effect: the page boots first and the
+host appears later. `Infinity` is a host that never appears.
+
+#### Inherited from
+
+[`HostPreset`](HostPreset.md).[`hostDelayMs`](HostPreset.md#hostdelayms)
 
 ***
 
@@ -27,9 +60,31 @@ Granted methods. Defaults to `GAME_NOTIFY_METHODS`, what the app grants a game o
 
 > `optional` **init?**: `false` \| `Partial`\<[`GameInit`](../../protocol/interfaces/GameInit.md)\>
 
-Answer `game.ready` with `game.init`, on a microtask as the app's
-delivery is asynchronous. Defaults to this SDK's `GAME_PROTOCOL`, a best
-of 0 and sound on. `false` leaves `init()` to the test.
+What the host answers `game.ready` with, or `false` to leave `init()` to the test.
+
+#### Inherited from
+
+[`HostPreset`](HostPreset.md).[`init`](HostPreset.md#init)
+
+***
+
+### initDelayMs?
+
+> `optional` **initDelayMs?**: `number`
+
+Milliseconds the host waits before it answers `game.ready` with `game.init`. `Infinity` is never.
+
+#### Inherited from
+
+[`HostPreset`](HostPreset.md).[`initDelayMs`](HostPreset.md#initdelayms)
+
+***
+
+### preset?
+
+> `optional` **preset?**: [`HostPresetName`](../README.md#hostpresetname)
+
+A named host state: `granted`, `nothing-granted`, `no-host`, `late-host`, `slow-init` or `old-host:<version>`.
 
 ***
 
@@ -37,4 +92,6 @@ of 0 and sound on. `false` leaves `init()` to the test.
 
 > `optional` **viewport?**: [`Viewport`](../../interfaces/Viewport.md)
 
-Defaults to `ZERO_VIEWPORT`.
+#### Inherited from
+
+[`HostPreset`](HostPreset.md).[`viewport`](HostPreset.md#viewport)
