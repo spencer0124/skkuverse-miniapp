@@ -9,7 +9,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
     "generate": "node src/matrix.mjs --write",
     "check": "node src/matrix.mjs --check"
   },

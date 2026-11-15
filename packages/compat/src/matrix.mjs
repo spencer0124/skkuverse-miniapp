@@ -12,7 +12,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
-import { availableParallelism } from 'node:os';
+import os, { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
@@ -76,7 +76,7 @@ const cellScript = path.join(import.meta.dirname, 'cell.mjs');
 
 function runCellProcess(install, [mode, page, host, build]) {
   return new Promise((resolve) => {
-    execFile(
+    const child = execFile(
       process.execPath,
       ['--no-warnings', cellScript, mode, page, host, build],
       { env: { ...process.env, COMPAT_INSTALL: install }, timeout: 60000, maxBuffer: 4 << 20 },
@@ -88,6 +88,12 @@ function runCellProcess(install, [mode, page, host, build]) {
         }
       },
     );
+    // WHY: turbo runs this package's tests beside timing-sensitive browser tests, which fail when the cells take every core.
+    try {
+      os.setPriority(child.pid, 19);
+    } catch {
+      // The cell still runs at the normal priority, only slower for its neighbours.
+    }
   });
 }
 
@@ -97,7 +103,7 @@ export async function runMatrix(install) {
   const results = new Array(jobs.length);
   let next = 0;
   await Promise.all(
-    Array.from({ length: availableParallelism() }, async () => {
+    Array.from({ length: Math.max(2, Math.floor(availableParallelism() / 2)) }, async () => {
       while (next < jobs.length) {
         const i = next++;
         results[i] = await runCellProcess(install, jobs[i]);
