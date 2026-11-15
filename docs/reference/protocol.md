@@ -52,16 +52,16 @@ These are a miniapp's methods, the ones `NOTIFY_METHODS` lists. A game's are und
 
 <!-- docs-gen:begin method-table kind=miniapp -->
 
-| Method | Params | Notes |
-| --- | --- | --- |
-| `haptic.impact` | `{ style: 'light' \| 'medium' \| 'heavy' }` | - |
-| `link.open` | `{ url, appUrl? }` | Open a URL outside the page |
-| `map.openPlace` | `{ place }` | Close the page and open the campus map on `place` (`[<kind>:]<placeId>`) |
-| `miniapp.open` | `{ target }` | Open another registered miniapp: `<id>[/path]` |
-| `share.open` | `{ url, text? }` | Open the app's share sheet on `url`, with `text` as the message above it |
-| `analytics.track` | `{ event, params? }` | - |
-| `app.ready` | none | The page has rendered |
-| `shell.set` | `{ header?: 'opaque' \| 'overlay', statusBar?: 'light' \| 'dark', background? }` | - |
+| Method | Params | SDK | Notes |
+| --- | --- | --- | --- |
+| `haptic.impact` | `{ style: 'light' \| 'medium' \| 'heavy' }` | `haptic()` | - |
+| `link.open` | `{ url, appUrl? }` | `openUrl()`, `handleLinkClick()` | Open a URL outside the page |
+| `map.openPlace` | `{ place }` | `openMapPlace()` | Close the page and open the campus map on `place` (`[<kind>:]<placeId>`) |
+| `miniapp.open` | `{ target }` | `openMiniapp()` | Open another registered miniapp: `<id>[/path]` |
+| `share.open` | `{ url, text? }` | `share()` | Open the app's share sheet on `url`, with `text` as the message above it |
+| `analytics.track` | `{ event, params? }` | `track()` | - |
+| `app.ready` | none | `ready()` | The page has rendered |
+| `shell.set` | `{ header?: 'opaque' \| 'overlay', statusBar?: 'light' \| 'dark', background? }` | `setShell()` | - |
 
 <!-- docs-gen:end method-table -->
 
@@ -168,14 +168,14 @@ All are notifications from the page.
 
 <!-- docs-gen:begin method-table kind=game -->
 
-| Method | Params | Notes |
-| --- | --- | --- |
-| `game.ready` | `{ rect? }` | The page can be shown |
-| `game.start` | none | A run began |
-| `game.phase` | `{ phase: 'ready' \| 'running' \| 'paused' \| 'crashed' }` | - |
-| `game.layout` | `{ rect }` | A rectangle the host draws over moved, after a resize for example |
-| `game.haptic` | `{ style: 'light' \| 'medium' \| 'heavy' \| 'soft' \| 'rigid' \| 'error' \| 'success' }` | - |
-| `game.over` | `{ score, ticks, hit, revives, revivesLeft, validator?, stats?, telemetry? }` | - |
+| Method | Params | SDK | Notes |
+| --- | --- | --- | --- |
+| `game.ready` | `{ rect? }` | `bootGame()` | The page can be shown |
+| `game.start` | none | `start()` | A run began |
+| `game.phase` | `{ phase: 'ready' \| 'running' \| 'paused' \| 'crashed' }` | `phase()` | - |
+| `game.layout` | `{ rect }` | `layout()` | A rectangle the host draws over moved, after a resize for example |
+| `game.haptic` | `{ style: 'light' \| 'medium' \| 'heavy' \| 'soft' \| 'rigid' \| 'error' \| 'success' }` | `haptic()` | - |
+| `game.over` | `{ score, ticks, hit, revives, revivesLeft, validator?, stats?, telemetry? }` | `over()` | - |
 
 <!-- docs-gen:end method-table -->
 
@@ -187,15 +187,15 @@ A rectangle is `{ x, y, width, height }` in CSS pixels, relative to the web view
 
 <!-- docs-gen:begin event-table -->
 
-| Event | Data | Notes |
-| --- | --- | --- |
-| `game.init` | `{ gameProtocol, hi, sound }` | - |
-| `game.pause` | none | Stop the run's clock and its audio |
-| `game.resume` | none | - |
-| `game.sound` | `{ on }` | The player's sound setting changed |
-| `game.reset` | none | Back to the title, with no run started: the player closed the result |
-| `game.restart` | none | Start a new run straight away |
-| `game.revive` | none | Continue the crashed run: sent only after a rewarded ad paid out |
+| Event | Data | Handler | Notes |
+| --- | --- | --- | --- |
+| `game.init` | `{ gameProtocol, hi, sound }` | `onInit` | - |
+| `game.pause` | none | `onPause` | Stop the run's clock and its audio |
+| `game.resume` | none | `onResume` | - |
+| `game.sound` | `{ on }` | `onSound` | The player's sound setting changed |
+| `game.reset` | none | `onReset` | Back to the title, with no run started: the player closed the result |
+| `game.restart` | none | `onRestart` | Start a new run straight away |
+| `game.revive` | none | `onRevive` | Continue the crashed run: sent only after a rewarded ad paid out |
 
 <!-- docs-gen:end event-table -->
 

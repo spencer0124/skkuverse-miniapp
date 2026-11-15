@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { Application, ReflectionKind } from 'typedoc';
 import { MarkdownPageEvent } from 'typedoc-plugin-markdown';
 import { files, transforms, verifiers } from '../md.config.mjs';
@@ -13,6 +14,7 @@ import { fill, unbalanced } from './engine.mjs';
 import { root } from './sources.mjs';
 
 export const STALE = 'Docs are out of date. Run `pnpm docs:gen` and commit the result.';
+export const UNFIXABLE = 'The generator cannot fix these. Edit the doc.';
 
 const API_DIR = 'docs/reference/api';
 
@@ -129,27 +131,47 @@ function apply(writes) {
   }
 }
 
-export const report = (stale, unfixable) => `${STALE}\n${[...stale, ...unfixable].map((line) => `  ${line}`).join('\n')}`;
+const lines = (items) => items.map((line) => `  ${line}`).join('\n');
 
-async function main() {
-  const { writes, stale, unfixable } = await plan();
-  if (process.argv.includes('--check')) {
-    if (stale.length + unfixable.length > 0) {
-      console.error(report(stale, unfixable));
+/** The message for a drift: the fix to run only when the generator can write one, the doc to edit for the rest. */
+export function report(stale, unfixable) {
+  const sections = [];
+  if (stale.length > 0) sections.push(`${STALE}\n${lines(stale)}`);
+  if (unfixable.length > 0) sections.push(`${UNFIXABLE}\n${lines(unfixable)}`);
+  return sections.join('\n');
+}
+
+/** What `--check` prints, or `null` when every generated part and the API reference match the code. */
+export async function check(options) {
+  const { stale, unfixable } = await plan(options);
+  return stale.length + unfixable.length > 0 ? report(stale, unfixable) : null;
+}
+
+async function main(args) {
+  const unknown = args.filter((arg) => arg !== '--check');
+  if (unknown.length > 0) throw new Error(`unknown argument ${unknown.join(' ')}. The only option is --check.`);
+  if (args.includes('--check')) {
+    const message = await check();
+    if (message !== null) {
+      console.error(message);
       process.exitCode = 1;
     }
-  } else {
-    apply(writes);
-    if (unfixable.length > 0) {
-      console.error(`The generator cannot fix these. Edit the doc.\n${unfixable.map((line) => `  ${line}`).join('\n')}`);
-      process.exitCode = 1;
-    }
+    return;
+  }
+  const { writes, unfixable } = await plan();
+  apply(writes);
+  if (unfixable.length > 0) {
+    console.error(report([], unfixable));
+    process.exitCode = 1;
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Compare real paths as URLs: a space, a non-ASCII letter, `#` or `%` in the path, or a symlink, would otherwise make
+// the two differ and the script exit 0 without running.
+const entry = process.argv[1] === undefined ? undefined : pathToFileURL(fs.realpathSync(process.argv[1])).href;
+if (import.meta.url === entry) {
   try {
-    await main();
+    await main(process.argv.slice(2));
   } catch (error) {
     console.error(`docs-gen stopped: ${error instanceof Error ? error.message : error}`);
     process.exitCode = 1;

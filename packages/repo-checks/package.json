@@ -13,7 +13,6 @@
     "docs:gen": "node scripts/docs-gen.mjs"
   },
   "devDependencies": {
-    "@skkuverse/game-contract": "workspace:*",
     "@skkuverse/miniapp": "workspace:*",
     "@skkuverse/miniapp-cli": "workspace:*",
     "@skkuverse/tokens": "workspace:*",

@@ -170,3 +170,91 @@ export function packages() {
 
 /** The packages npm gets: every one that is not private. */
 export const published = () => packages().filter(({ manifest }) => manifest.private !== true);
+
+function parsed(file) {
+  return ts.createSourceFile(file, readText(file), ts.ScriptTarget.ES2022, true);
+}
+
+function sourceFiles(spec) {
+  if (!spec.endsWith('/')) return [spec];
+  return fs
+    .readdirSync(path.join(root, spec))
+    .filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'))
+    .sort()
+    .map((name) => `${spec}${name}`);
+}
+
+const memberName = (node) => (node.name !== undefined && (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name)) ? node.name.text : undefined);
+
+/** The function a call sits in, as the page author calls it: an object method, or the nearest top-level function. */
+function enclosingFunction(node) {
+  for (let up = node.parent; up !== undefined; up = up.parent) {
+    if (ts.isMethodDeclaration(up) && ts.isObjectLiteralExpression(up.parent)) return { name: memberName(up) };
+    if (ts.isPropertyAssignment(up) && ts.isObjectLiteralExpression(up.parent) && (ts.isFunctionExpression(up.initializer) || ts.isArrowFunction(up.initializer))) return { name: memberName(up) };
+    if (ts.isFunctionDeclaration(up) && ts.isSourceFile(up.parent) && up.name !== undefined) {
+      return { name: up.name.text, exported: up.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true };
+    }
+  }
+  return undefined;
+}
+
+/** The exported top-level functions of a file whose body calls `name`, which is how a private helper's callers are found. */
+function exportedCallersOf(source, name) {
+  const callers = [];
+  for (const statement of source.statements) {
+    if (!ts.isFunctionDeclaration(statement) || statement.name === undefined || !statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) continue;
+    let calls = false;
+    const visit = (node) => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === name) calls = true;
+      ts.forEachChild(node, visit);
+    };
+    visit(statement);
+    if (calls) callers.push(statement.name.text);
+  }
+  return callers;
+}
+
+/**
+ * The page-side functions that send each wire method: every `notify('<method>', ...)` call in the files, named by the
+ * function it sits in, or by the exported functions that call it when it sits in a private helper. `spec` is a file,
+ * or a folder ending in a slash for every `.ts` file in it.
+ */
+export function methodSenders(spec) {
+  const found = new Map();
+  for (const file of sourceFiles(spec)) {
+    const source = parsed(file);
+    const visit = (node) => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'notify' && node.arguments[0] !== undefined && ts.isStringLiteralLike(node.arguments[0])) {
+        const where = enclosingFunction(node);
+        const names = where === undefined ? [] : where.exported === false ? exportedCallersOf(source, where.name) : [where.name];
+        const method = node.arguments[0].text;
+        found.set(method, [...new Set([...(found.get(method) ?? []), ...names.map((name) => `${name}()`)])]);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  return found;
+}
+
+/** The handler each host event reaches: a `case '<event>':` or an `if (... === '<event>')` that calls `handlers.<name>`. */
+export function eventHandlers(file) {
+  const found = new Map();
+  const calls = (node) => {
+    const names = [];
+    const visit = (child) => {
+      if (ts.isPropertyAccessExpression(child) && ts.isIdentifier(child.expression) && child.expression.text === 'handlers' && child.name.text.startsWith('on')) names.push(child.name.text);
+      ts.forEachChild(child, visit);
+    };
+    visit(node);
+    return names;
+  };
+  const add = (event, node) => found.set(event, [...new Set([...(found.get(event) ?? []), ...calls(node)])]);
+  const visit = (node) => {
+    if (ts.isCaseClause(node) && ts.isStringLiteralLike(node.expression)) add(node.expression.text, node);
+    if (ts.isIfStatement(node) && ts.isBinaryExpression(node.expression) && node.expression.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken && ts.isStringLiteralLike(node.expression.right)) add(node.expression.right.text, node.thenStatement);
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed(file));
+  return found;
+}

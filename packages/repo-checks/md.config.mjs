@@ -9,9 +9,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   docBullets,
+  eventHandlers,
   interfaceKeys,
   interfaceMembers,
   literalUnion,
+  methodSenders,
   numberConstant,
   packages,
   published,
@@ -26,6 +28,8 @@ const MESSAGES = 'packages/miniapp/src/protocol/messages.ts';
 const CONTRACT = 'packages/miniapp/src/testing/contract.ts';
 const CLI_CHECK = 'packages/cli/src/check.ts';
 const CLI_REPORT = 'packages/cli/src/report.ts';
+const SDK_DIR = 'packages/miniapp/src/sdk/';
+const GAME_BOOT = 'packages/miniapp/src/game/boot.ts';
 const HARNESS = 'packages/game-contract/src/harness.ts';
 
 export const files = [
@@ -101,11 +105,11 @@ function nodeFloor() {
   return match[1];
 }
 
-function enginesPhrase(range) {
+export function enginesPhrase(range) {
   const phrases = range.split('||').map((alternative) => {
     const [, op, major, minor, patch] = /^(>=|\^)(\d+)\.(\d+)\.(\d+)$/.exec(alternative.trim()) ?? [];
     if (op === undefined) throw new Error(`engines.node "${range}" has a range docs-gen does not know how to say`);
-    const version = minor === '0' && patch === '0' ? major : `${major}.${minor}`;
+    const version = patch !== '0' ? `${major}.${minor}.${patch}` : minor === '0' ? major : `${major}.${minor}`;
     if (op === '>=') return `Node ${version} or later`;
     return minor === '0' && patch === '0' ? `Node ${version}` : `Node ${version} or later in the ${major} line`;
   });
@@ -125,21 +129,22 @@ function minutes(ms) {
   return word(ms / 60000);
 }
 
-const ROLES = { 5: 'repository admin role' };
+const ROLES = { 5: { role: 'repository admin role', who: 'an admin' } };
 
 function rulesetRules(ruleset) {
   const sentences = [];
+  const bans = [];
   for (const rule of ruleset.rules) {
     const p = rule.parameters ?? {};
     switch (rule.type) {
       case 'deletion':
-        sentences.push('No deletion');
+        bans.push('deletion');
         break;
       case 'non_fast_forward':
-        sentences.push('No force push');
+        bans.push('force push');
         break;
       case 'update':
-        sentences.push('No update');
+        bans.push('update');
         break;
       case 'pull_request': {
         const methods = p.allowed_merge_methods.map((m) => `${m} commit`);
@@ -167,11 +172,18 @@ function rulesetRules(ruleset) {
         throw new Error(`ruleset ${ruleset.name} has a "${rule.type}" rule that docs-gen cannot describe. Teach rulesetRules in md.config.mjs.`);
     }
   }
-  if (ruleset.bypass_actors.length === 0) sentences.push('Nobody bypasses it');
+  if (bans.length > 0) sentences.unshift(bans.length === 1 && ruleset.rules.length === 1 && bans[0] === 'update' ? 'Blocks every update' : `No ${bans.join(', no ')}`);
+  // An update is what a merge does to a branch, and what moving a tag does to it, so a ruleset that bans updates says
+  // who is left able to do it.
+  const updatesBanned = bans.includes('update');
+  if (ruleset.bypass_actors.length === 0) {
+    sentences.push(updatesBanned ? `Nobody bypasses it, so ${ruleset.target === 'tag' ? 'a tag it matches never moves' : 'nothing merges into it'}` : 'Nobody bypasses it');
+  }
   for (const actor of ruleset.bypass_actors) {
-    const role = ROLES[actor.actor_id];
-    if (actor.actor_type !== 'RepositoryRole' || role === undefined) throw new Error(`ruleset ${ruleset.name} has a bypass actor docs-gen cannot name`);
-    sentences.push(`The ${role} bypasses it`);
+    const known = ROLES[actor.actor_id];
+    if (actor.actor_type !== 'RepositoryRole' || known === undefined) throw new Error(`ruleset ${ruleset.name} has a bypass actor docs-gen cannot name`);
+    const only = updatesBanned && ruleset.target !== 'tag' ? `, so only ${known.who} merges into ${rulesetScope(ruleset)}` : '';
+    sentences.push(`The ${known.role} bypasses it${only}`);
   }
   if (ruleset.enforcement !== 'active') sentences.unshift(`Enforcement is ${ruleset.enforcement}`);
   return `${sentences.join('. ')}`;
@@ -190,7 +202,12 @@ function docsIndex(folder) {
   if (folder === 'decisions') {
     return table(
       ['Document', 'Status'],
-      names.map((name) => [link(name), frontmatter(readText(`docs/${folder}/${name}`)).status]),
+      names.map((name) => {
+        const text = readText(`docs/${folder}/${name}`);
+        const amended = [...text.matchAll(/^## Amendment (\d{4}-\d{2}-\d{2})\b/gm)].map((match) => match[1]);
+        const status = frontmatter(text).status;
+        return [link(name), amended.length === 0 ? status : `${status} (amended ${amended.join(', ')})`];
+      }),
     );
   }
   const rows = names.map((name) => [link(name), leadQuote(readText(`docs/${folder}/${name}`))]);
@@ -203,14 +220,30 @@ function docsIndex(folder) {
 export const transforms = {
   'method-table': ({ kind }) => {
     const [list, owner] = kind === 'game' ? ['GAME_NOTIFY_METHODS', 'GameNotifyMethods'] : ['NOTIFY_METHODS', 'MiniappNotifyMethods'];
-    return table(['Method', 'Params', 'Notes'], methodRows(list, owner, (name, member) => [code(name), member.params === 'none' ? 'none' : code(member.params), member.doc]));
+    const senders = methodSenders(kind === 'game' ? GAME_BOOT : SDK_DIR);
+    return table(
+      ['Method', 'Params', 'SDK', 'Notes'],
+      methodRows(list, owner, (name, member) => {
+        const sent = senders.get(name);
+        if (sent === undefined) throw new Error(`${name} is granted but no function in ${kind === 'game' ? GAME_BOOT : SDK_DIR} calls notify('${name}', ...). Add the sender, or drop the grant.`);
+        return [code(name), member.params === 'none' ? 'none' : code(member.params), sent.map(code).join(', '), member.doc];
+      }),
+    );
   },
 
   'event-table': () => {
     const members = new Map(interfaceMembers(MESSAGES, 'GameHostEvents').map((member) => [member.name, member]));
     const events = stringArray(MESSAGES, 'GAME_EVENTS');
     if (events.join() !== [...members.keys()].join()) throw new Error(`${MESSAGES}: GAME_EVENTS and GameHostEvents disagree`);
-    return table(['Event', 'Data', 'Notes'], events.map((name) => [code(name), members.get(name).params === 'none' ? 'none' : code(members.get(name).params), members.get(name).doc]));
+    const handlers = eventHandlers(GAME_BOOT);
+    return table(
+      ['Event', 'Data', 'Handler', 'Notes'],
+      events.map((name) => {
+        const handler = handlers.get(name);
+        if (handler === undefined || handler.length === 0) throw new Error(`${name} is a host event but ${GAME_BOOT} calls no handler for it. Add the case, or drop the event.`);
+        return [code(name), members.get(name).params === 'none' ? 'none' : code(members.get(name).params), handler.map(code).join(', '), members.get(name).doc];
+      }),
+    );
   },
 
   'error-codes': () => sentenceList(literalUnion(MESSAGES, 'ErrorCode').map(code)),

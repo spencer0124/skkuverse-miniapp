@@ -21,6 +21,8 @@
   "treatValidationWarningsAsErrors": true,
   "excludePrivate": true,
   "excludeInternal": true,
+  // A component that extends a React HTML element would list every attribute of the element. That is React's API.
+  "excludeExternals": true,
   "readme": "none",
   "hideGenerator": true,
   "hideBreadcrumbs": true,

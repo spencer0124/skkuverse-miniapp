@@ -127,9 +127,6 @@ importers:
 
   packages/repo-checks:
     devDependencies:
-      '@skkuverse/game-contract':
-        specifier: workspace:*
-        version: link:../game-contract
       '@skkuverse/miniapp':
         specifier: workspace:*
         version: link:../miniapp

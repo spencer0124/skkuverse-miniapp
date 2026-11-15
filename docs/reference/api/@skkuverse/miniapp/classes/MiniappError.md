@@ -37,46 +37,6 @@ Thrown by `request` when the app answers with an error, or never answers.
 
 ## Properties
 
-### cause?
-
-> `optional` **cause?**: `unknown`
-
-#### Inherited from
-
-`Error.cause`
-
-***
-
 ### code
 
 > `readonly` **code**: [`ErrorCode`](../protocol/README.md#errorcode)
-
-***
-
-### message
-
-> **message**: `string`
-
-#### Inherited from
-
-`Error.message`
-
-***
-
-### name
-
-> **name**: `string`
-
-#### Inherited from
-
-`Error.name`
-
-***
-
-### stack?
-
-> `optional` **stack?**: `string`
-
-#### Inherited from
-
-`Error.stack`

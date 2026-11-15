@@ -10,21 +10,22 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
-import { files, transforms } from '../md.config.mjs';
-import { plan, report, STALE } from '../scripts/docs-gen.mjs';
+import { enginesPhrase, files, transforms } from '../md.config.mjs';
+import { check, plan, report, STALE, UNFIXABLE } from '../scripts/docs-gen.mjs';
 import { fill, partsOf, unbalanced } from '../scripts/engine.mjs';
+import { methodSenders } from '../scripts/sources.mjs';
 
 const root = path.join(import.meta.dirname, '../../..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 describe('the generated docs', () => {
-  it('match what pnpm docs:gen writes now', () => {
-    const run = spawnSync('node', [path.join(import.meta.dirname, '../scripts/docs-gen.mjs'), '--check'], { cwd: root, encoding: 'utf8' });
+  it('match what pnpm docs:gen writes now', async () => {
+    const message = await check();
 
-    assert.equal(run.error, undefined, `node did not run: ${run.error}`);
-    assert.equal(run.status, 0, `${run.stderr}\nRun \`pnpm docs:gen\` and commit the result.`);
+    assert.equal(message, null, message ?? '');
   });
 
   it('are the same after a second run', () => {
@@ -49,6 +50,45 @@ describe('the generated docs', () => {
 
     assert.deepEqual(stale, ['docs/reference/protocol.md: a generated part differs from the code']);
     assert.match(report(stale, unfixable), new RegExp(STALE.replaceAll('`', '\\`')));
+  });
+
+  it('say to run the generator only for what it can write, and to edit the doc for the rest', () => {
+    const onlyUnfixable = report([], ['a.md: a table is wrong']);
+    assert.match(onlyUnfixable, new RegExp(UNFIXABLE));
+    assert.doesNotMatch(onlyUnfixable, /pnpm docs:gen/);
+
+    const onlyStale = report(['b.md: a generated part differs from the code'], []);
+    assert.match(onlyStale, new RegExp(STALE.replaceAll('`', '\\`')));
+    assert.doesNotMatch(onlyStale, new RegExp(UNFIXABLE));
+  });
+
+  it('run, and fail on an argument it does not know, from a path with a space and a symlink in it', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'docs gen '));
+    try {
+      const link = path.join(dir, 'a link', 'docs-gen.mjs');
+      fs.mkdirSync(path.dirname(link));
+      fs.symlinkSync(path.join(import.meta.dirname, '../scripts/docs-gen.mjs'), link);
+
+      const run = spawnSync('node', [link, '--no-such-option'], { cwd: root, encoding: 'utf8' });
+
+      assert.equal(run.error, undefined);
+      assert.equal(run.status, 1, `exited ${run.status} without running: ${run.stdout}${run.stderr}`);
+      assert.match(run.stderr, /unknown argument --no-such-option/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('say a nonzero patch of a Node range', () => {
+    assert.equal(enginesPhrase('>=22.13.1'), 'Node 22.13.1 or later');
+    assert.equal(enginesPhrase('>=22.13.0'), 'Node 22.13 or later');
+    assert.equal(enginesPhrase('^20.19.2 || >=22.13.0'), 'Node 20.19.2 or later in the 20 line, or Node 22.13 or later');
+  });
+
+  it('name the SDK function that sends each method and the handler that receives each event', () => {
+    assert.deepEqual(methodSenders('packages/miniapp/src/sdk/').get('haptic.impact'), ['haptic()']);
+    assert.deepEqual(methodSenders('packages/miniapp/src/game/boot.ts').get('game.ready'), ['bootGame()']);
+    assert.match(read('docs/reference/protocol.md'), /\| `game\.init` \| .* \| `onInit` \|/);
   });
 
   it('fail when a part is named that no transform writes', () => {

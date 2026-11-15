@@ -15,9 +15,7 @@ audience: public
 
 ### \_\_namedParameters
 
-#### children?
-
-`ReactNode`
+\{ \}
 
 ## Returns
 

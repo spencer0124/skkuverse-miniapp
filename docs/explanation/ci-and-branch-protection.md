@@ -56,9 +56,9 @@ Each ruleset is recorded in [`.github/rulesets/`](../../.github/rulesets) as `<n
 
 | Ruleset | Applies to | Rules |
 | --- | --- | --- |
-| `main` | `main` | No deletion. No force push. A pull request is required, merged with a merge commit only, with every review thread resolved. It needs no approving review. Required checks are `build`, `ci / gate`, `GitGuardian Security Checks`, `CodeRabbit`, `gate` and `test (node 22.13.0)`, and the branch must be up to date with `main`. CodeQL results gate the merge: an error alert, or a security alert of high severity or worse. Nobody bypasses it |
-| `owner-updates` | `main` | No update. The repository admin role bypasses it |
-| `release-tags` | Tags matching `refs/tags/@skkuverse/**` | No update. No deletion. Nobody bypasses it |
+| `main` | `main` | No deletion, no force push. A pull request is required, merged with a merge commit only, with every review thread resolved. It needs no approving review. Required checks are `build`, `ci / gate`, `GitGuardian Security Checks`, `CodeRabbit`, `gate` and `test (node 22.13.0)`, and the branch must be up to date with `main`. CodeQL results gate the merge: an error alert, or a security alert of high severity or worse. Nobody bypasses it |
+| `owner-updates` | `main` | Blocks every update. The repository admin role bypasses it, so only an admin merges into `main` |
+| `release-tags` | Tags matching `refs/tags/@skkuverse/**` | No update, no deletion. Nobody bypasses it, so a tag it matches never moves |
 
 <!-- docs-gen:end rulesets-table -->
 

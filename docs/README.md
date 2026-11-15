@@ -83,7 +83,7 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 
 | Document | Status |
 | --- | --- |
-| [0001-sdk-distribution.md](decisions/0001-sdk-distribution.md) | accepted |
+| [0001-sdk-distribution.md](decisions/0001-sdk-distribution.md) | accepted (amended 2026-09-26, 2026-11-10, 2026-11-14) |
 | [0002-miniapp-protocol-shell-viewport.md](decisions/0002-miniapp-protocol-shell-viewport.md) | accepted |
 | [0003-spec-checker-in-this-repository.md](decisions/0003-spec-checker-in-this-repository.md) | accepted |
 
