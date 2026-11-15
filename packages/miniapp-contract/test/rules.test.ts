@@ -366,6 +366,45 @@ document.body.append('items');`;
   });
 });
 
+/**
+ * Runs `done` after 600 ms of work split into 10 ms tasks, the way React's
+ * scheduler splits a render, so the page sends nothing for longer than the
+ * quiet window while it is still busy.
+ */
+const AFTER_WORK = `const afterWork = (done) => {
+  const channel = new MessageChannel();
+  let tasks = 60;
+  channel.port1.onmessage = () => {
+    const end = performance.now() + 10;
+    while (performance.now() < end);
+    if (--tasks > 0) channel.port2.postMessage(null);
+    else done();
+  };
+  channel.port2.postMessage(null);
+};
+`;
+
+describe('a load is read after the page has done its work', () => {
+  test.concurrent('a page that marks its root after 600 ms of queued work keeps N3', async () => {
+    const script = `${AFTER_WORK}document.documentElement.removeAttribute('data-sv-chrome');
+afterWork(() => {
+  document.documentElement.setAttribute('data-sv-chrome', '');
+  document.body.append('ready');
+});`;
+    const run = await judge(page(script));
+    assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 0, stdout: '' }, run.stderr);
+  });
+
+  test.concurrent('a debug key whose text appears after 600 ms of queued work breaks N2', async () => {
+    const script = `${AFTER_WORK}const debug = new URLSearchParams(location.search).get('debug');
+afterWork(() => document.body.append(debug ? 'debug on' : 'ready'));`;
+    const run = await judge(page(script));
+    assert.equal(run.status, 1, run.stderr);
+    assert.deepEqual(run.rules, ['N2']);
+    assert.match(run.findings[0]!.message!, /query key "debug": with \?debug=1 the page shows other text \("debug on"\)/);
+  });
+});
+
 describe('operatorPaths and queryParams in deploy.config.json', () => {
   test.concurrent('a skipped path or key fails nothing, and every skip is printed as a warn line', async () => {
     const root = repository(fixture('n3-bad'), { operatorPaths: ['/about'] });
