@@ -50,6 +50,8 @@ Knowledge local to one package belongs in that package's `README.md`, which is a
 | [lay-out-for-safe-areas.md](how-to/lay-out-for-safe-areas.md) | Keeping a miniapp page clear of the status bar, the notch, the home indicator and the app's own header and bar, while its background still runs edge to edge. For anyone laying out a page. |
 | [move-the-repositories-back.md](how-to/move-the-repositories-back.md) | How to point every GitHub link in this repository at a new owner, and what to do on GitHub and npm afterwards. For whoever moves skkuverse-miniapp to another account or organization. |
 | [release-packages.md](how-to/release-packages.md) | How a change here becomes a new `@skkuverse/*` version on npm and reaches the miniapps. For whoever merges a change that miniapps need. |
+| [ship-a-miniapp.md](how-to/ship-a-miniapp.md) | The path one miniapp takes from a folder on disk to a screen in the skkuverse app, and the command that checks each step. For anyone building a miniapp or a game. |
+| [test-without-the-app.md](how-to/test-without-the-app.md) | Testing what a miniapp or a game page sends to the app, in vitest or from the command line, with no phone and no app build. For anyone building a miniapp or a game. |
 
 <!-- docs-gen:end docs-index -->
 
