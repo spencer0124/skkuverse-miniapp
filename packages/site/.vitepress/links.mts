@@ -34,7 +34,7 @@ export function repoLinkOf(repoRoot: string, fromRel: string, href: string): Rep
 }
 
 export const githubUrl = (repoUrl: string, link: RepoLink) =>
-  `${repoUrl}/${link.isDir ? 'tree' : 'blob'}/main/${link.rel.replace(/\/$/, '')}${link.suffix}`;
+  `${repoUrl}/${link.isDir ? 'tree' : 'blob'}/main/${encodeURI(link.rel.replace(/\/$/, ''))}${link.suffix}`;
 
 interface Span {
   start: number;
@@ -70,6 +70,7 @@ for (const [name, rule, isImage] of [['link', link, false], ['image', image, tru
 }
 
 parser.block.ruler.at('reference', (state: any, startLine: number, endLine: number, silent: boolean) => {
+  const before = new Set(Object.keys(state.env.references ?? {}));
   if (!reference(state, startLine, endLine, silent)) return false;
   if (silent) return true;
   const from: number = state.bMarks[startLine] + state.tShift[startLine];
@@ -77,6 +78,8 @@ parser.block.ruler.at('reference', (state: any, startLine: number, endLine: numb
   const raw: string = state.src.slice(from, to);
   let colon = 1;
   while (colon < raw.length && raw[colon] !== ']') colon += raw[colon] === '\\' ? 2 : 1;
+  // CommonMark keeps the first definition of a label, so a repeat links nothing and is left as written.
+  if (before.has(parser.utils.normalizeReference(raw.slice(1, colon)))) return true;
   let pos = from + colon + 2;
   while (pos < to && /\s/.test(state.src[pos])) pos++;
   const dest = parser.helpers.parseLinkDestination(state.src, pos, to);
@@ -91,7 +94,6 @@ parser.block.ruler.at('reference', (state: any, startLine: number, endLine: numb
 
 /** The source position of every link, image and reference-definition destination that is not code. */
 function linkTargets(text: string): Span[] {
-  if (text.includes('\r')) throw new Error('a Markdown copy with a carriage return is not supported');
   const env: { definitionSpans: Span[] } = { definitionSpans: [] };
   const tokens = parser.parse(text, env);
   const lineStart: number[] = [0];
@@ -134,6 +136,9 @@ export function mapLinks(text: string, rewrite: (href: string) => string | undef
   });
   return edits.sort((a, b) => b.start - a.start).reduce((acc, e) => acc.slice(0, e.start) + e.to + acc.slice(e.end), text);
 }
+
+// A checkout with core.autocrlf writes CRLF; the copies are built from that text, and every pattern here reads LF.
+const readLf = (file: string) => readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
 
 function markdownCopies(outDir: string): string[] {
   const found: string[] = [];
@@ -182,13 +187,13 @@ export function rewriteMarkdownOutputs({ repoRoot, repoUrl, siteUrl, outDir }: L
 
   for (const copy of markdownCopies(outDir)) {
     const file = path.join(outDir, copy);
-    writeFileSync(file, mapLinks(readFileSync(file, 'utf8'), target(sourceOfCopy(copy), copy)));
+    writeFileSync(file, mapLinks(readLf(file), target(sourceOfCopy(copy), copy)));
   }
 
   const full = path.join(outDir, 'llms-full.txt');
   if (!existsSync(full)) return;
   const header = /^---\nurl: (?:>-\n\s+)?(\S+)\n---\n/gm;
-  const text = readFileSync(full, 'utf8');
+  const text = readLf(full);
   const marks = [...text.matchAll(header)];
   let out = text.slice(0, marks[0]?.index ?? text.length);
   marks.forEach((mark, i) => {

@@ -162,20 +162,33 @@ describe('built site', () => {
     const githubPrefix = `${REPO_URL}/`;
     const problems = [];
     const sourceOf = (rel) => parse(fs.readFileSync(path.join(repoRoot, rel), 'utf8'));
+    const publishedRels = new Set(sources.filter((s) => s !== 'README.md'));
+    const isRelative = (href) => href && !href.startsWith('#') && !href.startsWith('/') && !/^[a-z][a-z0-9+.-]*:/i.test(href);
     const checkDocument = (where, source, text, inBundle) => {
       const original = sourceOf(source);
-      const authored = new Set(original.links.map((l) => l.href));
       const output = parse(text);
       if (JSON.stringify(output.code) !== JSON.stringify(original.code)) problems.push(`${where}: code blocks differ from ${source}`);
+      // The rewrite edits destinations in place, so the n-th link of the output is the n-th link of the source.
+      if (output.links.length !== original.links.length) {
+        problems.push(`${where}: ${output.links.length} links, but ${source} has ${original.links.length}`);
+        return;
+      }
       const from = path.posix.dirname(where);
-      for (const { href, line } of output.links) {
+      output.links.forEach(({ href, line }, i) => {
         const at = `${where}:${line}`;
-        if (href.startsWith('#') || /^(mailto|tel):/i.test(href)) continue;
+        const authored = original.links[i].href;
+        if (isRelative(authored)) {
+          const [authoredTarget] = authored.split(/[#?]/);
+          const rel = path.posix.normalize(path.posix.join(path.posix.dirname(source), decodeURI(authoredTarget)));
+          const page = publishedRels.has(rel) ? rel : publishedRels.has(`${rel.replace(/\/$/, '')}/README.md`) ? `${rel.replace(/\/$/, '')}/README.md` : undefined;
+          if (page && href.startsWith(githubPrefix)) problems.push(`${at}: ${authored} is a published page (${page}) but came out as ${href}`);
+        }
+        if (href.startsWith('#') || /^(mailto|tel):/i.test(href)) return;
         const [target] = href.split(/[#?]/);
         if (/^https?:/i.test(href)) {
           if (target.startsWith(full)) {
             if (!fs.existsSync(path.join(dist, decodeURI(target.slice(full.length))))) problems.push(`${at}: ${href} is not in the build`);
-          } else if (/^https:\/\/github\.com\//i.test(href) && !authored.has(href)) {
+          } else if (/^https:\/\/github\.com\//i.test(href) && authored !== href) {
             const rel = target.startsWith(githubPrefix) ? /^(?:blob|tree)\/main\/(.+?)\/?$/.exec(target.slice(githubPrefix.length))?.[1] : undefined;
             if (rel === undefined) problems.push(`${at}: ${href} is not ${REPO_URL}/(blob|tree)/main/<path>`);
             else if (!existsAtHead(decodeURI(rel))) problems.push(`${at}: ${href} names ${decodeURI(rel)}, which is not in the repository at HEAD`);
@@ -189,7 +202,7 @@ describe('built site', () => {
           const resolved = path.posix.normalize(path.posix.join(from, decodeURI(target)));
           if (!fs.existsSync(path.join(dist, resolved))) problems.push(`${at}: ${href} resolves to ${resolved}, which is not in the build`);
         }
-      }
+      });
     };
     for (const copy of markdownCopies(dist)) {
       checkDocument(copy, sourceOfCopy(copy), fs.readFileSync(path.join(dist, copy), 'utf8'), false);
