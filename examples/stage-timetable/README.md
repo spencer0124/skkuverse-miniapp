@@ -3,7 +3,7 @@
 A small miniapp on the published `@skkuverse/miniapp` and `@skkuverse/ui`, which runs in a plain browser.
 It is shaped like a festival stage timetable, and its acts are made up.
 
-[Open it in StackBlitz](https://stackblitz.com/github/spencer0124/skkuverse-miniapp/tree/main/examples/stage-timetable?file=src%2FApp.tsx). StackBlitz clones the repository and installs the packages first, which can take two minutes. To run it here instead:
+[Open it in StackBlitz](https://stackblitz.com/github/spencer0124/skkuverse-miniapp/tree/main/examples/stage-timetable?file=src%2FApp.tsx). The first visit can take a few minutes, because StackBlitz clones the repository and installs the packages. To run it here instead:
 
 ```sh
 npm ci
