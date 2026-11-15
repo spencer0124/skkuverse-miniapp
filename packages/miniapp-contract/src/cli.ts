@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { CONFIG_FILE, entryOf, findRoot, hostFor, loadConfig, namedRoot } from '@skkuverse/miniapp-cli/config';
 import { judgeN1 } from './observe/n1.ts';
 import { judgeN2, queryKeys } from './observe/n2.ts';
 import { judgeN3 } from './observe/n3.ts';
@@ -22,7 +23,8 @@ const USAGE = `usage: miniapp-contract [<id>...] [--root <path>] [--json]
                  nearest one at or above the working directory
   --dir <path>   judge one built miniapp folder outside a repository
   --id <id>      its id, by default the folder's name
-  --json         print each finding as one JSON object on its own line
+  --json         print the findings as JSON. Unlike check --json, which
+                 prints one array, this prints one JSON object per line
   serve          serve a build with the production headers until stopped
   install        download the Chromium the runner drives
 
@@ -30,7 +32,6 @@ Build the miniapps first. Exits 0 when every miniapp keeps N1 to N4, 1 when one
 breaks a rule, and 2 when the runner could not judge: a usage error, a missing
 browser, a page that does not load, or a backend that cannot be reached.`;
 
-const CONFIG_FILE = 'deploy.config.json';
 const require = createRequire(import.meta.url);
 
 interface Target {
@@ -43,42 +44,34 @@ interface Target {
 
 class UsageError extends RunnerError {}
 
-function stringList(entry: Record<string, unknown>, field: string, where: string): string[] {
-  const value = entry[field] ?? [];
-  if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
-    throw new UsageError(`${CONFIG_FILE}: ${where}.${field} must be a list of strings`);
-  }
-  return value;
-}
-
-function findRoot(start: string): string {
-  for (let dir = resolve(start); ; dir = dirname(dir)) {
-    if (existsSync(join(dir, CONFIG_FILE))) return dir;
-    if (dirname(dir) === dir) throw new UsageError(`no ${CONFIG_FILE} in ${resolve(start)} or above; run inside the repository, or pass --root or --dir`);
-  }
-}
-
 function repositoryTargets(root: string, ids: string[]): Target[] {
-  const config = JSON.parse(readFileSync(join(root, CONFIG_FILE), 'utf8')) as { apps?: Record<string, Record<string, unknown>> };
-  const apps = config.apps ?? {};
+  const config = loadConfig(root);
   const folder = join(root, 'apps');
   const named = ids.length > 0 ? ids : existsSync(folder) ? readdirSync(folder, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort() : [];
   return named.map((id) => {
-    const entry = Object.hasOwn(apps, id) ? apps[id]! : undefined;
+    const entry = entryOf(config, 'app', id);
     if (!entry) throw new UsageError(`${id} is not under "apps" in ${CONFIG_FILE}`);
-    const host = typeof entry.host === 'string' ? entry.host : `${id}.mini.skkuverse.com`;
     return {
       id,
       dir: join(folder, id),
-      productionOrigin: `https://${host}`,
-      operatorPaths: stringList(entry, 'operatorPaths', `apps.${id}`),
-      queryParams: stringList(entry, 'queryParams', `apps.${id}`),
+      productionOrigin: `https://${hostFor(id, entry)}`,
+      operatorPaths: entry.operatorPaths ?? [],
+      queryParams: entry.queryParams ?? [],
     };
   });
 }
 
+/** The repository `--root` names, or the nearest one above the working directory. */
+function rootOf(root: string | undefined): string {
+  try {
+    return root === undefined ? findRoot(process.cwd()) : namedRoot(root);
+  } catch (error) {
+    throw new UsageError(`${(error as Error).message}, or --dir`);
+  }
+}
+
 function folderTarget(dir: string, id = basename(resolve(dir))): Target {
-  return { id, dir: resolve(dir), productionOrigin: `https://${id}.mini.skkuverse.com`, operatorPaths: [], queryParams: [] };
+  return { id, dir: resolve(dir), productionOrigin: `https://${hostFor(id, undefined)}`, operatorPaths: [], queryParams: [] };
 }
 
 function distOf({ id, dir }: Target): string {
@@ -94,6 +87,11 @@ async function judge(target: Target): Promise<Finding[]> {
     const { visits, routes } = await crawl(session);
     return [
       ...judgeN1(visits),
+      ...target.queryParams.map((key): Finding => ({
+        rule: 'N2',
+        level: 'warn',
+        message: `did not load / with the query key "${key}", because queryParams in ${CONFIG_FILE} lists it`,
+      })),
       ...(await judgeN2(session, keys)),
       ...(await judgeN3(session, routes, target.operatorPaths)),
       ...(await judgeN4(visits, backendOrigins(target.dir), target.productionOrigin)),
@@ -145,7 +143,7 @@ async function main(argv: string[]): Promise<number> {
   const ids = serving ? rest : positionals;
   if (values.dir !== undefined && ids.length > 0) throw new UsageError('pass either --dir or ids, not both');
   const targets =
-    values.dir !== undefined ? [folderTarget(values.dir, values.id)] : repositoryTargets(values.root !== undefined ? resolve(values.root) : findRoot(process.cwd()), ids);
+    values.dir !== undefined ? [folderTarget(values.dir, values.id)] : repositoryTargets(rootOf(values.root), ids);
 
   if (serving) {
     if (targets.length !== 1) throw new UsageError('serve takes one miniapp: an id or --dir');

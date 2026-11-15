@@ -1,11 +1,14 @@
 /**
  * The page never leaves 127.0.0.1. A navigation to another origin is answered
- * 204, which a browser treats as "stay on the current document", and every
- * other request to another origin is aborted, so a click on a button that
- * writes to a backend writes nothing. The clock is pinned and `Math.random`
- * seeded so two loads of one URL render the same, which N2 relies on.
+ * 204, which a browser treats as "stay on the current document", every other
+ * request to another origin is aborted, and every WebSocket is closed before it
+ * connects, because `context.route` does not see WebSockets. A click on a
+ * button that writes to a backend writes nothing. The clock is pinned and
+ * `Math.random` seeded so two loads of one URL render the same, which N2 relies on.
  */
-import type { Server } from 'node:http';
+import { createServer, type IncomingMessage, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import type { Duplex } from 'node:stream';
 import { chromium, type Browser, type Locator, type Page, type Request } from 'playwright';
 import { hostBootstrapScript, parseMessage } from '@skkuverse/miniapp/protocol';
 import { resolvePreset } from '@skkuverse/miniapp/testing';
@@ -29,6 +32,7 @@ export interface Outbound {
   url: string;
   method: string;
   preflightHeaders: string[];
+  transport: 'http' | 'websocket';
   trigger: Trigger;
 }
 
@@ -43,6 +47,10 @@ export interface Visit {
   posted: Posted[];
   departures: Departure[];
   outbound: Outbound[];
+  /** Every fetch, XHR, EventSource and WebSocket address the page asked for, same-origin ones included, in order. */
+  requests: string[];
+  /** Connections the page's routing did not see, which the browser's proxy refused: `host:port` for a tunnel, else a URL. */
+  refused: { target: string; trigger: Trigger }[];
   cookieAsks: CookieAsk[];
   routes: string[];
   text: string;
@@ -157,46 +165,81 @@ export class RunnerError extends Error {}
 
 export class BrowserMissingError extends RunnerError {}
 
+const close = (server: Server) => new Promise<void>((done) => server.close(() => done()));
+
+/**
+ * The browser's proxy: it refuses every connection, and names it. Only the
+ * served origin bypasses it, so whatever the page's routing does not see, such
+ * as a WebSocket a Worker opens, reaches this and nothing else.
+ */
+async function guard(refuse: (target: string) => void): Promise<{ server: Server; url: string }> {
+  const server = createServer((request, response) => {
+    refuse(request.url ?? '');
+    response.writeHead(403).end();
+  });
+  server.on('connect', (request: IncomingMessage, socket: Duplex) => {
+    refuse(request.url ?? '');
+    socket.destroy();
+  });
+  await new Promise<void>((done, fail) => {
+    server.once('error', fail);
+    server.listen(0, '127.0.0.1', done);
+  });
+  return { server, url: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
+}
+
+async function launch(proxy: string, origin: string): Promise<Browser> {
+  try {
+    // `<-loopback>` must come first: Chromium lets a later rule win, and 127.0.0.1 is bypassed by default.
+    return await chromium.launch({ headless: true, args: [`--proxy-server=${proxy}`, `--proxy-bypass-list=<-loopback>;${new URL(origin).host}`] });
+  } catch (error) {
+    if (error instanceof Error && /Executable doesn't exist|browserType\.launch.*install/s.test(error.message)) {
+      throw new BrowserMissingError(error.message);
+    }
+    throw error;
+  }
+}
+
 export class Session {
   private readonly browser: Browser;
-  private readonly server: Server;
+  private readonly servers: Server[];
   readonly origin: string;
+  private onRefused: ((target: string) => void) | undefined;
 
-  private constructor(browser: Browser, server: Server, origin: string) {
+  private constructor(browser: Browser, servers: Server[], origin: string) {
     this.browser = browser;
-    this.server = server;
+    this.servers = servers;
     this.origin = origin;
   }
 
   static async open(dist: string): Promise<Session> {
-    let browser: Browser;
+    const { server, origin } = await serve(dist);
+    const servers = [server];
+    let session: Session | undefined;
     try {
-      browser = await chromium.launch({ headless: true });
+      const proxy = await guard((target) => session?.onRefused?.(target));
+      servers.push(proxy.server);
+      session = new Session(await launch(proxy.url, origin), servers, origin);
+      return session;
     } catch (error) {
-      if (error instanceof Error && /Executable doesn't exist|browserType\.launch.*install/s.test(error.message)) {
-        throw new BrowserMissingError(error.message);
-      }
-      throw error;
-    }
-    try {
-      const { server, origin } = await serve(dist);
-      return new Session(browser, server, origin);
-    } catch (error) {
-      await browser.close();
+      await Promise.all(servers.map(close));
       throw error;
     }
   }
 
   async close(): Promise<void> {
     await this.browser.close();
-    await new Promise<void>((done) => this.server.close(() => done()));
+    await Promise.all(this.servers.map(close));
   }
 
   async visit(path: string, { host, click }: VisitOptions): Promise<Visit> {
     const { origin } = this;
     const context = await this.browser.newContext({ viewport: VIEWPORT, serviceWorkers: 'block' });
-    const visit: Visit = { path, posted: [], departures: [], outbound: [], cookieAsks: [], routes: [], text: '', rootMarked: false, unclicked: 0 };
+    const visit: Visit = { path, posted: [], departures: [], outbound: [], requests: [], refused: [], cookieAsks: [], routes: [], text: '', rootMarked: false, unclicked: 0 };
     const routes = new Set<string>();
+    const addRoute = (pathname: string) => {
+      if (isPage(pathname)) routes.add(pathname);
+    };
     let trigger: Trigger = `the load of ${path}`;
     let quietSince = Date.now();
     let ready = false;
@@ -218,6 +261,10 @@ export class Session {
         visit.cookieAsks.push({ url, how, trigger });
       }
     });
+    this.onRefused = (target) => {
+      quietSince = Date.now();
+      visit.refused.push({ target, trigger });
+    };
     await context.addInitScript(INSTRUMENT);
     if (host) await context.addInitScript(hostScript());
     await context.clock.setFixedTime(FIXED_TIME);
@@ -225,8 +272,10 @@ export class Session {
       const request = route.request();
       quietSince = Date.now();
       const url = new URL(request.url());
+      const backend = BACKEND_TYPES.has(request.resourceType());
+      if (backend) visit.requests.push(`${request.method()} ${request.url()}`);
       if (url.origin === origin) {
-        if (request.isNavigationRequest()) routes.add(url.pathname);
+        if (request.isNavigationRequest()) addRoute(url.pathname);
         return route.continue();
       }
       const via = request.isNavigationRequest() ? leaves(request, page) : undefined;
@@ -234,11 +283,21 @@ export class Session {
         visit.departures.push({ url: request.url(), via, trigger });
         return route.fulfill({ status: 204 });
       }
-      if (BACKEND_TYPES.has(request.resourceType())) {
-        visit.outbound.push({ url: request.url(), method: request.method(), preflightHeaders: preflightHeaders(request.headers()), trigger });
+      if (backend) {
+        visit.outbound.push({ url: request.url(), method: request.method(), preflightHeaders: preflightHeaders(request.headers()), transport: 'http', trigger });
       }
       return route.abort('blockedbyclient');
     });
+    await context.routeWebSocket(
+      () => true,
+      (socket) => {
+        quietSince = Date.now();
+        const url = socket.url();
+        visit.requests.push(`GET ${url}`);
+        if (backendOrigin(url) !== origin) visit.outbound.push({ url, method: 'GET', preflightHeaders: [], transport: 'websocket', trigger });
+        return socket.close({ code: 1008, reason: 'miniapp-contract connects no WebSocket' });
+      },
+    );
 
     const settle = async () => {
       const start = Date.now();
@@ -268,7 +327,7 @@ export class Session {
             visit.unclicked = count - index;
             break;
           }
-          await linkedRoutes(page, origin, routes);
+          await linkedRoutes(page, origin, addRoute);
           const target = targets.nth(index);
           if (!(await target.isVisible()) || !(await target.isEnabled())) continue;
           trigger = `a click on ${await describe(target)} in ${path}`;
@@ -278,17 +337,18 @@ export class Session {
           for (const other of context.pages()) if (other !== page) await other.close();
           const now = new URL(page.url());
           if (now.origin !== origin || `${now.pathname}${now.search}` !== path) {
-            if (now.origin === origin) routes.add(now.pathname);
+            if (now.origin === origin) addRoute(now.pathname);
             trigger = `the load of ${path}`;
             await load();
           }
         }
       }
-      await linkedRoutes(page, origin, routes);
+      await linkedRoutes(page, origin, addRoute);
       visit.routes = [...routes];
       return visit;
     } finally {
       await context.close();
+      this.onRefused = undefined;
     }
   }
 }
@@ -323,12 +383,20 @@ function preflightHeaders(headers: Record<string, string>): string[] {
 /** A path with no extension, or an `.html` one: a route rather than a file such as `/report.pdf`. */
 const isPage = (pathname: string) => !/\.(?!html?$)[a-z0-9]+$/i.test(pathname);
 
-async function linkedRoutes(page: Page, origin: string, routes: Set<string>): Promise<void> {
+async function linkedRoutes(page: Page, origin: string, addRoute: (pathname: string) => void): Promise<void> {
   const hrefs = await page.locator('a[href]').evaluateAll((anchors) => anchors.map((a) => (a as HTMLAnchorElement).href));
   for (const href of hrefs) {
     const url = new URL(href);
-    if (url.origin === origin && isPage(url.pathname)) routes.add(url.pathname);
+    if (url.origin === origin) addRoute(url.pathname);
   }
+}
+
+/** The origin a request to `url` reaches, with a WebSocket's `ws:` or `wss:` read as the `http:` or `https:` it upgrades from. */
+export function backendOrigin(url: string): string {
+  const parsed = new URL(url);
+  if (parsed.protocol === 'ws:') parsed.protocol = 'http:';
+  if (parsed.protocol === 'wss:') parsed.protocol = 'https:';
+  return parsed.origin;
 }
 
 async function describe(target: Locator): Promise<string> {

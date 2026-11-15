@@ -1,12 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Finding } from '../rules.ts';
-import { RunnerError, type Outbound, type Visit } from '../session.ts';
+import { backendOrigin, RunnerError, type Outbound, type Visit } from '../session.ts';
 
 export const ENV_FILE = '.env.production';
-const PREFLIGHT_TIMEOUT_MS = 10_000;
+const CORS_TIMEOUT_MS = 10_000;
 /** The methods CORS allows without naming them in `Access-Control-Allow-Methods`. */
 const SIMPLE_METHODS = new Set(['GET', 'HEAD', 'POST']);
+
+/** The Fetch spec's rule: a browser preflights a request only for a method or a header CORS does not allow by default. */
+const needsPreflight = (request: Pick<Outbound, 'method' | 'preflightHeaders'>) => !SIMPLE_METHODS.has(request.method) || request.preflightHeaders.length > 0;
 
 export function backendOrigins(dir: string): Set<string> {
   const file = join(dir, ENV_FILE);
@@ -17,31 +20,49 @@ export function backendOrigins(dir: string): Set<string> {
     if (!match) continue;
     const value = match[2]!.replace(/^(["'`])(.*)\1$/, '$2');
     const url = URL.parse(value);
-    if (url?.protocol === 'https:' || url?.protocol === 'http:') origins.add(url.origin);
+    if (url && ['https:', 'http:', 'wss:', 'ws:'].includes(url.protocol)) origins.add(backendOrigin(url.href));
   }
   return origins;
 }
 
-export async function corsRefusal(request: Pick<Outbound, 'url' | 'method' | 'preflightHeaders'>, origin: string): Promise<string | undefined> {
-  let response: Response;
+async function send(url: string, init: RequestInit): Promise<Response> {
   try {
-    response = await fetch(request.url, {
-      method: 'OPTIONS',
-      redirect: 'manual',
-      signal: AbortSignal.timeout(PREFLIGHT_TIMEOUT_MS),
-      headers: {
-        Origin: origin,
-        'Access-Control-Request-Method': request.method,
-        ...(request.preflightHeaders.length > 0 ? { 'Access-Control-Request-Headers': request.preflightHeaders.join(',') } : {}),
-      },
-    });
+    return await fetch(url, { ...init, redirect: 'manual', signal: AbortSignal.timeout(CORS_TIMEOUT_MS) });
   } catch (error) {
     const cause = error instanceof Error ? ((error.cause as Error | undefined)?.message ?? error.message) : String(error);
-    throw new RunnerError(`the CORS preflight to ${new URL(request.url).origin} failed (${cause}), so N4 cannot judge it`);
+    throw new RunnerError(`the CORS check to ${new URL(url).origin} failed (${cause}), so N4 cannot judge it`);
   }
+}
+
+function originRefusal(response: Response, origin: string, answer: string): string | undefined {
   const allowOrigin = response.headers.get('access-control-allow-origin');
+  if (allowOrigin === origin || allowOrigin === '*') return undefined;
+  return `Access-Control-Allow-Origin is ${allowOrigin === null ? 'missing' : `"${allowOrigin}"`} ${answer}`;
+}
+
+/**
+ * Asks the backend what a browser on `origin` would ask it. A request that
+ * needs a preflight gets the preflight, and nothing else. A simple GET or HEAD
+ * is sent as itself, since the browser judges CORS on its answer.
+ */
+async function corsRefusal(request: Pick<Outbound, 'url' | 'method' | 'preflightHeaders'>, origin: string): Promise<string | undefined> {
+  if (!needsPreflight(request)) {
+    const response = await send(request.url, { method: request.method, headers: { Origin: origin } });
+    await response.body?.cancel();
+    return originRefusal(response, origin, `in its answer to ${request.method}`);
+  }
+  const response = await send(request.url, {
+    method: 'OPTIONS',
+    headers: {
+      Origin: origin,
+      'Access-Control-Request-Method': request.method,
+      ...(request.preflightHeaders.length > 0 ? { 'Access-Control-Request-Headers': request.preflightHeaders.join(',') } : {}),
+    },
+  });
+  await response.body?.cancel();
   if (response.status < 200 || response.status > 299) return `its preflight answered ${response.status}`;
-  if (allowOrigin !== origin && allowOrigin !== '*') return `Access-Control-Allow-Origin is ${allowOrigin === null ? 'missing' : `"${allowOrigin}"`}`;
+  const refused = originRefusal(response, origin, 'in its preflight answer');
+  if (refused) return refused;
   const list = (name: string) => (response.headers.get(name) ?? '').split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
   const methods = list('access-control-allow-methods');
   if (!SIMPLE_METHODS.has(request.method) && !methods.includes('*') && !methods.includes(request.method.toLowerCase())) {
@@ -56,20 +77,30 @@ export async function corsRefusal(request: Pick<Outbound, 'url' | 'method' | 'pr
 export async function judgeN4(visits: readonly Visit[], allowed: ReadonlySet<string>, productionOrigin: string): Promise<Finding[]> {
   const findings: Finding[] = [];
   const reported = new Set<string>();
-  const once = (key: string, message: string) => {
+  const once = (key: string, message: string, level: Finding['level'] = 'error') => {
     if (reported.has(key)) return;
     reported.add(key);
-    findings.push({ rule: 'N4', level: 'error', message });
+    findings.push({ rule: 'N4', level, message });
   };
   const checked = new Map<string, Outbound>();
   for (const visit of visits) {
     for (const request of visit.outbound) {
-      const origin = new URL(request.url).origin;
+      const origin = backendOrigin(request.url);
       if (!allowed.has(origin)) {
-        once(`origin ${origin}`, `${request.trigger} called ${request.url}, an origin that no VITE_* value in ${ENV_FILE} names. Read the backend URL from import.meta.env`);
-      } else if (!checked.has(origin)) {
-        checked.set(origin, request);
+        const did = request.transport === 'websocket' ? 'opened a WebSocket to' : 'called';
+        once(`origin ${origin}`, `${request.trigger} ${did} ${request.url}, an origin that no VITE_* value in ${ENV_FILE} names. Read the backend URL from import.meta.env`);
+        continue;
       }
+      if (request.transport === 'websocket') continue;
+      const shape = `${origin} ${request.method} ${request.preflightHeaders.join(',')}`;
+      if (!checked.has(shape)) checked.set(shape, request);
+    }
+    for (const { target, trigger } of visit.refused) {
+      once(
+        `refused ${target}`,
+        `${trigger} opened a connection to ${target} that the runner's routing did not see, such as a WebSocket from a Worker. The runner refused it and does not judge it`,
+        'warn',
+      );
     }
     for (const { url, how, trigger } of visit.cookieAsks) {
       const origin = new URL(url).origin;
@@ -81,7 +112,16 @@ export async function judgeN4(visits: readonly Visit[], allowed: ReadonlySet<str
       );
     }
   }
-  for (const [origin, request] of checked) {
+  for (const request of checked.values()) {
+    const origin = backendOrigin(request.url);
+    if (request.method === 'POST' && !needsPreflight(request)) {
+      once(
+        `unchecked ${origin} POST`,
+        `did not check CORS for POST ${request.url}: a browser sends it with no preflight and judges CORS on the answer, so checking it means sending the write`,
+        'warn',
+      );
+      continue;
+    }
     const refused = await corsRefusal(request, productionOrigin);
     if (refused) once(`cors ${origin}`, `${origin} does not allow ${productionOrigin} through CORS: ${refused}`);
   }

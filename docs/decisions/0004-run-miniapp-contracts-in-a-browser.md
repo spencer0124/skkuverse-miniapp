@@ -3,7 +3,7 @@ title: Miniapp Contracts Run in a Real Browser
 type: adr
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-15
+last-updated: 2026-11-16
 audience: public
 ---
 
@@ -35,11 +35,13 @@ The game contract already runs pages, in vitest with a happy-dom window. Its har
 **Each rule is judged from what the page did.**
 
 - N1. The runner clicks every link and button in DOM order on each same-origin route it reaches. A navigation or popup to another origin with no `link.open` post for that URL fails.
-- N2. The runner reads the query keys from the production bundle and loads the page with each one set. Other visible text, or other host messages, than the plain load fails.
-- N3. Outside the app, `<MiniappRoot>` sets `data-sv-chrome` on `<html>`, whether it shows the page or the browser gate. The runner loads each route with no host. A route that leaves the attribute unset renders outside `<MiniappRoot>`, and fails unless `deploy.config.json` lists it in `operatorPaths`.
-- N4. The runner records each fetch, XHR and EventSource request to another origin. An origin that no `VITE_*` value names fails, a request that asks for cookies fails, and the runner sends each named backend the CORS preflight a browser on the production origin sends.
+- N2. The runner finds each query key the production bundle names in `.get`, `.getAll` or `.has`, and loads the page with each one set. Other visible text, other host messages or other request addresses than the plain load fails.
+- N3. Outside the app, `<MiniappRoot>` sets `data-sv-chrome` on `<html>`, whether it shows the page or the browser gate. The runner loads each route with no host. A route that leaves the attribute unset renders outside `<MiniappRoot>`, and fails unless `deploy.config.json` lists it in `operatorPaths`. A route is a path with no file extension, or an `.html` one, so a link to `/rules.txt` is not a route.
+- N4. The runner records each fetch, XHR, EventSource and WebSocket to another origin. An origin that no `VITE_*` value names fails, and a request that asks for cookies fails. For each named backend, the runner asks what a browser on the production origin asks. A request that needs a preflight, by the Fetch standard's rule (a method other than `GET`, `HEAD` or `POST`, or a header CORS does not allow by default), gets the preflight. A simple `GET` or `HEAD` is sent as itself with the production `Origin`, because a browser sends no preflight for it and judges CORS on its answer. A simple `POST` is not sent, because that would be the write, and the run prints a `warn` line for it.
 
-**The page cannot reach anything.** A navigation to another origin gets an empty 204 answer, which keeps the page in place. Every other request to another origin is aborted, so clicking every button writes nothing to a real backend. The clock is pinned and `Math.random` is seeded, so N2 compares two loads that differ only in the query.
+**A config field never silences a rule without a trace.** `operatorPaths` and `queryParams` are declared and validated in the one `deploy.config.json` parser, `@skkuverse/miniapp-cli/config`, which `check`, `ship` and this runner share. A path must start with `/` and name a segment, so no entry can skip every route or none. The run prints a `warn` line for every path and key it skips.
+
+**The page cannot reach anything.** A navigation to another origin gets an empty 204 answer, which keeps the page in place. Every other request to another origin is aborted, and every WebSocket the page opens is closed before it connects, through `context.routeWebSocket`, because `context.route` does not see WebSockets. A WebSocket a Worker opens escapes both, so the browser's proxy is a server inside the runner that refuses every connection, and only the served origin bypasses it. Clicking every button writes nothing to a real backend. The only requests that leave the runner are its own CORS checks, sent from Node to the backends `.env.production` names. The clock is pinned and `Math.random` is seeded, so N2 compares two loads that differ only in the query.
 
 **Games stay on happy-dom.** The game contract keeps its harness. N1 and N2 apply to games too, and this runner does not judge a game.
 
@@ -49,8 +51,14 @@ The game contract already runs pages, in vitest with a happy-dom window. Its har
 - **A run downloads a browser once.** On macOS arm64, Playwright 1.65.0's headless Chromium was a 100.1 MiB download, took 7.2 s and used 207 MiB of disk (measured on 2026-11-15). `miniapp-contract install` downloads it, and the package's test setup runs the same command, so CI needs no new step.
 - **The download sits outside pnpm's `minimumReleaseAge`.** That setting holds back a `playwright` release for five days. The browser build that release names comes from Playwright's CDN when `install` runs, with no such delay of its own.
 - **A page the production CSP blocks gets no verdict.** The runner exits 2 and names what the CSP blocked, rather than passing a page that does not run.
-- **N4 needs the network for a page that calls a backend.** The CORS preflight goes to the real backend. When it cannot be reached, the runner exits 2 rather than guess.
-- **Some causes stay out of reach.** The runner observes the controls it can click and the routes it can find. A route reached only by typed input, or a debug switch read without `URLSearchParams`, `searchParams` or `location.search`, is not judged. A `Cookie` header that the browser adds from its own store never appears, because every request to another origin is aborted before it is sent.
+- **N4 needs the network for a page that calls a backend.** The CORS check goes to the real backend. When it cannot be reached, the runner exits 2 rather than guess.
+- **Some causes stay out of reach.** A run passes a page it could not watch break a rule:
+  - It clicks `<a href>`, `<button>`, `[role="button"]` and `<input>` buttons, so a `<div onClick>` is never clicked.
+  - A load or click counts as settled after 150 ms with no request, message or DOM change, so a navigation a timer fires 1 s after a click is missed, and so is a query key read inside a 500 ms timer.
+  - Routes are tracked by path, so a hash route such as `#/settings` is the route `/`, and a route reached only by typed input is never found.
+  - N2 finds a key only in a literal `.get`, `.getAll` or `.has` call. A read through `Object.fromEntries(new URLSearchParams(location.search))` or a loop over the parameters is not found.
+  - A connection the proxy refuses, such as a WebSocket from a Worker, gets a `warn` line and no verdict. A beacon or an image to another origin is aborted and not judged.
+  - A `Cookie` header that the browser adds from its own store never appears, because every request to another origin is stopped before it is sent.
 
 ## Alternatives considered
 

@@ -21,20 +21,47 @@ walking up from the working directory or takes from `--root <path>`.
 ## What it checks
 
 Each run serves `dist/` on 127.0.0.1 with the `_headers` and `_redirects` that `ship`
-writes, so the page runs under the production CSP. The page never leaves 127.0.0.1. A
-navigation to another origin gets an empty 204 answer, so the page stays where it is, and
-any other request to another origin is aborted, so no backend receives a write.
+writes, so the page runs under the production CSP. The page never reaches another origin.
+A navigation to another origin gets an empty 204 answer, so the page stays where it is.
+Any other request to another origin is aborted, and every WebSocket is closed before it
+connects, so no backend receives a write. The browser's proxy is a server inside the
+runner that refuses every connection, and only the served origin bypasses it, so a
+connection the routing cannot see, such as a WebSocket a Worker opens, is refused too.
 
 | Rule | What the runner does | It fails when |
 | --- | --- | --- |
 | N1 | Loads `/` with the host, clicks every link and button in DOM order, and repeats that on every same-origin route it reaches. | The page, or a popup it opens, navigates to another origin with no `link.open` post for that URL. |
-| N2 | Finds the query keys the built scripts read (`URLSearchParams`, `searchParams.get`, `location.search`), then loads `/` with each key set to `1` and to `true`. | A load with a key shows other text, or posts other messages, than the plain load. |
+| N2 | Finds each query key a built script names in `.get("<key>")`, `.getAll("<key>")` or `.has("<key>")`, in a script that reads `URLSearchParams`, `searchParams` or `location.search`. Loads `/` with each key set to `1` and to `true`. | A load with a key shows other text, posts other messages or requests other addresses than the plain load. |
 | N3 | Loads every route the crawl found with no host, as a browser does. `<MiniappRoot>` marks `<html>` with `data-sv-chrome` outside the app. | A route leaves `data-sv-chrome` unset, so it renders outside `<MiniappRoot>`. |
-| N4 | Records each fetch, XHR and EventSource request to another origin, and what the page asked of it. | The origin is not the origin of a `VITE_*` value in the package's `.env.production`, the page asks to send cookies (`credentials: 'include'`, `withCredentials` or a `Cookie` header), or the backend's CORS preflight from `https://<id>.mini.skkuverse.com` does not allow the request. |
+| N4 | Records each fetch, XHR, EventSource and WebSocket to another origin, and what the page asked of it. Asks each named backend what a browser on `https://<id>.mini.skkuverse.com` asks it: the CORS preflight for a request that needs one, and the request itself for a simple `GET` or `HEAD`. | The origin is not the origin of a `VITE_*` value in the package's `.env.production`, the page asks to send cookies (`credentials: 'include'`, `withCredentials` or a `Cookie` header), or the backend's answer does not allow the request. |
+
+A request needs a preflight when its method is not `GET`, `HEAD` or `POST`, or when it
+sets a header CORS does not allow by default, as the Fetch standard says. A simple `POST`
+needs none, and a browser judges CORS on the answer to the write itself, so the runner
+does not send it. It prints a `warn` line for that backend instead.
 
 The clock is pinned and `Math.random` is seeded in every load, so two loads of one URL
 render the same. The host is the app's real `hostBootstrapScript` with the `granted` preset
 of `@skkuverse/miniapp/testing`. It answers every request with `null`.
+
+## What it does not see
+
+A run passes a page it could not watch break a rule. These causes stay out of its reach:
+
+- N1. The runner clicks `<a href>`, `<button>`, `[role="button"]` and `<input>` buttons. A
+  `<div onClick>` is never clicked. A load or click counts as settled after 150 ms with
+  no request, message or DOM change, so a navigation a timer fires later, such as 1 s after
+  a click, is missed.
+- N1 and N3. Routes are tracked by path. A hash route such as `#/settings` is the same
+  route as `/`, and a route reached only by typed input is never found.
+- N2. A key read any other way, such as `Object.fromEntries(new URLSearchParams(location.search)).debug`
+  or a loop over the parameters, is not found. A key the page reads after it settles, such
+  as inside a 500 ms timer, changes nothing the runner compares.
+- N4. A request a Worker or the browser makes outside the page's routing, such as a
+  WebSocket from a Worker, is refused and printed as a `warn` line, not judged. A beacon or
+  an image to another origin is aborted and not judged. A `Cookie` header the browser adds
+  from its own store never appears, because every request to another origin is stopped
+  before it is sent.
 
 ## Tell it about operator pages and query parameters
 
@@ -54,10 +81,15 @@ not a bug:
 ```
 
 - `operatorPaths` lists operator pages, which the spec lets render outside `<MiniappRoot>`.
-  N3 skips each path and every route under it. The operator still reviews that such a page
-  requires a token.
+  N3 skips each path and every route under it. Each path starts with `/` and names at
+  least one segment, so `/` and the empty string (every route) and `admin` (no route) are refused, and the
+  run exits 2. The operator still reviews that such a page requires a token.
 - `queryParams` lists query keys that are part of the miniapp, such as a deep link to a
   tab. N2 does not load the page with them.
+
+Neither field silences a rule without a trace. The run prints a `warn` line for every path
+and every key it skips, and the N3 path list names the routes the crawl reached under each
+one. `miniapp-cli check` validates both fields with the rest of `deploy.config.json`.
 
 `--dir` reads neither field, because a folder outside a repository has no config entry.
 
@@ -67,12 +99,14 @@ The command ends with one of three exit codes:
 
 - `0` when every miniapp keeps N1 to N4, and after `--help`.
 - `1` when a miniapp breaks a rule. Each finding names the rule and what the page did.
-- `2` when the runner could not judge, and stderr says why: a usage error, a folder with
-  no build, no Chromium, a page the production CSP blocks, a page that renders differently
-  on two plain loads, or a backend whose CORS preflight cannot be reached.
+- `2` when the runner could not judge, and stderr says why: a usage error, an invalid
+  `deploy.config.json`, a folder with no build, no Chromium, a page the production CSP
+  blocks, a page that renders or requests differently on two plain loads, or a backend the
+  CORS check cannot reach.
 
 With `--json`, stdout holds one JSON object per finding, one to a line, and nothing else.
-A miniapp that keeps every rule prints nothing. Each object has the fields of
+Unlike `check --json`, which prints one array, this prints one JSON object per line. A
+miniapp that keeps every rule, with no `warn` line to print, prints nothing. Each object has the fields of
 `miniapp-cli check --json`: `id`, `kind` (always `app`), `rule`, `level`, `message` and
 `spec`, the heading of the spec that defines the rule.
 
@@ -80,8 +114,10 @@ A miniapp that keeps every rule prints nothing. Each object has the fields of
 {"id":"club","kind":"app","rule":"N1","level":"error","message":"a click on <a> \"site\" in / navigated to https://example.org/ with no link.open for it. Inside the app, leave the page through openUrl() or handleLinkClick()","spec":"docs/reference/miniapp-spec.md#page"}
 ```
 
-A finding with the level `warn` does not fail the run. The runner prints one when it
-stopped early, after `MAX_CLICKS` clicks in one route or after `MAX_ROUTES` routes, both in
+A finding with the level `warn` does not fail the run. The runner prints one for each
+`operatorPaths` path and `queryParams` key it skipped, for a simple `POST` whose CORS it did
+not check, for a connection its proxy refused, and when it stopped early, after
+`MAX_CLICKS` clicks in one route or after `MAX_ROUTES` routes, both in
 [`src/session.ts`](https://github.com/spencer0124/skkuverse-miniapp/blob/main/packages/miniapp-contract/src/session.ts).
 
 ## See what the runner sees

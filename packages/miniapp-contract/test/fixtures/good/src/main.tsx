@@ -18,6 +18,8 @@ function Home() {
       <button onClick={() => openUrl('https://example.com/news')}>news</button>
       <button onClick={() => haptic('light')}>tap</button>
       <a href="/about">about</a>
+      <a href="/rules.txt">rules</a>
+      <a href="/logo.svg">logo</a>
     </main>
   );
 }
