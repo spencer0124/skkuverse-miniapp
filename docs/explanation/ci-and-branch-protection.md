@@ -3,13 +3,13 @@ title: CI and Branch Protection
 type: explanation
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-14
+last-updated: 2026-11-15
 audience: public
 ---
 
 # CI and branch protection
 
-> What checks a change before it reaches `main` and npm, which repository settings back those checks, and what is still checked only on a maintainer's machine. Read it before you change a workflow, a ruleset or the release path.
+> What checks a change before it reaches `main` and npm, which repository settings back those checks, and what nothing checks yet. Read it before you change a workflow, a ruleset or the release path.
 
 ## Context
 
@@ -109,8 +109,7 @@ Publishing stays with a person for two reasons. npm trusted publishing rejects t
 
 ## What CI does not check
 
-- **The vendored contract files.** `.contracts.lock.json` pins the hash of each file this repository vendors from outside it, such as `.markdownlint.jsonc`, `docs/_template.md` and four token files. CI does not compare those hashes. A maintainer runs `sync_contracts.py check` from a sibling checkout of the umbrella repository.
-- **The docs conventions.** `lint_conventions.py`, which checks frontmatter, language and folder names, also runs only from that sibling checkout. `pnpm lint:md` does run in CI.
+- **The token files.** The four files `colors`, `typography`, `spacing` and `radius` in `packages/tokens/src` are copies of skkuverse-app's token files. Nothing compares them, so a change in the app reaches here only when someone copies it.
 - **The bypass lists in CI.** The `rulesets` job cannot read `bypass_actors`, so only an admin's `compare.sh --keep-bypass` run checks who bypasses a ruleset.
 
 ## Rationale and trade-offs
@@ -129,7 +128,9 @@ Publishing stays with a person for two reasons. npm trusted publishing rejects t
 
 **The checks workflow is a copy, not a call.** The organization's repositories are not reachable from here, and a workflow in this repository cannot call a workflow in a repository it cannot reach. So `checks.yml` and the two files it reads live here, at the v1.0.1 content. `ci.yml` calls it by path, so the required check is still named `ci / gate`. Updating the copy is a manual edit.
 
-**The contract hashes stay local for now.** Checking them in CI needs the umbrella repository's manifest, which is private, or a generated public slice of it. CI cloned the umbrella with a deploy key until 2026-11-10, and that job was removed with the key. Until a public slice exists, a drifted vendored file is caught only when a maintainer runs the check.
+**The docs conventions run from this clone alone.** `packages/repo-checks/vendor/lint_conventions.py` is a copy of the public skkuverse-server file, and `conventions.test.mjs` runs it inside `pnpm test`. It used to run from a clone of a private repository that only a maintainer's machine could read. Now a contributor, or an LLM agent, that clones this repository runs the same check as CI.
+
+**The token files have no check yet.** Comparing them needs skkuverse-app's token files at a pinned commit. The app repository is public, so a test can read them, but none does yet.
 
 ## Related
 

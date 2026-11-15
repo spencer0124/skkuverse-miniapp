@@ -52,7 +52,7 @@ This is the path one miniapp takes from a folder on disk to a screen in the app.
 
    `check` enforces each rule the [miniapp spec](docs/reference/miniapp-spec.md) marks `checked`. The rules are in `packages/cli/src/check.ts`. Each failure prints its rule ID, and the command exits 1.
 4. **Ship it.** `pnpm exec miniapp-cli ship <id>` builds the package, checks it again and deploys it with the repository's `wrangler`. `--preview` deploys a preview. A production deploy needs a clean `main` that matches `origin/main`.
-5. **Register it.** A maintainer adds the id to the server's registry. The server then fetches the page's `skkuverse.json` and merges its shell into `GET /miniapps/:id`, so the app knows the frame before it opens the page. The server is CommonJS and `@skkuverse/miniapp` is ESM-only, so the server keeps a hand-copied manifest parser and copies this repository's test vectors by hand. Nothing compares the two copies automatically (skkuverse-server's `docs/reference/miniapps-api.md`, section 3.3).
+5. **Register it.** A maintainer adds the id to the server's registry. The server then fetches the page's `skkuverse.json` and merges its shell into `GET /miniapps/:id`, so the app knows the frame before it opens the page. The server is CommonJS, and `@skkuverse/miniapp/protocol` can be `require`d, but the server does not import it yet. It keeps a hand-copied manifest parser and copies this repository's test vectors by hand. Nothing compares the two copies automatically (skkuverse-server's `docs/reference/miniapps-api.md`, section 3.3).
 6. **Talk to the app.** The app injects `window.skkuverse` before the page's script runs. The SDK talks to it over the bridge protocol in `@skkuverse/miniapp/protocol`, described in [protocol.md](docs/reference/protocol.md). The app imports that same module. `./protocol` imports no package, and `packages/miniapp/test/entry-boundaries.test.ts` fails CI if it ever does.
 
 ## Test a mini app without the app
@@ -91,7 +91,7 @@ It plays each page twice: once with the host there from the start, and once with
 
 - `@skkuverse/ui` and `@skkuverse/tokens` have no tests. CI builds them, type-checks them and runs publint and are-the-types-wrong on them.
 - No code linter, such as ESLint, runs on the source. `pnpm lint` is publint and are-the-types-wrong, which check what a package publishes.
-- The vendored contract files in `.contracts.lock.json` are checked only on maintainers' machines. CI does not compare their hashes ([why](docs/explanation/ci-and-branch-protection.md#what-ci-does-not-check)).
+- The four token files in `packages/tokens` are copies of skkuverse-app's, and nothing checks that they still match ([why](docs/explanation/ci-and-branch-protection.md#what-ci-does-not-check)).
 - `@skkuverse/miniapp-cli` and `@skkuverse/game-contract` depend on `@skkuverse/miniapp` with a caret on a `0.x` version, which never crosses a minor. Each minor release of the SDK therefore needs a release of both.
 
 ## Developing
