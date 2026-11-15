@@ -76,13 +76,15 @@ export function linkHits(text) {
 /**
  * No backslash: a copy from a terminal or a CI log can double each one, and a copied `\\.` matches nothing.
  * A name ends where `repoName` ends the token: at an optional `.git` and sentence dots, never at a dot that leads into more name.
+ * `git grep -I -l` hands perl only the tracked text files that hold a link, the files the scan reads, so a binary fixture is never rewritten.
+ * The `--` ends perl's options, so a tracked file named like `-i.md` is a file.
  */
 export function rewriteCommand(links, oldOwners) {
   const old = oldOwners.length === 1 ? oldOwners[0] : `(?:${oldOwners.join('|')})`;
   const names = `(${links.public.join('|')})(?=(?:[.]git)?[.]*(?![A-Za-z0-9_.-]))`;
   const https = `s#(${GITHUB_HOSTS})${old}/${names}#\${1}${links.owner}/\${2}#gi`;
   const pages = `s#(?<![A-Za-z0-9-])${old}[.]github[.]io/${names}#${links.owner}.github.io/\${1}#gi`;
-  return `git ls-files -z | xargs -0 perl -pi -e '${https}; ${pages}'`;
+  return `git grep -I -l -z -i -E '${GREP_PATTERN}' | xargs -0 perl -pi -e '${https}; ${pages}' --`;
 }
 
 export const REWRITE = 'Rewrite each link to a public repository with: ';
@@ -340,6 +342,49 @@ describe('the printed rewrite command', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('the printed rewrite command on awkward tracked files', () => {
+  const stale = `https://github.com/${OTHER}/skkuverse-app`;
+  const fresh = `https://github.com/${OWNER}/skkuverse-app`;
+
+  function rewriteScratch(files, afterAdd = () => {}) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'repo-links-'));
+    try {
+      for (const [file, content] of Object.entries(files)) fs.writeFileSync(path.join(dir, file), content);
+      const text = Object.entries(files).find(([, content]) => typeof content === 'string')[1];
+      const printed = linkReport([{ file: 'a.md', text }], LINKS).find((line) => line.startsWith(REWRITE));
+      execFileSync('git', ['init', '-q'], { cwd: dir });
+      execFileSync('git', ['add', '--', ...Object.keys(files)], { cwd: dir });
+      afterAdd(dir);
+      execFileSync('sh', ['-c', printed.slice(REWRITE.length)], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+      return Object.fromEntries(Object.keys(files).map((file) => [file, fs.existsSync(path.join(dir, file)) ? fs.readFileSync(path.join(dir, file)) : null]));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('rewrites a tracked file whose name starts with a dash, and does not read the name as a perl option', () => {
+    const after = rewriteScratch({ '-i.md': stale, 'a.md': stale });
+
+    assert.equal(after['-i.md'].toString(), fresh);
+    assert.equal(after['a.md'].toString(), fresh);
+  });
+
+  it('leaves a tracked binary file byte for byte as it was, as the scan skips it', () => {
+    const binary = Buffer.concat([Buffer.from(stale), Buffer.from([0, 255, 254]), Buffer.from(stale)]);
+
+    const after = rewriteScratch({ 'a.md': stale, 'blob.bin': binary });
+
+    assert.equal(after['a.md'].toString(), fresh);
+    assert.ok(after['blob.bin'].equals(binary));
+  });
+
+  it('does not stop on a tracked file that was deleted from the working tree', () => {
+    const after = rewriteScratch({ 'a.md': stale, 'gone.md': 'x' }, (dir) => fs.rmSync(path.join(dir, 'gone.md')));
+
+    assert.equal(after['a.md'].toString(), fresh);
   });
 });
 

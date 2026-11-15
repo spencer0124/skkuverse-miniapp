@@ -22,31 +22,42 @@ The check reads links only. Five things stay manual: the `source` field of each 
 ## Prerequisites
 
 - The new repository exists, is empty, and you can push to it.
+- Every repository on the `public` list of `repo-links.json`, including `skkuverse-server` and `skkuverse-app`, exists under the new owner. The rewrite points links at all of them. To keep a link at the old owner, take that repository off `public` and remove the link.
 - Perl and Git are on your `PATH`. The rewrite command uses both.
 - A clean working tree on a branch cut from `main`.
 
 ## Steps
 
 1. Change `owner` in `repo-links.json` to the new account name. Leave `public` as it is unless a repository joined or left the public set.
-2. Run `pnpm --filter repo-checks test`. The test fails. Each failure line names a `path:line`, and the last line starts with `Rewrite each link to a public repository with:`.
-3. Copy the command on that last line and run it from the repository root. It rewrites the https, `git@`, `raw.githubusercontent.com`, `api.github.com/repos` and `github.io` forms and leaves a link to any repository outside `public` alone.
+2. Run `pnpm --filter repo-checks test`. The test fails. Each failure line names a `path:line`. Find the line that starts with `Rewrite each link to a public repository with:`. Other lines can follow it.
+3. Copy the command after that prefix and run it from the repository root. It rewrites the https, `git@`, `raw.githubusercontent.com`, `api.github.com/repos` and `github.io` forms and leaves a link to any repository outside `public` alone.
 4. Run `pnpm test`. It passes when no link is left at the old owner. If it still fails with `is not in public`, remove the link, or add the repository to `public` when the repository is public.
 5. Search for the old account name outside links with `git ls-files -z | xargs -0 grep -n -i '<old-owner>'`. The `source` field of each file under `.github/rulesets/` holds `<owner>/<repo>`, and `.github/CODEOWNERS`, `.github/owner-gate-owners` and the `owner=` line of `.github/owner-gate/test.sh` (line 28) name the maintainer account. Change each of these by hand when the account that owns them changes, then run `bash scripts/check-ci.sh`, which runs the owner-gate test against the new account.
 6. Commit the change and merge it into `main` through a pull request.
-7. If a workflow publishes a Pages site, enable GitHub Pages on the new repository and set the source to GitHub Actions.
-8. Push the release tags to the new repository. The `release-tags` ruleset blocks moving or deleting a tag, so push each tag once. Replace `<new-owner>` with the new account name:
+7. Push `main` to the new repository, then make it the default branch. Replace `<new-owner>` with the new account name:
+
+   ```sh
+   git push https://github.com/<new-owner>/skkuverse-miniapp.git main
+   gh repo edit <new-owner>/skkuverse-miniapp --default-branch main
+   gh repo view <new-owner>/skkuverse-miniapp --json defaultBranchRef --jq .defaultBranchRef.name
+   ```
+
+   The last command prints `main`.
+
+8. If a workflow publishes a Pages site, enable GitHub Pages on the new repository and set the source to GitHub Actions.
+9. Push the release tags to the new repository. The `release-tags` ruleset blocks moving or deleting a tag, so push each tag once. Replace `<new-owner>` with the new account name:
 
    ```sh
    git push https://github.com/<new-owner>/skkuverse-miniapp.git 'refs/tags/@skkuverse/*:refs/tags/@skkuverse/*'
    ```
 
-9. Point `origin` at the new repository:
+10. Point `origin` at the new repository:
 
-   ```sh
-   git remote set-url origin https://github.com/<new-owner>/skkuverse-miniapp.git
-   ```
+    ```sh
+    git remote set-url origin https://github.com/<new-owner>/skkuverse-miniapp.git
+    ```
 
-10. Release each package once. npm shows the `repository.url` of a package's latest version, so a package keeps the old URL until its next release. Follow [release-packages.md](release-packages.md).
+11. Release each package once. npm shows the `repository.url` of a package's latest version, so a package keeps the old URL until its next release. Follow [release-packages.md](release-packages.md).
 
 ## Troubleshooting
 
