@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
-import { rewriteMarkdownOutputs } from '../.vitepress/links.mts';
+import { resolvePages } from 'vitepress';
+import { isPublishedPage, rewriteMarkdownOutputs, srcExclude } from '../.vitepress/links.mts';
 
 const REPO_URL = 'https://github.com/o/r';
 
@@ -37,5 +38,53 @@ describe('link rewrite', () => {
   it('skips a repeated reference label as CommonMark does, and rewrites the first', () => {
     const copy = build('[x][l]\n\n[l]: ./b.md\n[L]: ./b.md "again"\n');
     assert.equal(copy, '[x][l]\n\n[l]: b.md\n[L]: ./b.md "again"\n');
+  });
+
+  it('rewrites a reference definition whose destination continues on the next line of a blockquote', () => {
+    assert.equal(build('> [r]:\n>   ./b.md\n\n[x][r]\n'), '> [r]:\n>   b.md\n\n[x][r]\n');
+  });
+
+  it('rewrites a link in a table cell that holds an escaped pipe', () => {
+    const table = (to) => `| h | i |\n|---|---|\n| a \\| [b](${to}) | \`c\\|d\` [b](${to}) |\n`;
+    assert.equal(build(table('./b.md')), table('b.md'));
+  });
+
+  it('reads a destination as CommonMark does, escapes and entities included', () => {
+    assert.equal(build('[b](./b\\.md) [c](./b&#46;md)\n'), '[b](b.md) [c](b.md)\n');
+  });
+
+  it('writes a target that would end a destination percent-encoded', () => {
+    assert.equal(build('[n](./my%20page.md)\n', { 'docs/my page.md': '# n\n' }), '[n](my%20page.md)\n');
+  });
+
+  it('fails on a relative link it cannot send anywhere, instead of leaving it relative', () => {
+    assert.throws(() => build('[gone](./gone.md)\n'), /docs\/a\.md: cannot rewrite the link \.\/gone\.md/);
+  });
+});
+
+describe('published set', () => {
+  it('publishes exactly the files isPublishedPage names', async () => {
+    const files = [
+      'README.md',
+      'AGENTS.md',
+      'docs/a.md',
+      'docs/how-to/b.md',
+      'docs/_template.md',
+      'packages/notes.md',
+      'packages/x/README.md',
+      'packages/x/CHANGELOG.md',
+      'packages/x/templates/y/README.md',
+      'packages/x/node_modules/z/README.md',
+      'plugin/skills/s.md',
+    ];
+    const srcDir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-pages-'));
+    for (const file of files) {
+      fs.mkdirSync(path.dirname(path.join(srcDir, file)), { recursive: true });
+      fs.writeFileSync(path.join(srcDir, file), '# x\n');
+    }
+    const siteConfig = { srcDir, userConfig: { srcExclude }, logger: console };
+    await resolvePages(siteConfig, true);
+    fs.rmSync(srcDir, { recursive: true, force: true });
+    assert.deepEqual(siteConfig.pages, files.filter(isPublishedPage).sort());
   });
 });

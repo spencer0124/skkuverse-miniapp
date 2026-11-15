@@ -1,16 +1,30 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import MarkdownIt from 'markdown-it';
-import reference from 'markdown-it/lib/rules_block/reference.mjs';
-import image from 'markdown-it/lib/rules_inline/image.mjs';
-import link from 'markdown-it/lib/rules_inline/link.mjs';
+import { parse, postprocess, preprocess } from 'micromark';
+import { gfmTable } from 'micromark-extension-gfm-table';
+import { decodeString } from 'micromark-util-decode-string';
+import { normalizeIdentifier } from 'micromark-util-normalize-identifier';
 
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+
+const isRelative = (href: string) => href !== '' && !href.startsWith('#') && !href.startsWith('/') && !SCHEME.test(href);
 
 export const isPublishedPage = (rel: string) =>
   rel === 'README.md' ||
   /^packages\/[^/]+\/README\.md$/.test(rel) ||
   (/^docs\/.+\.md$/.test(rel) && rel !== 'docs/_template.md');
+
+// Closed world: VitePress publishes every Markdown file these globs do not exclude, and they leave exactly the files
+// isPublishedPage names. A Markdown file a later change adds anywhere else is never published.
+export const srcExclude = [
+  '!(docs|packages)/**/*.md',
+  '!(README).md',
+  'packages/*.md',
+  'packages/*/!(README).md',
+  'packages/*/*/**/*.md',
+  'docs/_template.md',
+  '**/node_modules/**',
+];
 
 export interface RepoLink {
   rel: string;
@@ -21,7 +35,7 @@ export interface RepoLink {
 
 /** The repository file a relative link points at, or undefined when it is not a relative link to an existing file. */
 export function repoLinkOf(repoRoot: string, fromRel: string, href: string): RepoLink | undefined {
-  if (!href || href.startsWith('#') || href.startsWith('/') || SCHEME.test(href)) return undefined;
+  if (!isRelative(href)) return undefined;
   const [target, ...rest] = href.split(/(?=[#?])/);
   const rel = path.posix.normalize(path.posix.join(path.posix.dirname(fromRel), decodeURI(target)));
   if (rel.startsWith('..') || !existsSync(path.join(repoRoot, rel))) return undefined;
@@ -36,103 +50,45 @@ export function repoLinkOf(repoRoot: string, fromRel: string, href: string): Rep
 export const githubUrl = (repoUrl: string, link: RepoLink) =>
   `${repoUrl}/${link.isDir ? 'tree' : 'blob'}/main/${encodeURI(link.rel.replace(/\/$/, ''))}${link.suffix}`;
 
-interface Span {
+interface Destination {
   start: number;
   end: number;
+  href: string;
 }
 
-// A parser, not line patterns, decides what is a link: fences of any nesting, code spans, titles and reference
-// definitions are CommonMark's business. The parser records where each destination sits in the source, and
-// nothing else is edited.
-const inlineSpans = new WeakMap<object, Span[]>();
-const parser = new MarkdownIt({ html: true });
+const DESTINATIONS = new Set(['resourceDestinationString', 'definitionDestinationString']);
 
-for (const [name, rule, isImage] of [['link', link, false], ['image', image, true]] as const) {
-  parser.inline.ruler.at(name, (state: any, silent: boolean) => {
-    const before = state.tokens.length;
-    const start: number = state.pos;
-    if (!rule(state, silent)) return false;
-    if (silent) return true;
-    const token = isImage ? state.tokens[state.tokens.length - 1] : state.tokens.slice(before).find((t: any) => t.type === 'link_open');
-    const href: string | null = token.attrGet(isImage ? 'src' : 'href');
-    const labelEnd: number = parser.helpers.parseLinkLabel(state, isImage ? start + 1 : start, !isImage);
-    if (state.src[labelEnd + 1] !== '(') return true;
-    let pos = labelEnd + 2;
-    while (pos < state.posMax && /\s/.test(state.src[pos])) pos++;
-    const dest = parser.helpers.parseLinkDestination(state.src, pos, state.posMax);
-    if (!dest.ok || parser.normalizeLink(dest.str) !== href) return true;
-    const angle = state.src[pos] === '<' ? 1 : 0;
-    const list = inlineSpans.get(state.tokens) ?? [];
-    list.push({ start: pos + angle, end: dest.pos - angle });
-    inlineSpans.set(state.tokens, list);
-    return true;
-  });
-}
-
-parser.block.ruler.at('reference', (state: any, startLine: number, endLine: number, silent: boolean) => {
-  const before = new Set(Object.keys(state.env.references ?? {}));
-  if (!reference(state, startLine, endLine, silent)) return false;
-  if (silent) return true;
-  const from: number = state.bMarks[startLine] + state.tShift[startLine];
-  const to: number = state.eMarks[state.line - 1];
-  const raw: string = state.src.slice(from, to);
-  let colon = 1;
-  while (colon < raw.length && raw[colon] !== ']') colon += raw[colon] === '\\' ? 2 : 1;
-  // CommonMark keeps the first definition of a label, so a repeat links nothing and is left as written.
-  if (before.has(parser.utils.normalizeReference(raw.slice(1, colon)))) return true;
-  let pos = from + colon + 2;
-  while (pos < to && /\s/.test(state.src[pos])) pos++;
-  const dest = parser.helpers.parseLinkDestination(state.src, pos, to);
-  const href = dest.ok && parser.normalizeLink(dest.str);
-  if (!href || !Object.values<{ href: string }>(state.env.references).some((r) => r.href === href)) {
-    throw new Error(`cannot locate the destination of the reference definition at line ${startLine + 1}`);
-  }
-  const angle = state.src[pos] === '<' ? 1 : 0;
-  state.env.definitionSpans.push({ start: pos + angle, end: dest.pos - angle });
-  return true;
-});
-
-/** The source position of every link, image and reference-definition destination that is not code. */
-function linkTargets(text: string): Span[] {
-  const env: { definitionSpans: Span[] } = { definitionSpans: [] };
-  const tokens = parser.parse(text, env);
-  const lineStart: number[] = [0];
-  for (let i = text.indexOf('\n'); i >= 0; i = text.indexOf('\n', i + 1)) lineStart.push(i + 1);
-  const lineAt = (n: number) => text.slice(lineStart[n], (lineStart[n + 1] ?? text.length + 1) - 1);
-  const found = [...env.definitionSpans];
-  let block: number[] = [0, 0];
-  const cursor = new Map<number, number>();
-  for (const token of tokens) {
-    if (token.map) block = token.map;
-    const spans = token.type === 'inline' ? inlineSpans.get(token.children) : undefined;
-    if (!spans) continue;
-    // WHY: a table cell has no source map of its own, so it takes the row's. The content of an inline token is its
-    // source lines minus the container prefix, so each line is found again inside its source line.
-    const row = block[0];
-    const bases: { content: number; file: number }[] = [];
-    let content = 0;
-    token.content.split('\n').forEach((piece: string, i: number) => {
-      const at = lineAt(row + i).indexOf(piece, cursor.get(row + i) ?? 0);
-      if (at < 0) throw new Error(`cannot align inline content with line ${row + i + 1}`);
-      cursor.set(row + i, at + piece.length);
-      bases.push({ content, file: lineStart[row + i] + at });
-      content += piece.length + 1;
-    });
-    for (const span of spans) {
-      const base = [...bases].reverse().find((b) => b.content <= span.start)!;
-      const delta = base.file - base.content;
-      found.push({ start: span.start + delta, end: span.end + delta });
+// WHY: micromark records the source offset of every token, so a destination is cut out of the text exactly as written,
+// with no search for it. Container prefixes, escapes, entities and table cells are the parser's business.
+function destinations(text: string): Destination[] {
+  const events = postprocess(parse({ extensions: [gfmTable()] }).document().write(preprocess()(text, undefined, true)));
+  const labels = new Set<string>();
+  const found: Destination[] = [];
+  let repeat = false;
+  for (const [kind, token] of events) {
+    if (kind !== 'enter') continue;
+    const raw = text.slice(token.start.offset, token.end.offset);
+    if (token.type === 'definitionLabelString') {
+      // CommonMark keeps the first definition of a label, so a repeat links nothing and is left as written.
+      const label = normalizeIdentifier(raw);
+      repeat = labels.has(label);
+      labels.add(label);
+    } else if (DESTINATIONS.has(token.type) && !(token.type === 'definitionDestinationString' && repeat)) {
+      found.push({ start: token.start.offset, end: token.end.offset, href: decodeString(raw) });
     }
   }
   return found;
 }
 
-/** Rewrites each link target that is not code. `rewrite` returns a new target, or undefined to keep it. */
+// A rewritten target is written where the authored one stood, so it percent-encodes what would end a destination.
+const asDestination = (href: string) =>
+  href.replace(/[\x00-\x20()<>\\\x7f]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`);
+
+/** Rewrites each link target that is not code. `rewrite` gets the target as CommonMark reads it, and returns a new one or undefined. */
 export function mapLinks(text: string, rewrite: (href: string) => string | undefined): string {
-  const edits = linkTargets(text).flatMap(({ start, end }) => {
-    const href = text.slice(start, end);
+  const edits = destinations(text).flatMap(({ start, end, href }) => {
     const to = rewrite(href);
-    return to !== undefined && to !== href ? [{ start, end, to }] : [];
+    return to !== undefined && to !== href ? [{ start, end, to: asDestination(to) }] : [];
   });
   return edits.sort((a, b) => b.start - a.start).reduce((acc, e) => acc.slice(0, e.start) + e.to + acc.slice(e.end), text);
 }
@@ -176,7 +132,10 @@ export interface LinkContext {
 export function rewriteMarkdownOutputs({ repoRoot, repoUrl, siteUrl, outDir }: LinkContext): void {
   const target = (source: string, copyPath: string | undefined) => (href: string) => {
     const link = repoLinkOf(repoRoot, source, href);
-    if (!link) return undefined;
+    if (!link) {
+      if (isRelative(href)) throw new Error(`${source}: cannot rewrite the link ${href}, which names no file in this repository`);
+      return undefined;
+    }
     let published: string | undefined;
     if (link.pkg) published = `packages/${link.pkg}.md`;
     else if (link.rel !== 'README.md' && isPublishedPage(link.rel)) published = link.rel;

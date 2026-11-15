@@ -15,7 +15,10 @@
   },
   "devDependencies": {
     "markdown-it": "14.3.3",
-    "mdast-util-from-markdown": "2.1.0",
+    "micromark": "4.0.3",
+    "micromark-extension-gfm-table": "2.1.2",
+    "micromark-util-decode-string": "2.0.1",
+    "micromark-util-normalize-identifier": "2.0.1",
     "vitepress": "2.0.0-alpha.21",
     "vitepress-plugin-llms": "1.14.0",
     "vue": "3.5.45"

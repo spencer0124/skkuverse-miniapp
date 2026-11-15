@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitepress';
 import llmstxt from 'vitepress-plugin-llms';
-import { githubUrl, isPublishedPage, repoLinkOf, rewriteMarkdownOutputs } from './links.mts';
+import { githubUrl, isPublishedPage, repoLinkOf, rewriteMarkdownOutputs, srcExclude } from './links.mts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const repoName = 'skkuverse-miniapp';
@@ -16,16 +16,6 @@ const repoUrl = `https://github.com/${owner}/${repoName}`;
 // WHY: the Markdown lives under docs/, outside this package, so `vue` must resolve from here. The lookup is the only
 // place that names it, which is why knip.json ignores the dependency.
 const vueDir = path.dirname(createRequire(import.meta.url).resolve('vue/package.json'));
-
-// Closed world: a Markdown file a later change adds anywhere else is never published.
-const srcExclude = [
-  '!(docs|packages)/**/*.md',
-  '!(README).md',
-  'packages/*/!(README).md',
-  'packages/*/*/**/*.md',
-  'docs/_template.md',
-  '**/node_modules/**',
-];
 
 function pageTitle(file: string): string {
   const text = readFileSync(path.join(repoRoot, file), 'utf8');

@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { before, describe, it } from 'node:test';
-import { fromMarkdown } from 'mdast-util-from-markdown';
+import MarkdownIt from 'markdown-it';
 
 const siteDir = path.join(import.meta.dirname, '..');
 const repoRoot = path.join(siteDir, '../..');
@@ -57,22 +57,28 @@ function builtHtml(dir) {
 }
 
 /**
- * What a Markdown document links to and which code blocks it holds, read with mdast (micromark). The site's rewrite
- * reads the same text with markdown-it, so a construct one parser mishandles is still seen by the other.
+ * What a Markdown document links to and which code blocks it holds, read with markdown-it, which renders the site's
+ * HTML. The rewrite reads the same text with micromark, so a construct one parser mishandles is still seen by the other.
  */
+const md = new MarkdownIt({ html: true });
 function parse(text) {
   const links = [];
   const code = [];
-  const visit = (node) => {
-    const line = node.position?.start.line;
-    if (node.type === 'link' || node.type === 'image' || node.type === 'definition') links.push({ href: node.url, line });
-    else if (node.type === 'code') code.push(`${node.lang ?? ''} ${node.meta ?? ''}\n${node.value}`);
-    else if (node.type === 'html') {
-      for (const m of node.value.matchAll(/\b(?:href|src)\s*=\s*["']([^"']+)["']/gi)) links.push({ href: m[1], line });
-    }
-    node.children?.forEach(visit);
+  const env = {};
+  const htmlLinks = (value, line) => {
+    for (const m of value.matchAll(/\b(?:href|src)\s*=\s*["']([^"']+)["']/gi)) links.push({ href: m[1], line });
   };
-  visit(fromMarkdown(text));
+  for (const block of md.parse(text, env)) {
+    const line = block.map ? block.map[0] + 1 : undefined;
+    if (block.type === 'fence' || block.type === 'code_block') code.push(`${block.info}\n${block.content}`);
+    else if (block.type === 'html_block') htmlLinks(block.content, line);
+    for (const token of block.children ?? []) {
+      if (token.type === 'link_open') links.push({ href: token.attrGet('href'), line });
+      else if (token.type === 'image') links.push({ href: token.attrGet('src'), line });
+      else if (token.type === 'html_inline') htmlLinks(token.content, line);
+    }
+  }
+  for (const { href } of Object.values(env.references ?? {})) links.push({ href, line: undefined });
   return { links, code };
 }
 
