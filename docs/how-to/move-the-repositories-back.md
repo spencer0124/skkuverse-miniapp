@@ -17,12 +17,12 @@ Every link to a skkuverse repository in a tracked file names the owner that `rep
 
 The check reads `package.json` `repository.url` and `homepage`, the badges in `README.md`, the issue template and every other tracked text file. It uses no network.
 
-The check reads links only. Seven things stay manual: the `source` field of each file under `.github/rulesets/`, the maintainer account in `.github/CODEOWNERS`, `.github/owner-gate-owners` and `.github/owner-gate/test.sh`, enabling Pages, pushing the release tags, installing the apps and CodeQL that the `main` ruleset requires, recreating the rulesets, and publishing each package once so that npm shows the new `repository.url`.
+The check reads links only. Eight things stay manual: the `source` field of each file under `.github/rulesets/`, the maintainer account in `.github/CODEOWNERS`, `.github/owner-gate-owners` and `.github/owner-gate/test.sh`, enabling Pages, pushing the release tags, installing the apps and CodeQL that the `main` ruleset requires, creating the `owner-approved` label, recreating the rulesets, and publishing each package once so that npm shows the new `repository.url`.
 
 ## Prerequisites
 
 - The new repository exists, is empty, and you can push to it.
-- Every repository on the `public` list of `repo-links.json`, including `skkuverse-server` and `skkuverse-app`, exists under the new owner. The rewrite points links at all of them. To keep a link at the old owner, take that repository off `public` and remove the link.
+- Every repository on the `public` list of `repo-links.json`, including `skkuverse-server` and `skkuverse-app`, exists under the new owner. The rewrite points links at all of them. A repository that stays behind cannot be linked: a link to a repository outside `public` fails under every owner, so remove that link.
 - Perl and Git are on your `PATH`. The rewrite command uses both.
 - A clean working tree on a branch cut from `main`.
 
@@ -86,7 +86,15 @@ The check reads links only. Seven things stay manual: the `source` field of each
 
     Every context and id from the first command must appear in this output, and the CodeQL analysis must finish. A check that never appears would block every pull request once the ruleset exists. Close the test pull request.
 
-12. Recreate the rulesets on the new repository. Nothing in this repository applies the files under `.github/rulesets/` for you, so until you create each ruleset there from its file, `main` is unprotected and the daily drift job fails on the new repository. Create each one, then compare the live rulesets with the files:
+12. Create the `owner-approved` label, which the required `gate` check reads (`.github/owner-gate/gate.sh`). Copy the description and colour from the live label:
+
+    ```sh
+    gh label list -R <old-owner>/skkuverse-miniapp --search owner-approved --json name,description,color
+    gh label create owner-approved -R <new-owner>/skkuverse-miniapp --description "<description>" --color "<color>"
+    ```
+
+    Then confirm that an account listed in `.github/owner-gate-owners` can apply it: that account adds the label to a throwaway test pull request, and the `gate` check on that pull request turns green. Close the pull request afterwards.
+13. Recreate the rulesets on the new repository. Nothing in this repository applies the files under `.github/rulesets/` for you, so until you create each ruleset there from its file, `main` is unprotected and the daily drift job fails on the new repository. Create each one, then compare the live rulesets with the files:
 
     ```sh
     for f in .github/rulesets/*.json; do
@@ -95,8 +103,8 @@ The check reads links only. Seven things stay manual: the `source` field of each
     bash .github/rulesets/compare.sh <new-owner>/skkuverse-miniapp --keep-bypass
     ```
 
-    The comparison prints nothing and exits 0 when the live rulesets match the files.
-13. Release each package once. npm shows the `repository.url` of a package's latest version, so a package keeps the old URL until its next release. Follow [release-packages.md](release-packages.md).
+    When the live rulesets match the files, the comparison prints `compare.sh: the 3 live rulesets of <new-owner>/skkuverse-miniapp match .github/rulesets (--keep-bypass)` and exits 0.
+14. Release each package once. npm shows the `repository.url` of a package's latest version, so a package keeps the old URL until its next release. Follow [release-packages.md](release-packages.md).
 
 ## Troubleshooting
 

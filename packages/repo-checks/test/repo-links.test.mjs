@@ -18,7 +18,7 @@
  * cases.
  */
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -123,12 +123,17 @@ function readUnlessDeleted(file) {
 
 // The rewrite command picks files with this same git grep, so the scan and the rewrite agree on which files are binary.
 function trackedTextFiles(cwd = root) {
-  const listed = execFileSync('git', ['grep', '-I', '-l', '-z', '-i', '-E', GREP_PATTERN], {
+  const run = spawnSync('git', ['grep', '-I', '-l', '-z', '-i', '-E', GREP_PATTERN], {
     cwd,
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,
-    stdio: ['ignore', 'pipe', 'ignore'],
   });
+  if (run.error) throw run.error;
+  // git grep exits 1 when no file matches. Any other non-zero exit is a real failure.
+  if (run.status !== 0 && run.status !== 1) {
+    throw new Error(`git grep exited ${run.status}: ${run.stderr.trim()}`);
+  }
+  const listed = run.status === 1 ? '' : run.stdout;
   return listed
     .split('\0')
     .filter((file) => file !== '')
@@ -402,6 +407,22 @@ describe('the printed rewrite command on awkward tracked files', () => {
       const changed = ['a.md', 'late.bin'].filter((file) => !fs.readFileSync(path.join(dir, file)).equals(file === 'a.md' ? Buffer.from(stale) : lateNul));
 
       assert.deepEqual(changed.sort(), scanned.map(({ file }) => file).sort());
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('reads no files when none holds a link, and fails loudly when git grep itself fails', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'repo-links-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'a.md'), 'no link here');
+      execFileSync('git', ['init', '-q'], { cwd: dir });
+      execFileSync('git', ['add', '--', 'a.md'], { cwd: dir });
+
+      assert.deepEqual(trackedTextFiles(dir), []);
+      assert.throws(() => trackedTextFiles(path.join(dir, 'missing')), /ENOENT|git grep exited/);
+      fs.rmSync(path.join(dir, '.git', 'HEAD'));
+      assert.throws(() => trackedTextFiles(dir), /git grep exited \d+: .+/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
