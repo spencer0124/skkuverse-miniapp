@@ -15,10 +15,8 @@ audience: public
 Section skeletons by `type` — keep the one that matches, delete the rest.
 Write everything in English (see ../CLAUDE.md).
 
-Every type this workspace uses is listed, because the file is vendored into
-each repo by the `conventions.docs-template` contract and a consumer cannot
-add a missing one without breaking the hash. A repo simply ignores the
-skeletons for types it does not write.
+Every type this workspace uses is listed, so a document of any type has a
+skeleton here. Ignore the skeletons for types you do not write.
 
 - how-to (a runbook for one task)
     ## Overview

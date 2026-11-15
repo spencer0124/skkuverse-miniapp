@@ -35,7 +35,7 @@ CI also runs `pnpm test` on Node 22.13.0, the lowest version any package's `engi
 - Follow [CLAUDE.md](CLAUDE.md), and read [docs/explanation/architecture.md](docs/explanation/architecture.md) for how the packages meet the app and the server.
 - Add a changeset for a user-visible change to a published package: run `pnpm changeset`, pick the packages and the bump, and commit the generated `.changeset/*.md` with the change. A change to the app protocol is at least a `minor` of `@skkuverse/miniapp`, and follows [docs/how-to/add-a-bridge-method.md](docs/how-to/add-a-bridge-method.md).
 - Give a behavior change a test. Never weaken, skip or delete an existing test to get green.
-- Do not edit a vendored file listed in `.contracts.lock.json` by hand, such as the four token files in `packages/tokens`: its owner changes it upstream, and the lock pins its hash.
+- Do not edit the four token files in `packages/tokens` (`colors`, `typography`, `spacing`, `radius`) on their own. They are copies of skkuverse-app's token files, so change the value in the app first and copy the file here.
 - Write documentation by the rules in [docs/README.md](docs/README.md).
 - Write code, comments, docs and commit messages in English. Use conventional commit subjects, such as `fix(cli): …`.
 

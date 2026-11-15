@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Documentation
 
-Documents follow the Diátaxis structure (`docs/how-to|reference|explanation|decisions`). **Before writing or editing any document, read `docs/README.md`**, which is the index and holds the writing rules. `pnpm lint:md` runs markdownlint with rules vendored from the umbrella (`.markdownlint.jsonc`, contract `conventions.markdownlint`), and `docs/_template.md` is vendored the same way. Edit both upstream, never here. Everything under `docs/`, plus `README.md` and this file, is English. Korean product copy carries a `conventions:allow-korean` marker on its line.
+Documents follow the Diátaxis structure (`docs/how-to|reference|explanation|decisions`). **Before writing or editing any document, read `docs/README.md`**, which is the index and holds the writing rules. `pnpm lint:md` runs markdownlint with the rules in `.markdownlint.jsonc`, and `docs/_template.md` is the frontmatter skeleton. Both are edited here. Everything under `docs/`, plus `README.md` and this file, is English. Korean product copy carries a `conventions:allow-korean` marker on its line.
 
 ## What this repository is
 
 The shared code every skkuverse miniapp imports, and the tools that check and ship one, published to public npm:
 
-- `packages/tokens` → `@skkuverse/tokens`. Four files (`colors`, `typography`, `spacing`, `radius`) are hash-checked copies of skkuverse-app's token files, under the umbrella contracts `design.*`. Never edit them here. `css.ts` is local.
+- `packages/tokens` → `@skkuverse/tokens`. Four files (`colors`, `typography`, `spacing`, `radius`) are copies of skkuverse-app's token files (`packages/shared/src/tokens/` there), and nothing yet checks that they still match. Change a value in the app first, then copy the file here. `css.ts` is local.
 - `packages/ui` → `@skkuverse/ui`, the web port of the SKKU Design System.
 - `packages/miniapp` → `@skkuverse/miniapp`.
   - `src/protocol/` is **the contract with the app**. It has no DOM, no React and no dependencies. skkuverse-app imports it, and skkuverse-server keeps a tested copy of the manifest parser.
@@ -35,8 +35,7 @@ pnpm lint           # publint per package, and are-the-types-wrong for the libra
 pnpm lint:md        # markdownlint
 pnpm knip           # files nothing imports, dependencies nothing uses, imports of packages no manifest lists
 pnpm check:ci       # scripts/check-ci.sh: every step of CI's build job, in order; --skip <step> leaves one out
-python3 ../skkuverse/exported/lint_conventions.py --root .
-python3 ../skkuverse/exported/sync_contracts.py check --repo miniapp --root .
+pnpm --filter repo-checks test   # the repository checks, including the docs conventions (frontmatter, language, folder names)
 ```
 
 ## Constraints
