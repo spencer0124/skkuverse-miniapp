@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { before, describe, it } from 'node:test';
 import { COVERED_METHODS } from '../src/cell.mjs';
-import { COMPAT_FILE, generate, PAGE_FILE } from '../src/matrix.mjs';
+import { COMPAT_FILE, generate, PAGE_FILE, support } from '../src/matrix.mjs';
 import { changelogEntry } from '../src/render.mjs';
 import { aliasedVersions, missingAliases, releaseVersions } from '../src/versions.mjs';
 
@@ -134,5 +134,32 @@ describe('the release versions filter', () => {
       .filter((e) => e.name === '@skkuverse/miniapp')
       .map((e) => e.version);
     assert.deepEqual(missingAliases(recorded, manifest), []);
+  });
+});
+
+describe('the support statement', () => {
+  const hosts = ['0.1.0', '0.2.0', '0.3.0', '0.4.0'];
+  const at = (...statuses) => Object.fromEntries(hosts.map((h, i) => [h, { status: statuses[i], detail: `${statuses[i]} on ${h}` }]));
+
+  it('starts at the first host of the run that works', () => {
+    assert.deepEqual(support(at('n/a', 'gap', 'ok', 'ok'), hosts), { version_added: '0.3.0', notes: 'gap: gap on 0.2.0 (host 0.2.0)', partial_implementation: false });
+  });
+
+  it('marks a fallback before the first working host as partial', () => {
+    const entry = support(at('n/a', 'fallback', 'ok', 'ok'), hosts);
+    assert.equal(entry.version_added, '0.3.0');
+    assert.equal(entry.partial_implementation, true);
+  });
+
+  it('keeps the earlier range when the newest host regresses', () => {
+    const entry = support(at('n/a', 'ok', 'ok', 'broken'), hosts);
+    assert.equal(entry.version_added, '0.2.0');
+    assert.equal(entry.version_removed, '0.4.0');
+    assert.match(entry.notes, /broken: broken on 0\.4\.0 \(host 0\.4\.0\)/);
+  });
+
+  it('says it never works when no host does, and reads a page with no measured host', () => {
+    assert.equal(support(at('n/a', 'broken', 'broken', 'broken'), hosts).version_added, false);
+    assert.deepEqual(support(at('n/a', 'n/a', 'n/a', 'n/a'), hosts), { version_added: false, notes: 'n/a on 0.1.0', partial_implementation: false });
   });
 });

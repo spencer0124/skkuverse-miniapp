@@ -14,7 +14,7 @@
  * Adding a bridge method means one entry in `METHOD_SCENARIOS` (or, for a game method, `GAME_OUTBOUND`). The test in
  * `test/matrix.test.mjs` fails for a method of the workspace protocol that no entry here names.
  */
-import { readFileSync } from 'node:fs';
+import fs, { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -68,7 +68,11 @@ export function verdict(scenarios) {
 const mask = (s) => String(s).replace(/r\d+-[a-z0-9]{8}/g, 'r<n>-<rand>');
 const short = (s, n = 140) => (String(s).length > n ? `${String(s).slice(0, n)}...` : String(s));
 const posted = (host, from) => host.log.slice(from).filter((e) => e.dir === 'page>host');
-const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+const sameSet = (a, b) => {
+  const left = [...a].sort();
+  const right = [...b].sort();
+  return left.length === right.length && left.every((x, i) => x === right[i]);
+};
 const flush = async () => {
   for (let i = 0; i < 8; i++) await Promise.resolve();
 };
@@ -150,15 +154,8 @@ async function cell(mode, page, host, build, install) {
       return { api, game: null };
     }
     const api = await import(entry(version, ''));
-    let game = null;
-    if (kind === 'game') {
-      try {
-        game = await import(entry(version, 'game'));
-      } catch {
-        game = null;
-      }
-    }
-    return { api, game };
+    const hasGame = kind === 'game' && fs.existsSync(path.join(pkgDir(version), 'dist', 'game', 'index.js'));
+    return { api, game: hasGame ? await import(entry(version, 'game')) : null };
   }
 
   async function methodScenario(api, host, { id, method, fn, call }) {

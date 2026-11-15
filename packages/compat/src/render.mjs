@@ -52,9 +52,10 @@ export function renderPage(compat, changelog) {
   const label = (version) => (compat.versions[version].release === undefined ? version : `[${version}]`);
   const header = (first) => [first, ...hosts.map(label)];
 
+  const sameEvidence = (page, host) => JSON.stringify(compat.cells.esm[page][host]) === JSON.stringify(compat.cells.global[page][host]);
   const homeOf = (build, page, host) => {
     const cell = compat.cells[build][page][host];
-    if (build === 'global' && compat.cells.esm[page][host].verdict === cell.verdict) return anchor('esm', page, host);
+    if (build === 'global' && sameEvidence(page, host)) return anchor('esm', page, host);
     return anchor(build, page, host);
   };
   const cellLink = (build, page, host) => {
@@ -169,7 +170,8 @@ export function renderPage(compat, changelog) {
         ...pages.map((page) => {
           const s = f.support[page];
           if (s.version_added === false) return 'never';
-          return s.partial_implementation ? `host ${s.version_added}+, partial` : `host ${s.version_added}+`;
+          const range = s.version_removed === undefined ? `host ${s.version_added}+` : `host ${s.version_added}, removed at ${s.version_removed}`;
+          return s.partial_implementation ? `${range}, partial` : range;
         }),
       ]),
     ),
@@ -191,8 +193,9 @@ export function renderPage(compat, changelog) {
   for (const { build, page, host, cell } of homes) {
     const suffix = build === 'global' ? ' (script-tag build)' : '';
     const modes = [...new Set(cell.scenarios.map((s) => s.mode))];
-    const reruns = modes.map((mode) => code(`pnpm --filter compat exec node src/cell.mjs ${mode} ${page} ${host}${build === 'global' ? ' global' : ''}`));
-    out.push(`<a id="${anchor(build, page, host)}"></a>`, '', `### Page ${page} on host ${host}${suffix}`, '', `Verdict ${code(cell.verdict)}. Rerun it with ${reruns.join(' and ')}.`, '');
+    const builds = build === 'esm' && sameEvidence(page, host) ? ['esm', 'global'] : [build];
+    const reruns = modes.flatMap((mode) => builds.map((b) => code(`pnpm --filter compat exec node src/cell.mjs ${mode} ${page} ${host}${b === 'global' ? ' global' : ''}`)));
+    out.push(`<a id="${anchor(build, page, host)}"></a>`, '', `### Page ${page} on host ${host}${suffix}`, '', `Verdict ${code(cell.verdict)}${builds.length === 2 ? ' in both builds' : ''}. Rerun it with ${reruns.join(' and ')}.`, '');
     const named = new Map();
     for (const s of cell.scenarios) {
       const wire = s.observed === undefined || s.observed.length === 0 ? 'none' : s.observed.map(code).join(', ');

@@ -125,7 +125,7 @@ Each feature is a scenario, and `compat.json` records, per page version, the fir
 
 ### Page 0.1.0 on host 0.2.0
 
-Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.2.0`.
+Verdict `FAIL: 7 scenarios` in both builds. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.2.0` and `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.2.0 global`.
 
 - **detect** (FAIL). Wire message: none. Host: inApp=true protocol=1 page sees [haptic,openUrl] but host grants [haptic.impact,link.open,map.openPlace,miniapp.open,analytics.track,app.ready,shell.set].
 - **haptic** (FAIL). Wire message: `{"type":"web:haptic","style":"light"}`. Host: host dropped: parseMessage returned null.
@@ -141,7 +141,7 @@ CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.act
 
 ### Page 0.1.0 on host 0.2.1
 
-Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.2.1`.
+Verdict `FAIL: 7 scenarios` in both builds. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.2.1` and `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.2.1 global`.
 
 - **detect** (FAIL). Wire message: none. Host: inApp=true protocol=1 page sees [haptic,openUrl] but host grants [haptic.impact,link.open,map.openPlace,miniapp.open,analytics.track,app.ready,shell.set].
 - **haptic** (FAIL). Wire message: `{"type":"web:haptic","style":"light"}`. Host: host dropped: parseMessage returned null.
@@ -157,7 +157,7 @@ CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.act
 
 ### Page 0.1.0 on host 0.3.0
 
-Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.3.0`.
+Verdict `FAIL: 7 scenarios` in both builds. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.3.0` and `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.3.0 global`.
 
 - **detect** (FAIL). Wire message: none. Host: inApp=true protocol=1 page sees [haptic,openUrl] but host grants [haptic.impact,link.open,map.openPlace,miniapp.open,share.open,analytics.track,app.ready,shell.set].
 - **haptic** (FAIL). Wire message: `{"type":"web:haptic","style":"light"}`. Host: host dropped: parseMessage returned null.
@@ -173,7 +173,7 @@ CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.act
 
 ### Page 0.1.0 on host 0.4.0
 
-Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.4.0`.
+Verdict `FAIL: 7 scenarios` in both builds. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.4.0` and `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.4.0 global`.
 
 - **detect** (FAIL). Wire message: none. Host: inApp=true protocol=1 page sees [haptic,openUrl] but host grants [haptic.impact,link.open,map.openPlace,miniapp.open,share.open,analytics.track,app.ready,shell.set].
 - **haptic** (FAIL). Wire message: `{"type":"web:haptic","style":"light"}`. Host: host dropped: parseMessage returned null.
@@ -189,7 +189,7 @@ CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.act
 
 ### Page 0.1.0 on host 0.4.1
 
-Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.4.1`.
+Verdict `FAIL: 7 scenarios` in both builds. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.4.1` and `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.4.1 global`.
 
 - **detect** (FAIL). Wire message: none. Host: inApp=true protocol=1 page sees [haptic,openUrl] but host grants [haptic.impact,link.open,map.openPlace,miniapp.open,share.open,analytics.track,app.ready,shell.set].
 - **haptic** (FAIL). Wire message: `{"type":"web:haptic","style":"light"}`. Host: host dropped: parseMessage returned null.
@@ -205,7 +205,7 @@ CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.act
 
 ### Page 0.1.0 on host 0.4.2
 
-Verdict `FAIL: 7 scenarios`. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.4.2`.
+Verdict `FAIL: 7 scenarios` in both builds. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.4.2` and `pnpm --filter compat exec node src/cell.mjs mini 0.1.0 0.4.2 global`.
 
 - **detect** (FAIL). Wire message: none. Host: inApp=true protocol=1 page sees [haptic,openUrl] but host grants [haptic.impact,link.open,map.openPlace,miniapp.open,share.open,analytics.track,app.ready,shell.set].
 - **haptic** (FAIL). Wire message: `{"type":"web:haptic","style":"light"}`. Host: host dropped: parseMessage returned null.
@@ -221,7 +221,7 @@ CHANGELOG 0.2.0: Breaking: the v1 message types, `postToApp` and the `bridge.act
 
 ### Page 0.3.0 on host 0.2.0
 
-Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.3.0 0.2.0`.
+Verdict `fb: share` in both builds. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.3.0 0.2.0` and `pnpm --filter compat exec node src/cell.mjs mini 0.3.0 0.2.0 global`.
 
 - **share** (fb). Wire message: none. Host: host does not grant share.open; page degraded without a message; navigator.share fallback returned "shared".
 
@@ -231,7 +231,7 @@ CHANGELOG 0.3.0: Add `share.open` and `share({ url, text })`.
 
 ### Page 0.3.0 on host 0.2.1
 
-Verdict `fb: share`. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.3.0 0.2.1`.
+Verdict `fb: share` in both builds. Rerun it with `pnpm --filter compat exec node src/cell.mjs mini 0.3.0 0.2.1` and `pnpm --filter compat exec node src/cell.mjs mini 0.3.0 0.2.1 global`.
 
 - **share** (fb). Wire message: none. Host: host does not grant share.open; page degraded without a message; navigator.share fallback returned "shared".
 

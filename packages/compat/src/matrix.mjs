@@ -158,13 +158,17 @@ async function bootstrapHashes(install, published) {
   return out;
 }
 
-/** What a feature does for one page across the host versions, in the shape of a browser-compat-data support statement. */
-function support(statuses, hosts) {
+/**
+ * What a feature does for one page across the host versions, in the shape of a browser-compat-data support statement.
+ * `version_added` is the first host of the latest run of hosts where it works. When a newer measured host does not
+ * work, `version_removed` names the first such host, so an earlier range survives a later regression.
+ */
+export function support(statuses, hosts) {
   const measured = hosts.filter((h) => statuses[h].status !== 'n/a');
-  const notes = [];
   if (measured.length === 0) return { version_added: false, notes: statuses[hosts[0]].detail, partial_implementation: false };
-  let first = null;
-  for (let i = measured.length - 1; i >= 0 && statuses[measured[i]].status === 'ok'; i--) first = measured[i];
+  const lastOk = measured.findLastIndex((h) => statuses[h].status === 'ok');
+  let firstOk = lastOk;
+  while (firstOk > 0 && statuses[measured[firstOk - 1]].status === 'ok') firstOk--;
   const groups = new Map();
   for (const h of measured) {
     const { status, detail } = statuses[h];
@@ -172,12 +176,14 @@ function support(statuses, hosts) {
     const key = `${status}: ${detail}`;
     groups.set(key, [...(groups.get(key) ?? []), h]);
   }
-  for (const [key, list] of groups) notes.push(`${key} (host ${list.join(', ')})`);
-  return {
-    version_added: first ?? false,
+  const notes = [...groups].map(([key, list]) => `${key} (host ${list.join(', ')})`);
+  const entry = {
+    version_added: lastOk < 0 ? false : measured[firstOk],
     notes: notes.length === 0 ? 'ok on every measured host' : notes.join('; '),
     partial_implementation: measured.some((h) => statuses[h].status === 'fallback'),
   };
+  if (lastOk >= 0 && lastOk < measured.length - 1) entry.version_removed = measured[lastOk + 1];
+  return entry;
 }
 
 /** The matrix as data, shaped like MDN browser-compat-data. `results` comes from `runMatrix`. */
