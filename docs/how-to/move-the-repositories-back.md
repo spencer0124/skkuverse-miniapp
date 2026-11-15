@@ -34,15 +34,17 @@ The check reads links only. Five things stay manual: the `source` field of each 
 4. Run `pnpm test`. It passes when no link is left at the old owner. If it still fails with `is not in public`, remove the link, or add the repository to `public` when the repository is public.
 5. Search for the old account name outside links with `git ls-files -z | xargs -0 grep -n -i '<old-owner>'`. The `source` field of each file under `.github/rulesets/` holds `<owner>/<repo>`, and `.github/CODEOWNERS`, `.github/owner-gate-owners` and the `owner=` line of `.github/owner-gate/test.sh` (line 28) name the maintainer account. Change each of these by hand when the account that owns them changes, then run `bash scripts/check-ci.sh`, which runs the owner-gate test against the new account.
 6. Commit the change and merge it into `main` through a pull request.
-7. Push `main` to the new repository, then make it the default branch. Replace `<new-owner>` with the new account name:
+7. Push the merged `main` to the new repository, then make it the default branch. The pull request merges on GitHub, so your local `main` does not hold the rewrite until you fetch. Push `origin/main`, not `main`. Replace `<new-owner>` with the new account name:
 
    ```sh
-   git push https://github.com/<new-owner>/skkuverse-miniapp.git main
+   git fetch origin
+   git push https://github.com/<new-owner>/skkuverse-miniapp.git origin/main:refs/heads/main
    gh repo edit <new-owner>/skkuverse-miniapp --default-branch main
    gh repo view <new-owner>/skkuverse-miniapp --json defaultBranchRef --jq .defaultBranchRef.name
+   gh api repos/<new-owner>/skkuverse-miniapp/contents/repo-links.json --jq .content | base64 -d | grep '"owner"'
    ```
 
-   The last command prints `main`.
+   The third command prints `main`, and the last prints the `owner` line with `<new-owner>`. If it prints the old owner, you pushed a `main` without the rewrite.
 
 8. If a workflow publishes a Pages site, enable GitHub Pages on the new repository and set the source to GitHub Actions.
 9. Push the release tags to the new repository. The `release-tags` ruleset blocks moving or deleting a tag, so push each tag once. Replace `<new-owner>` with the new account name:
@@ -57,7 +59,8 @@ The check reads links only. Five things stay manual: the `source` field of each 
     git remote set-url origin https://github.com/<new-owner>/skkuverse-miniapp.git
     ```
 
-11. Release each package once. npm shows the `repository.url` of a package's latest version, so a package keeps the old URL until its next release. Follow [release-packages.md](release-packages.md).
+11. Recreate the rulesets on the new repository. Nothing in this repository applies the files under `.github/rulesets/` for you, so until you create each ruleset there from its file, `main` is unprotected and the daily drift job fails on the new repository.
+12. Release each package once. npm shows the `repository.url` of a package's latest version, so a package keeps the old URL until its next release. Follow [release-packages.md](release-packages.md).
 
 ## Troubleshooting
 

@@ -121,14 +121,20 @@ function readUnlessDeleted(file) {
   }
 }
 
-function trackedTextFiles() {
-  const listed = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+// The rewrite command picks files with this same git grep, so the scan and the rewrite agree on which files are binary.
+function trackedTextFiles(cwd = root) {
+  const listed = execFileSync('git', ['grep', '-I', '-l', '-z', '-i', '-E', GREP_PATTERN], {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024,
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
   return listed
     .split('\0')
     .filter((file) => file !== '')
     .flatMap((file) => {
-      const bytes = readUnlessDeleted(path.join(root, file));
-      return bytes === undefined || bytes.includes(0) ? [] : [{ file, text: bytes.toString('utf8') }];
+      const bytes = readUnlessDeleted(path.join(cwd, file));
+      return bytes === undefined ? [] : [{ file, text: bytes.toString('utf8') }];
     });
 }
 
@@ -379,6 +385,26 @@ describe('the printed rewrite command on awkward tracked files', () => {
 
     assert.equal(after['a.md'].toString(), fresh);
     assert.ok(after['blob.bin'].equals(binary));
+  });
+
+  it('rewrites exactly the files the scan reads, including a file whose first NUL byte comes late', () => {
+    const lateNul = Buffer.concat([Buffer.from(`${stale}\n`), Buffer.alloc(9000, 'x'), Buffer.from([0]), Buffer.from(stale)]);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'repo-links-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'a.md'), stale);
+      fs.writeFileSync(path.join(dir, 'late.bin'), lateNul);
+      execFileSync('git', ['init', '-q'], { cwd: dir });
+      execFileSync('git', ['add', '--', 'a.md', 'late.bin'], { cwd: dir });
+      const scanned = trackedTextFiles(dir);
+      const printed = linkReport(scanned, LINKS).find((line) => line.startsWith(REWRITE));
+
+      execFileSync('sh', ['-c', printed.slice(REWRITE.length)], { cwd: dir });
+      const changed = ['a.md', 'late.bin'].filter((file) => !fs.readFileSync(path.join(dir, file)).equals(file === 'a.md' ? Buffer.from(stale) : lateNul));
+
+      assert.deepEqual(changed.sort(), scanned.map(({ file }) => file).sort());
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('does not stop on a tracked file that was deleted from the working tree', () => {
