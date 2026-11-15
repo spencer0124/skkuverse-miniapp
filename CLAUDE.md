@@ -10,7 +10,7 @@ Documents follow the Diátaxis structure (`docs/how-to|reference|explanation|dec
 
 The shared code every skkuverse miniapp imports, and the tools that check and ship one, published to public npm:
 
-- `packages/tokens` → `@skkuverse/tokens`. Four files (`colors`, `typography`, `spacing`, `radius`) are copies of skkuverse-app's token files (`packages/shared/src/tokens/` there), and nothing yet checks that they still match. Change a value in the app first, then copy the file here. `css.ts` is local.
+- `packages/tokens` → `@skkuverse/tokens`. <!-- docs-gen:begin token-files form=count cap=1 -->Four<!-- docs-gen:end token-files --> files (<!-- docs-gen:begin token-files form=list -->`colors`, `radius`, `spacing` and `typography`<!-- docs-gen:end token-files -->) are copies of skkuverse-app's token files (`packages/shared/src/tokens/` there), and nothing yet checks that they still match. Change a value in the app first, then copy the file here. `css.ts` is local.
 - `packages/ui` → `@skkuverse/ui`, the web port of the SKKU Design System.
 - `packages/miniapp` → `@skkuverse/miniapp`.
   - `src/protocol/` is **the contract with the app**. It has no DOM, no React and no dependencies. skkuverse-app imports it, and skkuverse-server keeps a tested copy of the manifest parser.
@@ -35,8 +35,11 @@ pnpm lint           # publint per package, and are-the-types-wrong for the libra
 pnpm lint:md        # markdownlint
 pnpm knip           # files nothing imports, dependencies nothing uses, imports of packages no manifest lists
 pnpm check:ci       # scripts/check-ci.sh: every step of CI's build job, in order; --skip <step> leaves one out
-pnpm --filter repo-checks test   # the repository checks, including the docs conventions (frontmatter, language, folder names)
+pnpm --filter repo-checks test   # the repository checks, including the docs conventions (frontmatter, language, folder names) and the docs drift check
+pnpm docs:gen       # rewrite every generated part of the docs and the API reference; run it after changing code a doc states
 ```
+
+`pnpm check:ci` runs these steps, in this order: <!-- docs-gen:begin ci-steps -->`install`, `build`, `typecheck`, `test`, `lint`, `lint-md`, `knip` and `owner-gate`<!-- docs-gen:end ci-steps -->.
 
 ## Constraints
 

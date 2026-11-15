@@ -44,7 +44,7 @@ Nothing built on the miniapp channel had been released to users yet, so the desi
 - ✅ **Design stays with the miniapp.** A miniapp changes its own framing with one line in its own repository, and the first frame is already right.
 - ⚠️ **The protocol, the app and the miniapps must ship in order.** A miniapp on 0.2.x inside an app without the new shell finds no `window.skkuverse` and shows the browser gate. The app's OTA ships before any miniapp is merged to production.
 - ⚠️ **Old pages lose their buttons.** Pages still sending v1 `web:*` messages get no response in the mini-app shell. The app's generic `/webview` screen keeps v1 for skkuverse-web.
-- ⚠️ **A manifest change takes up to about ten minutes to reach users.** The delay is the server's five-minute cache plus the registry's five-minute response cache.
+- ⚠️ **A manifest change takes time to reach users.** The delay is the server's manifest cache plus the registry's response cache, and skkuverse-server's `docs/reference/miniapps-api.md` states both.
 - ⚠️ **The server keeps a copy of the manifest parser.** The server is CommonJS and the package is ESM-only. The copy is pinned by tests that mirror this repository's vectors.
 
 ## Alternatives considered

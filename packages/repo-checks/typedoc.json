@@ -1,0 +1,41 @@
+// The API reference: one page per export of every entry point of @skkuverse/miniapp, @skkuverse/ui and
+// @skkuverse/tokens. scripts/docs-gen.mjs runs it, names each entry point and writes the result to docs/reference/api.
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "API reference",
+  "tsconfig": "./tsconfig.typedoc.json",
+  "entryPoints": [
+    "../miniapp/src/index.ts",
+    "../miniapp/src/protocol/index.ts",
+    "../miniapp/src/game/index.ts",
+    "../miniapp/src/react/index.ts",
+    "../miniapp/src/react/ui/index.ts",
+    "../miniapp/src/testing/index.ts",
+    "../ui/src/index.ts",
+    "../tokens/src/index.ts"
+  ],
+  "out": "../../docs/reference/api",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-plugin-frontmatter"],
+  // A broken {@link}, or an exported type that names one that is not exported, stops the generator.
+  "treatWarningsAsErrors": true,
+  "treatValidationWarningsAsErrors": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "readme": "none",
+  "hideGenerator": true,
+  "hideBreadcrumbs": true,
+  "hidePageHeader": true,
+  "disableSources": true,
+  "useCodeBlocks": false,
+  "entryFileName": "README",
+  "outputFileStrategy": "members",
+  // The pages are rewritten from the source on every run, so a date that moved with each run would put a diff in every
+  // page. The date is the day the generator's output format last changed.
+  "frontmatterGlobals": {
+    "type": "reference",
+    "status": "accepted",
+    "owner": "zoyoong124@gmail.com",
+    "last-updated": "2026-11-15",
+    "audience": "public"
+  }
+}

@@ -28,14 +28,16 @@ Run the same checks as CI's `build` job, on the Node version in `.nvmrc` with th
 pnpm check:ci
 ```
 
+It runs these steps, in this order: <!-- docs-gen:begin ci-steps -->`install`, `build`, `typecheck`, `test`, `lint`, `lint-md`, `knip` and `owner-gate`<!-- docs-gen:end ci-steps -->.
+
 `pnpm test` in the game contract installs its packed tarball with pnpm and npm, so it needs the npm registry.
 
-CI also runs `pnpm test` on Node 22.13.0, the lowest version any package's `engines.node` admits. If your change touches what runs on Node, such as the CLI or the game contract, run `pnpm test` on that version too.
+CI also runs `pnpm test` on Node <!-- docs-gen:begin node-floor -->22.13.0<!-- docs-gen:end node-floor -->, the lowest version any package's `engines.node` admits. If your change touches what runs on Node, such as the CLI or the game contract, run `pnpm test` on that version too.
 
 - Follow [CLAUDE.md](CLAUDE.md), and read [docs/explanation/architecture.md](docs/explanation/architecture.md) for how the packages meet the app and the server.
 - Add a changeset for a user-visible change to a published package: run `pnpm changeset`, pick the packages and the bump, and commit the generated `.changeset/*.md` with the change. A change to the app protocol is at least a `minor` of `@skkuverse/miniapp`, and follows [docs/how-to/add-a-bridge-method.md](docs/how-to/add-a-bridge-method.md).
 - Give a behavior change a test. Never weaken, skip or delete an existing test to get green.
-- Do not edit the four token files in `packages/tokens` (`colors`, `typography`, `spacing`, `radius`) on their own. They are copies of skkuverse-app's token files, so change the value in the app first and copy the file here.
+- Do not edit the <!-- docs-gen:begin token-files form=count -->four<!-- docs-gen:end token-files --> token files in `packages/tokens` (<!-- docs-gen:begin token-files form=list -->`colors`, `radius`, `spacing` and `typography`<!-- docs-gen:end token-files -->) on their own. They are copies of skkuverse-app's token files, so change the value in the app first and copy the file here.
 - Write documentation by the rules in [docs/README.md](docs/README.md).
 - Write code, comments, docs and commit messages in English. Use conventional commit subjects, such as `fix(cli): …`.
 

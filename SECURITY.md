@@ -19,6 +19,6 @@ There is no bug bounty.
 
 ## Scope
 
-In scope: the code in this repository and the five packages it publishes: `@skkuverse/miniapp`, `@skkuverse/ui`, `@skkuverse/tokens`, `@skkuverse/miniapp-cli` and `@skkuverse/game-contract`.
+In scope: the code in this repository and the <!-- docs-gen:begin package-count -->five<!-- docs-gen:end package-count --> packages it publishes: <!-- docs-gen:begin package-names -->`@skkuverse/game-contract`, `@skkuverse/miniapp`, `@skkuverse/miniapp-cli`, `@skkuverse/tokens` and `@skkuverse/ui`<!-- docs-gen:end package-names -->.
 
 Out of scope: denial-of-service and volume testing, social engineering, and reports that only list missing headers or best practices without a way to exploit them.

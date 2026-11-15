@@ -2,7 +2,7 @@
 
 Checks a skkuverse miniapp or game against the
 [miniapp spec](https://github.com/spencer0124/skkuverse-miniapp/blob/main/docs/reference/miniapp-spec.md),
-scaffolds new ones, and deploys them to Cloudflare Pages. It needs Node 22.13 or later.
+scaffolds new ones, and deploys them to Cloudflare Pages. It needs <!-- docs-gen:begin engines package=cli -->Node 22.13 or later<!-- docs-gen:end engines -->.
 
 ```sh
 pnpm add -Dw @skkuverse/miniapp-cli
@@ -13,12 +13,18 @@ The CLI works on a repository with a `deploy.config.json` at its root and one en
 for each package under `apps/` (miniapps) and `games/` (games). It finds the repository by
 walking up from the working directory. Every command also takes `--root <path>`.
 
+<!-- docs-gen:begin cli-commands -->
+
 | Command | What it does |
 | --- | --- |
-| `miniapp-cli check [<id>...] [--kind app\|game] [--json]` | Checks every package, or the ones named, and exits 1 when one breaks a rule. |
-| `miniapp-cli check --dir <path> --id <id> [--kind game] [--json]` | Checks one package outside `apps/` and `games/`. A miniapp needs no repository. |
-| `miniapp-cli new [--kind game] <id>` | Scaffolds `apps/<id>` from the miniapp template, or `games/<id>` from the game template. |
-| `miniapp-cli ship <id> [--preview]` | Builds the package, checks it, and runs the repository's `wrangler pages deploy`. A production deploy needs a clean `main` that matches `origin/main`. |
+| `miniapp-cli check [<id>...] [--kind app\|game] [--json]` | Check every package, or the ones named. |
+| `miniapp-cli check --dir <path> --id <id> [--kind game] [--json]` | Check a package outside `apps/` and `games/`. |
+| `miniapp-cli new [--kind game] <id>` | Scaffold `apps/<id>`, or `games/<id>` for a game. |
+| `miniapp-cli ship <id> [--preview]` | Build, check and deploy. |
+
+<!-- docs-gen:end cli-commands -->
+
+`check` exits 1 when a package breaks a rule. `ship` runs the repository's `wrangler pages deploy`, and a production deploy needs a clean `main` that matches `origin/main`.
 
 The spec marks each rule `checked` or `review`. The CLI enforces the `checked` rules, and
 `src/check.ts` holds them. `test/spec-coverage.test.ts` fails when the spec and the checker

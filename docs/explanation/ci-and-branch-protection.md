@@ -13,15 +13,15 @@ audience: public
 
 ## Context
 
-This repository is public and publishes five npm packages that every skkuverse miniapp imports or builds with. One person maintains it. So the guards have two jobs. They stop a mistake before it reaches npm, and they keep a stranger's pull request, or a compromised dependency, from reaching a token that can write.
+This repository is public and publishes <!-- docs-gen:begin package-count -->five<!-- docs-gen:end package-count --> npm packages that every skkuverse miniapp imports or builds with. One person maintains it. So the guards have two jobs. They stop a mistake before it reaches npm, and they keep a stranger's pull request, or a compromised dependency, from reaching a token that can write.
 
-`main` is the only long-lived branch. Every change reaches it through a pull request, from a short-lived branch such as `feat/<topic>` or from a fork. A pull request that builds on another one can target that one's branch, and it moves to `main` when its parent merges. No workflow publishes. A maintainer publishes from a local checkout of `main`.
+`main` is the only long-lived branch. Every change reaches it through a pull request, from a short-lived branch such as `feat/<topic>` or from a fork. A pull request that builds on another one can target that one's branch, and it moves to `main` when its parent merges. No workflow publishes to npm. A maintainer publishes from a local checkout of `main`.
 
 ## Structure
 
 ```text
  pull request, any base ───┐
- push to main ─────────────┴──▶ ci.yml: build, test (node 22.13.0), ci / *
+ push to main ─────────────┴──▶ ci.yml: build, test (node floor), ci / *
           │                          + CodeQL
           │                          + owner-gate.yml: gate (pull requests to main)
           ▼
@@ -37,26 +37,30 @@ This repository is public and publishes five npm packages that every skkuverse m
 
 | Workflow | Runs on | Token | Secret | Does |
 | --- | --- | --- | --- | --- |
-| [`ci.yml`](../../.github/workflows/ci.yml) | Every pull request, and pushes to `main` | `contents: read` | None | Jobs `build`, `test (node 22.13.0)` and `ci`, below |
+| [`ci.yml`](../../.github/workflows/ci.yml) | Every pull request, and pushes to `main` | `contents: read` | None | Jobs `build`, <!-- docs-gen:begin node-floor form=job -->`test (node 22.13.0)`<!-- docs-gen:end node-floor --> and `ci`, below |
 | [`claude.yml`](../../.github/workflows/claude.yml) | An issue or pull request comment that mentions `@claude` from an owner, member or collaborator | `contents: read`, `pull-requests: write`, `issues: write`, `actions: read` | `CLAUDE_CODE_OAUTH_TOKEN`, in the `claude` environment | Answers in the thread, read-only |
 | [`drift.yml`](../../.github/workflows/drift.yml) | Daily, on dispatch, and on pull requests that change `.github/rulesets/` or the workflow | `contents: read` | None | Job `rulesets`, which fails when a live ruleset differs from its file, below |
 | [`owner-gate.yml`](../../.github/workflows/owner-gate.yml) | Pull requests to `main` (`pull_request_target`) | `contents`, `pull-requests`, `issues` and `actions`, all `read` | None | Job `gate`, which fails when a listed file changed without an owner's approval of the current head |
 
 `ci.yml` has these jobs:
 
-- `build` runs [`scripts/check-ci.sh`](../../scripts/check-ci.sh), which `pnpm check:ci` also runs. It installs with `pnpm install --frozen-lockfile`, then runs `pnpm build`, `pnpm typecheck`, `pnpm test`, `pnpm lint` (publint, and are-the-types-wrong on the three packages that ship types), `pnpm lint:md` and `pnpm knip`. Last, it runs `bash .github/owner-gate/test.sh`, which plays the owner gate's decision script through recorded pull request histories against a fake `gh`. `--skip <step>` leaves one step out, for a local run that cannot wait for the tests. CI never passes it.
-- `test (node 22.13.0)` runs `pnpm test` on Node 22.13.0 and the npm it bundles. That is the lowest Node any package's `engines.node` admits, so the game contract's installed-package test runs with the oldest npm a user can have.
-- `ci` calls [`checks.yml`](../../.github/workflows/checks.yml), a copy of skkuverse/.github's `checks.yml` at v1.0.1, with the files it reads from that repository in [`.github/checks/`](../../.github/checks). Its node toolchain runs `npm ci`, which a pnpm workspace cannot, so this repository passes `toolchain: none` and `check-cmd: "exit 0"`. `ci / check` therefore checks out the code and runs nothing else. `ci / workflows` runs actionlint and zizmor over `.github/`, after checking each downloaded archive against a pinned sha256. zizmor runs online, so it also checks that each pinned commit belongs to its action and matches its version comment. `ci / dependency-review` fails a pull request that adds a dependency with a known vulnerability of high severity or worse. `ci / gate` passes only when each of the other three succeeded or was skipped.
+- `build` runs [`scripts/check-ci.sh`](../../scripts/check-ci.sh), which `pnpm check:ci` also runs. The steps, in order, are <!-- docs-gen:begin ci-steps -->`install`, `build`, `typecheck`, `test`, `lint`, `lint-md`, `knip` and `owner-gate`<!-- docs-gen:end ci-steps -->. `install` is `pnpm install --frozen-lockfile`, `lint` is publint, and are-the-types-wrong on the <!-- docs-gen:begin typed-package-count -->three<!-- docs-gen:end typed-package-count --> packages that ship types, and `owner-gate` plays the owner gate's decision script through recorded pull request histories against a fake `gh`. `--skip <step>` leaves one step out, for a local run that cannot wait for the tests. CI never passes it.
+- <!-- docs-gen:begin node-floor form=job -->`test (node 22.13.0)`<!-- docs-gen:end node-floor --> runs `pnpm test` on Node <!-- docs-gen:begin node-floor -->22.13.0<!-- docs-gen:end node-floor --> and the npm it bundles. That is the lowest Node any package's `engines.node` admits, so the game contract's installed-package test runs with the oldest npm a user can have.
+- `ci` calls [`checks.yml`](../../.github/workflows/checks.yml), a copy of skkuverse/.github's `checks.yml` at <!-- docs-gen:begin checks-version -->v1.0.1<!-- docs-gen:end checks-version -->, with the files it reads from that repository in [`.github/checks/`](../../.github/checks). Its node toolchain runs `npm ci`, which a pnpm workspace cannot, so this repository passes `toolchain: none` and `check-cmd: "exit 0"`. `ci / check` therefore checks out the code and runs nothing else. `ci / workflows` runs actionlint and zizmor over `.github/`, after checking each downloaded archive against a pinned sha256. zizmor runs online, so it also checks that each pinned commit belongs to its action and matches its version comment. `ci / dependency-review` fails a pull request that adds a dependency with a known vulnerability of high severity or worse. `ci / gate` passes only when each of the other three succeeded or was skipped.
 
 ### Rulesets
 
 Each ruleset is recorded in [`.github/rulesets/`](../../.github/rulesets) as `<name>.json`. The file holds what `gh api repos/<owner>/<repo>/rulesets/<id>` returns, without `id`, `node_id`, `created_at`, `updated_at`, `_links` and `current_user_can_bypass`.
 
+<!-- docs-gen:begin rulesets-table -->
+
 | Ruleset | Applies to | Rules |
 | --- | --- | --- |
-| `main` | `main` | No deletion, no force push. A pull request is required, merged with a merge commit only, with every review thread resolved. It needs no approving review. Required checks are `build`, `ci / gate`, `GitGuardian Security Checks`, `CodeRabbit`, `gate` and `test (node 22.13.0)`, and the branch must be up to date with `main`. CodeQL results gate the merge: an error alert, or a security alert of high severity or worse |
-| `owner-updates` | `main` | Blocks every update. The repository admin role bypasses it, so only an admin merges into `main` |
-| `release-tags` | Tags matching `refs/tags/@skkuverse/**` | No update and no deletion, and nobody bypasses it, so a released version's tag never moves |
+| `main` | `main` | No deletion. No force push. A pull request is required, merged with a merge commit only, with every review thread resolved. It needs no approving review. Required checks are `build`, `ci / gate`, `GitGuardian Security Checks`, `CodeRabbit`, `gate` and `test (node 22.13.0)`, and the branch must be up to date with `main`. CodeQL results gate the merge: an error alert, or a security alert of high severity or worse. Nobody bypasses it |
+| `owner-updates` | `main` | No update. The repository admin role bypasses it |
+| `release-tags` | Tags matching `refs/tags/@skkuverse/**` | No update. No deletion. Nobody bypasses it |
+
+<!-- docs-gen:end rulesets-table -->
 
 The `rulesets` job of [`drift.yml`](../../.github/workflows/drift.yml) runs [`compare.sh`](../../.github/rulesets/compare.sh) with the workflow's read-only token. That token gets no `bypass_actors`, so the job compares every field except the bypass lists. An admin compares those too:
 
@@ -109,7 +113,7 @@ Publishing stays with a person for two reasons. npm trusted publishing rejects t
 
 ## What CI does not check
 
-- **The token files.** The four files `colors`, `typography`, `spacing` and `radius` in `packages/tokens/src` are copies of skkuverse-app's token files. Nothing compares them, so a change in the app reaches here only when someone copies it.
+- **The token files.** The <!-- docs-gen:begin token-files form=count -->four<!-- docs-gen:end token-files --> files <!-- docs-gen:begin token-files form=list -->`colors`, `radius`, `spacing` and `typography`<!-- docs-gen:end token-files --> in `packages/tokens/src` are copies of skkuverse-app's token files. Nothing compares them, so a change in the app reaches here only when someone copies it.
 - **The bypass lists in CI.** The `rulesets` job cannot read `bypass_actors`, so only an admin's `compare.sh --keep-bypass` run checks who bypasses a ruleset.
 
 ## Rationale and trade-offs
@@ -126,7 +130,7 @@ Publishing stays with a person for two reasons. npm trusted publishing rejects t
 
 **`pull_request_target` is used once, and it runs no pull request code.** The trigger runs the base repository's definition with the base repository's token, so a workflow that checks out and runs a pull request's code under it hands that code the token. The owner gate checks out only `main`, and its token can only read. The gate needs the trigger because no pull request can start a run of it with a forged name, so the run name can hold the approval. A comment by `github-actions[bot]` was rejected as the record, because any workflow a writer pushes to a branch, and the `@claude` job, post as that bot. zizmor flags the trigger, and the workflow records why it is suppressed.
 
-**The checks workflow is a copy, not a call.** The organization's repositories are not reachable from here, and a workflow in this repository cannot call a workflow in a repository it cannot reach. So `checks.yml` and the two files it reads live here, at the v1.0.1 content. `ci.yml` calls it by path, so the required check is still named `ci / gate`. Updating the copy is a manual edit.
+**The checks workflow is a copy, not a call.** The organization's repositories are not reachable from here, and a workflow in this repository cannot call a workflow in a repository it cannot reach. So `checks.yml` and the two files it reads live here, at the <!-- docs-gen:begin checks-version -->v1.0.1<!-- docs-gen:end checks-version --> content. `ci.yml` calls it by path, so the required check is still named `ci / gate`. Updating the copy is a manual edit.
 
 **The docs conventions run from this clone alone.** `packages/repo-checks/vendor/lint_conventions.py` is a copy of the public skkuverse-server file, and `conventions.test.mjs` runs it inside `pnpm test`. It used to run from a clone of a private repository that only a maintainer's machine could read. Now a contributor, or an LLM agent, that clones this repository runs the same check as CI.
 
