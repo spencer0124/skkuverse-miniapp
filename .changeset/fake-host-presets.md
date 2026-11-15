@@ -1,0 +1,5 @@
+---
+"@skkuverse/miniapp": minor
+---
+
+`createFakeHost` from `./testing` takes a `preset` and `failureModes`, so a test meets the hosts and failures a page will meet without the real app. The presets are `granted`, `nothing-granted`, `no-host`, `late-host`, `slow-init` and `old-host:<version>`, whose capabilities are what that release's app granted. A failure mode (`'denied'`, `'failed'`, `'timeout'` or `{ slowMs }`) changes only the request method it names, and a named method joins the host's capabilities so the mode is what the request meets. The host gains `use(overrides, { once })`, `resetHandlers()` and `dispose()`, and answers a request with a response, which it could not send before: a granted request with no mode now resolves `null` where it used to time out. `./testing` also exports `HOST_PRESETS`, `HOST_METHODS_ADDED`, `IPHONE_VIEWPORT`, `FAILURE_MODE_NOTES`, `oldHostCapabilities` and `resolvePreset`.

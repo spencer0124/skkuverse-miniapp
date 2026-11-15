@@ -8,25 +8,35 @@ import {
   type GameHostEvents,
   type GameInit,
   type PageMessage,
+  type Response,
   type Viewport,
 } from '../protocol';
+import { resolvePreset, type FailureMode, type FailureModes, type HostPreset, type HostPresetName } from './presets';
 
-/** One message in either direction, in the order they happened. */
+/**
+ * One message in either direction, in the order they happened. The host's answer
+ * to a request is logged as the event `response`, with the response as its data.
+ */
 export type ContractEntry =
   | { from: 'page'; raw: string; message: PageMessage | null }
   | { from: 'host'; event: string; data: unknown };
 
-export interface FakeHostOptions {
-  /** Granted methods. Defaults to `GAME_NOTIFY_METHODS`, what the app grants a game origin. */
-  capabilities?: readonly string[];
-  /** Defaults to `ZERO_VIEWPORT`. */
-  viewport?: Viewport;
+/**
+ * Without a `preset`, the host grants `GAME_NOTIFY_METHODS` (what the app grants
+ * a game origin) on `ZERO_VIEWPORT`, and answers `game.ready` with `game.init`
+ * on a microtask, as the app's delivery is asynchronous. `init` defaults to this
+ * SDK's `GAME_PROTOCOL`, a best of 0 and sound on, and `false` leaves `init()` to
+ * the test. A field passed here wins over the same field of the preset.
+ */
+export interface FakeHostOptions extends HostPreset {
+  /** A named host state: `granted`, `nothing-granted`, `no-host`, `late-host`, `slow-init` or `old-host:<version>`. */
+  preset?: HostPresetName;
   /**
-   * Answer `game.ready` with `game.init`, on a microtask as the app's
-   * delivery is asynchronous. Defaults to this SDK's `GAME_PROTOCOL`, a best
-   * of 0 and sound on. `false` leaves `init()` to the test.
+   * What the host does to the request methods it names. A named method joins the
+   * host's capabilities, because `request()` rejects a method the host does not
+   * grant with `unsupported` before anything is posted.
    */
-  init?: Partial<GameInit> | false;
+  failureModes?: FailureModes;
 }
 
 export interface FakeHost {
@@ -34,7 +44,9 @@ export interface FakeHost {
    * Become the host: define `window.ReactNativeWebView`, which records what
    * the page posts, and run the app's real `hostBootstrapScript`, which
    * defines `window.skkuverse` and the CSS variables. Call it before or after
-   * the page boots: after is the late host the page must wait for.
+   * the page boots: after is the late host the page must wait for. With a
+   * `hostDelayMs`, the host appears that long after this call, and with
+   * `Infinity` it never does.
    */
   install(): void;
   readonly installed: boolean;
@@ -59,6 +71,18 @@ export interface FakeHost {
   revive(): void;
   /** Change the viewport, as the app does on a rotation or a shell change. */
   setViewport(viewport: Viewport): void;
+  /**
+   * Change what the host does to request methods, on top of `failureModes`. The
+   * newest override of a method wins. With `once`, an override answers the next
+   * request to its method only. A method the host does not grant yet joins the
+   * capabilities if the host is not installed, and throws if it is, because the
+   * bootstrap froze the list.
+   */
+  use(overrides: FailureModes, options?: { once?: boolean }): void;
+  /** Drop every `use()` override. What `failureModes` named at creation stays. */
+  resetHandlers(): void;
+  /** Cancel a delayed install, a delayed `game.init` and any answer still on its way. */
+  dispose(): void;
   /** Let pending deliveries (the automatic `game.init`) run. */
   flush(): Promise<void>;
 }
@@ -90,13 +114,24 @@ function recordingDocument(css: Map<string, string>) {
  * headers.
  */
 export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
-  const capabilities = options.capabilities ?? GAME_NOTIFY_METHODS;
-  const viewport = options.viewport ?? ZERO_VIEWPORT;
-  const autoInit = options.init === false ? null : (options.init ?? {});
+  const preset = options.preset === undefined ? {} : resolvePreset(options.preset);
+  const pick = <K extends keyof HostPreset>(key: K): HostPreset[K] => (options[key] !== undefined ? options[key] : preset[key]);
+  const capabilities = pick('capabilities') ?? GAME_NOTIFY_METHODS;
+  const viewport = pick('viewport') ?? ZERO_VIEWPORT;
+  const initOption = pick('init');
+  const autoInit = initOption === false ? null : (initOption ?? {});
+  const hostDelayMs = pick('hostDelayMs') ?? 0;
+  const initDelayMs = pick('initDelayMs') ?? 0;
+  const baseModes = new Map<string, FailureMode>(Object.entries(options.failureModes ?? {}));
+  const overrides = new Map<string, { mode: FailureMode; once: boolean }[]>();
   const log: ContractEntry[] = [];
   const listeners = new Set<(message: PageMessage | null, raw: string) => void>();
   const css = new Map<string, string>();
+  const timers = new Set<ReturnType<typeof setTimeout>>();
+  let granted: ReadonlySet<string> = new Set(capabilities);
   let installed = false;
+  let installScheduled = false;
+  let epoch = 0;
   let doc: { documentElement: { style: { getPropertyValue(name: string): string } } } | null = null;
 
   const scope = () => {
@@ -105,34 +140,89 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
     return win as Window & { skkuverse?: HostReceiver };
   };
 
-  const deliver = (event: string, data: unknown) => {
-    const win = scope();
-    if (!installed || !win.skkuverse) throw new Error(`${event} sent before the fake host was installed`);
-    log.push({ from: 'host', event, data });
-    win.skkuverse.receive(JSON.stringify({ event, data }));
+  /** Run `fn` after `ms`, or on a microtask for 0. `dispose()` cancels it. */
+  const after = (ms: number, fn: () => void) => {
+    const born = epoch;
+    if (ms <= 0) {
+      queueMicrotask(() => {
+        if (born === epoch) fn();
+      });
+      return;
+    }
+    const timer = setTimeout(() => {
+      timers.delete(timer);
+      if (born === epoch) fn();
+    }, ms);
+    timers.add(timer);
   };
+
+  const send = (logged: string, data: unknown, wire: unknown) => {
+    const win = scope();
+    if (!installed || !win.skkuverse) throw new Error(`${logged} sent before the fake host was installed`);
+    log.push({ from: 'host', event: logged, data });
+    win.skkuverse.receive(JSON.stringify(wire));
+  };
+
+  const deliver = (event: string, data: unknown) => send(event, data, { event, data });
+
+  const respond = (response: Response) => send('response', response, response);
 
   const init = (partial: Partial<GameInit> = {}) =>
     deliver('game.init', { gameProtocol: GAME_PROTOCOL, hi: 0, sound: true, ...partial });
+
+  /** The mode that applies to the next request for `method`, consuming a `once` override. */
+  const take = (method: string): FailureMode | undefined => {
+    const stack = overrides.get(method);
+    const top = stack?.at(-1);
+    if (stack && top) {
+      if (top.once) stack.pop();
+      return top.mode;
+    }
+    return baseModes.get(method);
+  };
+
+  const answer = (id: string, method: string) => {
+    const mode = take(method);
+    if (mode === 'timeout') return;
+    if (mode === 'denied' || mode === 'failed') {
+      after(0, () => respond({ id, ok: false, error: { code: mode, message: `${method} was ${mode} by the fake host` } }));
+      return;
+    }
+    after(mode === undefined ? 0 : mode.slowMs, () => respond({ id, ok: true, result: null }));
+  };
 
   const record = (raw: string) => {
     const message = parseMessage(raw);
     log.push({ from: 'page', raw, message });
     for (const listener of listeners) listener(message, raw);
-    if (autoInit && message?.method === 'game.ready') queueMicrotask(() => init(autoInit));
+    if (message?.id !== undefined) answer(message.id, message.method);
+    if (autoInit && message?.method === 'game.ready') after(initDelayMs, () => init(autoInit));
+  };
+
+  const installNow = () => {
+    const win = scope();
+    const names = new Set([...capabilities, ...baseModes.keys(), ...overrides.keys()]);
+    granted = names;
+    const realDocument = (globalThis as { document?: unknown }).document;
+    doc = (realDocument as typeof doc) ?? recordingDocument(css);
+    (win as { ReactNativeWebView?: unknown }).ReactNativeWebView = {
+      postMessage: (raw: unknown) => record(String(raw)),
+    };
+    new Function('window', 'document', hostBootstrapScript({ capabilities: [...names], viewport }))(win, doc);
+    installed = true;
   };
 
   return {
     install() {
-      if (installed) return;
-      const win = scope();
-      const realDocument = (globalThis as { document?: unknown }).document;
-      doc = (realDocument as typeof doc) ?? recordingDocument(css);
-      (win as { ReactNativeWebView?: unknown }).ReactNativeWebView = {
-        postMessage: (raw: unknown) => record(String(raw)),
-      };
-      new Function('window', 'document', hostBootstrapScript({ capabilities, viewport }))(win, doc);
-      installed = true;
+      if (installed || installScheduled) return;
+      scope();
+      if (hostDelayMs <= 0) return installNow();
+      if (!Number.isFinite(hostDelayMs)) return;
+      installScheduled = true;
+      after(hostDelayMs, () => {
+        installScheduled = false;
+        installNow();
+      });
     },
     get installed() {
       return installed;
@@ -168,6 +258,29 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
     revive: () => deliver('game.revive', {}),
     setViewport(next) {
       deliver('viewport.changed', next);
+    },
+    use(overrides_, { once = false } = {}) {
+      for (const method of Object.keys(overrides_)) {
+        if (installed && !granted.has(method)) {
+          throw new Error(
+            `use(): ${method} is not granted, and the installed host's capabilities are frozen. Name it in failureModes, or call use() before install().`,
+          );
+        }
+      }
+      for (const [method, mode] of Object.entries(overrides_)) {
+        const stack = overrides.get(method) ?? [];
+        stack.push({ mode, once });
+        overrides.set(method, stack);
+      }
+    },
+    resetHandlers() {
+      overrides.clear();
+    },
+    dispose() {
+      epoch += 1;
+      for (const timer of timers) clearTimeout(timer);
+      timers.clear();
+      installScheduled = false;
     },
     async flush() {
       for (let i = 0; i < 5; i++) await Promise.resolve();

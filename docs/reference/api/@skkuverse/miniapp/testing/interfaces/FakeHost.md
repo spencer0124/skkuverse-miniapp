@@ -55,6 +55,18 @@ A CSS variable as the bootstrap set it on `<html>`, such as `--sv-inset-top`.
 
 ***
 
+### dispose()
+
+> **dispose**(): `void`
+
+Cancel a delayed install, a delayed `game.init` and any answer still on its way.
+
+#### Returns
+
+`void`
+
+***
+
 ### flush()
 
 > **flush**(): `Promise`\<`void`\>
@@ -90,7 +102,9 @@ Let pending deliveries (the automatic `game.init`) run.
 Become the host: define `window.ReactNativeWebView`, which records what
 the page posts, and run the app's real `hostBootstrapScript`, which
 defines `window.skkuverse` and the CSS variables. Call it before or after
-the page boots: after is the late host the page must wait for.
+the page boots: after is the late host the page must wait for. With a
+`hostDelayMs`, the host appears that long after this call, and with
+`Infinity` it never does.
 
 #### Returns
 
@@ -141,6 +155,18 @@ Called for each page message as it arrives. Returns the unsubscribe function.
 ### reset()
 
 > **reset**(): `void`
+
+#### Returns
+
+`void`
+
+***
+
+### resetHandlers()
+
+> **resetHandlers**(): `void`
+
+Drop every `use()` override. What `failureModes` named at creation stays.
 
 #### Returns
 
@@ -231,6 +257,34 @@ Change the viewport, as the app does on a rotation or a shell change.
 #### Parameters
 
 ##### on
+
+`boolean`
+
+#### Returns
+
+`void`
+
+***
+
+### use()
+
+> **use**(`overrides`, `options?`): `void`
+
+Change what the host does to request methods, on top of `failureModes`. The
+newest override of a method wins. With `once`, an override answers the next
+request to its method only. A method the host does not grant yet joins the
+capabilities if the host is not installed, and throws if it is, because the
+bootstrap froze the list.
+
+#### Parameters
+
+##### overrides
+
+[`FailureModes`](../README.md#failuremodes)
+
+##### options?
+
+###### once?
 
 `boolean`
 

@@ -5,6 +5,20 @@
  */
 export { createFakeHost, type ContractEntry, type FakeHost, type FakeHostOptions } from './fake-host';
 export {
+  FAILURE_MODE_NOTES,
+  HOST_METHODS_ADDED,
+  HOST_PRESETS,
+  IPHONE_VIEWPORT,
+  oldHostCapabilities,
+  resolvePreset,
+  type FailureMode,
+  type FailureModes,
+  type HostPreset,
+  type HostPresetEntry,
+  type HostPresetName,
+  type OldHostVersion,
+} from './presets';
+export {
   assertGameContract,
   checkGameContract,
   GameContractError,
