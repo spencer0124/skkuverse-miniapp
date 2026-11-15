@@ -36,7 +36,8 @@ async function buildPage(root: string, outDir: string): Promise<void> {
 }
 
 export default async function setup(): Promise<void> {
-  run('pnpm', ['run', 'build']);
+  // `pnpm --filter @skkuverse/miniapp-contract test` skips turbo's `^build`, and the runner imports the CLI's and the SDK's builds.
+  run('pnpm', ['exec', 'turbo', 'run', 'build', '--filter=@skkuverse/miniapp-contract...', '--output-logs=errors-only']);
   run(process.execPath, [join(pkg, 'dist', 'cli.js'), 'install']);
   // vitest sets NODE_ENV to test, and vite builds with import.meta.env.DEV true unless it is production.
   const nodeEnv = process.env.NODE_ENV;

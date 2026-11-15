@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createSocket } from 'node:dgram';
 import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { createServer, type IncomingMessage } from 'node:http';
+import { createServer, get, type IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 import { judgeN4 } from '../src/observe/n4.ts';
+import { serve } from '../src/serve.ts';
 import { RunnerError, type Visit } from '../src/session.ts';
 import { TEMPLATE_BUILD } from './global-setup.ts';
 
@@ -179,7 +180,7 @@ describe('N4 CORS', () => {
     answer = () => ({ status: 204, headers: { 'Access-Control-Allow-Origin': 'https://elsewhere.example' } });
     const findings = await judgeN4([visitCalling(`${backend.origin}/cart`)], new Set([backend.origin]), production);
     assert.deepEqual(findings.map((f) => f.rule), ['N4']);
-    assert.match(findings[0]!.message, /does not allow https:\/\/shop\.mini\.skkuverse\.com through CORS: Access-Control-Allow-Origin is "https:\/\/elsewhere\.example"/);
+    assert.match(findings[0]!.message, /does not allow https:\/\/shop\.mini\.skkuverse\.com to PUT http:\/\/127\.0\.0\.1:\d+\/cart through CORS: Access-Control-Allow-Origin is "https:\/\/elsewhere\.example"/);
   });
 
   test('a backend that does not allow a header the page sets breaks N4', async () => {
@@ -187,6 +188,26 @@ describe('N4 CORS', () => {
     const findings = await judgeN4([visitCalling(`${backend.origin}/cart`)], new Set([backend.origin]), production);
     assert.deepEqual(findings.map((f) => f.rule), ['N4']);
     assert.match(findings[0]!.message, /Access-Control-Allow-Headers does not allow authorization/);
+  });
+
+  test('Access-Control-Allow-Headers: * allows any header but Authorization, which the answer must name', async () => {
+    answer = ({ headers }) => ({ status: 204, headers: { 'Access-Control-Allow-Origin': String(headers.origin), 'Access-Control-Allow-Methods': 'PUT', 'Access-Control-Allow-Headers': '*' } });
+    assert.deepEqual(await judgeN4([visitCalling(`${backend.origin}/cart`, 'PUT', ['x-token'])], new Set([backend.origin]), production), []);
+    const findings = await judgeN4([visitCalling(`${backend.origin}/cart`)], new Set([backend.origin]), production);
+    assert.deepEqual(findings.map((f) => f.rule), ['N4']);
+    assert.match(findings[0]!.message, /Access-Control-Allow-Headers does not allow authorization/);
+  });
+
+  test('each URL is checked, so a path that refuses the origin breaks N4 beside one that allows it', async () => {
+    answer = ({ url, headers }) => {
+      const allowed: Record<string, string> = { 'Access-Control-Allow-Origin': String(headers.origin), 'Access-Control-Allow-Methods': 'PUT', 'Access-Control-Allow-Headers': 'authorization' };
+      return { status: 204, headers: url === '/public' ? allowed : {} };
+    };
+    const visit = visitCalling(`${backend.origin}/public`);
+    visit.outbound.push(...visitCalling(`${backend.origin}/private`).outbound);
+    const findings = await judgeN4([visit], new Set([backend.origin]), production);
+    assert.deepEqual(findings.map((f) => f.rule), ['N4']);
+    assert.match(findings[0]!.message, /does not allow https:\/\/shop\.mini\.skkuverse\.com to PUT http:\/\/127\.0\.0\.1:\d+\/private through CORS: Access-Control-Allow-Origin is missing/);
   });
 
   test('a simple GET sends no preflight, so a backend that refuses OPTIONS but allows the GET passes', async () => {
@@ -200,7 +221,7 @@ describe('N4 CORS', () => {
     answer = () => ({ status: 200 });
     const findings = await judgeN4([visitCalling(`${backend.origin}/data`, 'GET', [])], new Set([backend.origin]), production);
     assert.deepEqual(findings.map((f) => [f.rule, f.level]), [['N4', 'error']]);
-    assert.match(findings[0]!.message, /through CORS: Access-Control-Allow-Origin is missing in its answer to GET/);
+    assert.match(findings[0]!.message, /to GET http:\/\/127\.0\.0\.1:\d+\/data through CORS: Access-Control-Allow-Origin is missing in its answer to GET/);
   });
 
   test('a simple POST is not sent: the runner says it did not check it', async () => {
@@ -298,6 +319,37 @@ document.body.append('rtc');`;
       assert.deepEqual({ status: run.status, stdout: run.stdout }, { status: 0, stdout: '' }, run.stderr);
     } finally {
       await backend.close();
+    }
+  });
+});
+
+describe('N4 judges every load', () => {
+  test.concurrent('a request only the load with no host makes, for N3, breaks N4', async () => {
+    const run = await judge(page(`if (!window.ReactNativeWebView) fetch('https://api.elsewhere.example/me', { credentials: 'include' }).catch(() => {}); document.body.append('me');`));
+    assert.equal(run.status, 1, run.stderr);
+    assert.deepEqual(run.rules, ['N4', 'N4']);
+    assert.match(run.findings[0]!.message!, /^the load of \/ called https:\/\/api\.elsewhere\.example\/me, an origin that no VITE_\* value/);
+    assert.match(run.findings[1]!.message!, /^the load of \/ asked to send cookies to https:\/\/api\.elsewhere\.example\/me/);
+  });
+
+  test.concurrent('an EventSource that sends cookies breaks N4', async () => {
+    const run = await judge(page(`new EventSource('https://api.elsewhere.example/stream', { withCredentials: true }); document.body.append('stream');`));
+    assert.equal(run.status, 1, run.stderr);
+    assert.deepEqual(run.rules, ['N4', 'N4']);
+    assert.match(run.findings[1]!.message!, /asked to send cookies to https:\/\/api\.elsewhere\.example\/stream/);
+  });
+});
+
+describe('the server', () => {
+  test('answers a request target it cannot read as a path, and keeps serving', async () => {
+    const { server, origin } = await serve(join(fixture('good'), 'dist'));
+    const status = (path: string) =>
+      new Promise<number | undefined>((done, fail) => get(`${origin}${path}`, (response) => done(response.resume().statusCode)).on('error', fail));
+    try {
+      assert.equal(await status('//%'), 200, 'the single-page fallback answers it, as it answers any path');
+      assert.equal(await status('/'), 200);
+    } finally {
+      await new Promise<void>((done) => server.close(() => done()));
     }
   });
 });

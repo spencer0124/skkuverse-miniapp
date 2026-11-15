@@ -69,7 +69,8 @@ async function corsRefusal(request: Pick<Outbound, 'url' | 'method' | 'preflight
     return `Access-Control-Allow-Methods does not allow ${request.method}`;
   }
   const headers = list('access-control-allow-headers');
-  const missing = request.preflightHeaders.filter((h) => !headers.includes('*') && !headers.includes(h));
+  // The Fetch standard's `*` never covers Authorization, which the answer must name.
+  const missing = request.preflightHeaders.filter((h) => !headers.includes(h) && !(headers.includes('*') && h !== 'authorization'));
   if (missing.length > 0) return `Access-Control-Allow-Headers does not allow ${missing.join(', ')}`;
   return undefined;
 }
@@ -92,7 +93,7 @@ export async function judgeN4(visits: readonly Visit[], allowed: ReadonlySet<str
         continue;
       }
       if (request.transport === 'websocket') continue;
-      const shape = `${origin} ${request.method} ${request.preflightHeaders.join(',')}`;
+      const shape = `${request.method} ${request.url} ${request.preflightHeaders.join(',')}`;
       if (!checked.has(shape)) checked.set(shape, request);
     }
     for (const { url, how, trigger } of visit.cookieAsks) {
@@ -116,7 +117,7 @@ export async function judgeN4(visits: readonly Visit[], allowed: ReadonlySet<str
       continue;
     }
     const refused = await corsRefusal(request, productionOrigin);
-    if (refused) once(`cors ${origin}`, `${origin} does not allow ${productionOrigin} through CORS: ${refused}`);
+    if (refused) once(`cors ${origin}`, `${origin} does not allow ${productionOrigin} to ${request.method} ${request.url} through CORS: ${refused}`);
   }
   return findings;
 }

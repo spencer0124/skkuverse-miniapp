@@ -33,8 +33,8 @@ receives no packet.
 The only requests that leave the runner are its own N4 checks, sent from Node. For each
 backend that `.env.production` names and the page called, it sends the CORS preflight a
 browser would send, or, for a simple `GET` or `HEAD`, that request itself, to the exact
-production URL the page asked for. It sends one for each backend origin, method and header
-set, so a `GET` with side effects runs once in every run, in CI too. No backend receives a
+production URL the page asked for. It sends one for each URL, method and header set, so a
+`GET` with side effects runs once in every run, in CI too. No backend receives a
 `POST`, `PUT`, `PATCH` or `DELETE`.
 
 | Rule | What the runner does | It fails when |
@@ -42,7 +42,7 @@ set, so a `GET` with side effects runs once in every run, in CI too. No backend 
 | N1 | Loads `/` with the host, clicks every link and button in DOM order, and repeats that on every same-origin route it reaches. | The page, or a popup it opens, navigates to another origin with no `link.open` post for that URL. |
 | N2 | Finds each query key a built script names in `.get("<key>")`, `.getAll("<key>")` or `.has("<key>")`, in a script that reads `URLSearchParams`, `searchParams` or `location.search`. Loads `/` with each key set to `1` and to `true`. | A load with a key shows other text, posts other messages or requests other addresses than the plain load. |
 | N3 | Loads every route the crawl found with no host, as a browser does. `<MiniappRoot>` marks `<html>` with `data-sv-chrome` outside the app. | A route leaves `data-sv-chrome` unset, so it renders outside `<MiniappRoot>`. |
-| N4 | Records each fetch, XHR, EventSource and WebSocket to another origin, and what the page asked of it. Asks each named backend what a browser on `https://<id>.mini.skkuverse.com` asks it: the CORS preflight for a request that needs one, and the request itself for a simple `GET` or `HEAD`. | The origin is not the origin of a `VITE_*` value in the package's `.env.production`, the page asks to send cookies (`credentials: 'include'`, `withCredentials` or a `Cookie` header), or the backend's answer does not allow the request. |
+| N4 | Records each fetch, XHR, EventSource and WebSocket to another origin, and what the page asked of it, in every load the runner makes, N2's and N3's included. Asks each named backend what a browser on `https://<id>.mini.skkuverse.com` asks it: the CORS preflight for a request that needs one, and the request itself for a simple `GET` or `HEAD`. | The origin is not the origin of a `VITE_*` value in the package's `.env.production`, the page asks to send cookies (`credentials: 'include'`, `withCredentials` or a `Cookie` header), or the backend's answer does not allow the request. |
 
 A request needs a preflight when its method is not `GET`, `HEAD` or `POST`, or when it
 sets a header CORS does not allow by default, as the Fetch standard says. A simple `POST`
@@ -58,9 +58,10 @@ of `@skkuverse/miniapp/testing`. It answers every request with `null`.
 A run passes a page it could not watch break a rule. These causes stay out of its reach:
 
 - N1. The runner clicks `<a href>`, `<button>`, `[role="button"]` and `<input>` buttons. A
-  `<div onClick>` is never clicked. A load or click counts as settled after 150 ms with
-  no request, message or DOM change, so a navigation a timer fires later, such as 1 s after
-  a click, is missed.
+  `<div onClick>` is never clicked. Controls are clicked by their place in DOM order, so a
+  control a click puts in the place of the clicked one, without a navigation, is never
+  clicked. A load or click counts as settled after 150 ms with no request, message or DOM
+  change, so a navigation a timer fires later, such as 1 s after a click, is missed.
 - N1 and N3. Routes are tracked by path. A hash route such as `#/settings` is the same
   route as `/`, and a route reached only by typed input is never found.
 - N2. A key read any other way, such as `Object.fromEntries(new URLSearchParams(location.search)).debug`

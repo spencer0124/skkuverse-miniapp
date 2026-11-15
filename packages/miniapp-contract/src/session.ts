@@ -140,6 +140,15 @@ const INSTRUMENT = `(function () {
     }
     return send.apply(this, arguments);
   };
+  if (typeof window.EventSource === 'function') {
+    window.EventSource = new Proxy(window.EventSource, {
+      construct: function (target, args, newTarget) {
+        var url = away(String(args[0]));
+        if (url && args[1] && args[1].withCredentials) ask(url, 'credentials');
+        return Reflect.construct(target, args, newTarget);
+      }
+    });
+  }
   ['RTCPeerConnection', 'webkitRTCPeerConnection'].forEach(function (name) {
     if (typeof window[name] !== 'function') return;
     window[name] = new Proxy(window[name], {
@@ -236,6 +245,8 @@ export class Session {
   readonly origin: string;
   /** Everything stopped and not judged, by every visit of this session, N2's and N3's included. */
   readonly unjudged: Unjudged[];
+  /** Every visit of this session, in order, N2's and N3's included. */
+  readonly visits: Visit[] = [];
 
   private constructor(browser: Browser, servers: Server[], origin: string, unjudged: Unjudged[]) {
     this.browser = browser;
@@ -378,6 +389,7 @@ export class Session {
       }
       await linkedRoutes(page, origin, addRoute);
       visit.routes = [...routes];
+      this.visits.push(visit);
       return visit;
     } finally {
       await context?.close();

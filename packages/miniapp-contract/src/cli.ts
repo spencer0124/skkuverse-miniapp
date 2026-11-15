@@ -94,7 +94,7 @@ async function judge(target: Target): Promise<Finding[]> {
       })),
       ...(await judgeN2(session, keys)),
       ...(await judgeN3(session, routes, target.operatorPaths)),
-      ...(await judgeN4(visits, backendOrigins(target.dir), target.productionOrigin)),
+      ...(await judgeN4(session.visits, backendOrigins(target.dir), target.productionOrigin)),
       ...unjudgedFindings(session.unjudged),
     ];
   });

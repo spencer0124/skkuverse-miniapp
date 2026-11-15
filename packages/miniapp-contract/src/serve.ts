@@ -107,7 +107,11 @@ export interface Served {
 export function serve(dist: string, port = 0): Promise<Served> {
   const root = normalize(dist);
   const server = createServer((request, response) => {
-    const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+    const path = URL.parse(`http://localhost${request.url ?? '/'}`)?.pathname;
+    if (path === undefined) {
+      response.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' }).end('bad request target');
+      return;
+    }
     const found = request.method === 'GET' || request.method === 'HEAD' ? answerFor(root, path) : undefined;
     if (found === undefined) {
       response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('not found');
