@@ -57,12 +57,12 @@ Two live demos run in a browser against the fake host. Each lists every message 
 <td width="50%" valign="top">
 <a href="https://spencer0124.github.io/skkuverse-miniapp/examples/wave-run/" target="_blank" rel="noreferrer"><img width="400" src="./docs/explanation/assets/wave-run.gif" alt="A looping capture of the wave run demo: a phone frame with a pixel-art runner beside the message panel. The panel lists game.ready and game.init at boot, then game.start and game.phase as the run begins. The runner jumps twice and crashes, the host draws its retry screen, and the panel adds game.haptic, game.phase and game.over. A tap on the retry button adds game.restart and a new run starts."></a>
 <br>
-<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/wave-run/">Wave run</a> is a runner game booted through the SDK's game entry, copied from a skkuverse game with its score, validation and revives removed.
+<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/wave-run/" target="_blank" rel="noreferrer">Wave run</a> is a runner game booted through the SDK's game entry, copied from a skkuverse game with its score, validation and revives removed.
 </td>
 <td width="50%" valign="top">
 <a href="https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/" target="_blank" rel="noreferrer"><img width="400" src="./docs/explanation/assets/eskara-home.gif" alt="A looping capture of the festival home demo: a phone frame with the festival guide's home page beside the message panel, which starts with app.ready. A tap on the shuttle row adds haptic.impact and link.open and opens a sheet. After the sheet closes, a tap on the map row adds haptic.impact and map.openPlace and opens a map card."></a>
 <br>
-<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/">ESKARA home</a> is reshaped from the festival guide's home page. In the app, its rows navigated within the page and sent none of these calls. Here each tap sends one, and the fake host acts it out.
+<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/" target="_blank" rel="noreferrer">ESKARA home</a> is reshaped from the festival guide's home page. In the app, its rows navigated within the page and sent none of these calls. Here each tap sends one, and the fake host acts it out.
 </td>
 </tr>
 </table>
