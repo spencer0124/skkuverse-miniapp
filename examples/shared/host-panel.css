@@ -255,6 +255,26 @@ body {
   font-weight: 700;
 }
 
+.hp-sheet-detail {
+  max-width: 90%;
+  color: #ffffff;
+  font-size: 13px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.hp-map {
+  width: 240px;
+  height: 140px;
+  border: 1px solid var(--hp-line);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 46%, var(--hp-accent) 0 7px, transparent 8px),
+    repeating-linear-gradient(0deg, transparent 0 27px, var(--hp-line) 27px 28px),
+    repeating-linear-gradient(90deg, transparent 0 39px, var(--hp-line) 39px 40px),
+    var(--hp-card);
+}
+
 .hp-toast {
   position: absolute;
   bottom: 24px;

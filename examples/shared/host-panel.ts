@@ -15,7 +15,7 @@ export interface PanelEntry {
   at: number;
 }
 
-export type MethodEffect = 'shake' | 'toast' | 'sheet';
+export type MethodEffect = 'shake' | 'toast' | 'sheet' | 'map';
 
 export interface MethodNote {
   label: string;
@@ -34,6 +34,9 @@ export const METHOD_NOTES: Record<string, MethodNote> = {
   'game.restart': { label: 'The app starts a new run.' },
   'game.reset': { label: 'The app sends the page back to its title.' },
   'game.sound': { label: 'The app changes the sound setting.' },
+  'haptic.impact': { label: 'The page asks the phone for a tap of feedback.', effect: 'shake' },
+  'link.open': { label: 'The page asks the app to open an address.', effect: 'sheet' },
+  'map.openPlace': { label: 'The page asks the app to close it and open the campus map on a place.', effect: 'map' },
   response: { label: 'The app answers a request.' },
 };
 
@@ -57,7 +60,11 @@ export function toPanelEntry(entry: LogEntry, at: number): PanelEntry {
 
 export interface SheetSpec {
   title: string;
+  /** A line under the title, such as the address or place the page asked for. */
+  detail?: string;
   action?: { label: string; run(): void };
+  /** The label of a button that closes the sheet, which a tap on the backdrop also does. */
+  dismiss?: string;
 }
 
 export interface PanelOptions {
@@ -67,7 +74,7 @@ export interface PanelOptions {
   panel: HTMLElement;
   /** Null when the page runs with no host. */
   host: PanelHost | null;
-  /** What a `sheet` effect shows for an entry. */
+  /** What a `sheet` or `map` effect shows for an entry. */
   sheet?: (entry: PanelEntry) => SheetSpec | null;
   /** Methods that close the sheet when they appear. */
   closeSheetOn?: readonly string[];
@@ -166,18 +173,30 @@ export function mountHostPanel(options: PanelOptions): PanelHandle {
     sheet = null;
   };
 
-  const showSheet = (spec: SheetSpec) => {
+  const showSheet = (spec: SheetSpec, effect: 'sheet' | 'map') => {
     closeSheet();
-    sheet = el('div', 'hp-sheet');
-    sheet.setAttribute('role', 'dialog');
-    sheet.append(el('p', 'hp-sheet-title', spec.title));
+    const mine = el('div', effect === 'map' ? 'hp-sheet hp-sheet-map' : 'hp-sheet');
+    sheet = mine;
+    mine.setAttribute('role', 'dialog');
+    if (effect === 'map') mine.append(el('div', 'hp-map'));
+    mine.append(el('p', 'hp-sheet-title', spec.title));
+    if (spec.detail) mine.append(el('code', 'hp-sheet-detail', spec.detail));
     if (spec.action) {
       const button = el('button', 'hp-button hp-button-primary', spec.action.label);
       button.type = 'button';
       button.addEventListener('click', spec.action.run);
-      sheet.append(button);
+      mine.append(button);
     }
-    frame.append(sheet);
+    if (spec.dismiss) {
+      const button = el('button', 'hp-button', spec.dismiss);
+      button.type = 'button';
+      button.addEventListener('click', closeSheet);
+      mine.append(button);
+      mine.addEventListener('click', (event) => {
+        if (event.target === mine) closeSheet();
+      });
+    }
+    frame.append(mine);
   };
 
   const showToast = (text: string) => {
@@ -204,7 +223,7 @@ export function mountHostPanel(options: PanelOptions): PanelHandle {
       showToast(note.label);
     } else {
       const spec = options.sheet?.(entry);
-      if (spec) showSheet(spec);
+      if (spec) showSheet(spec, note.effect);
     }
   };
 
