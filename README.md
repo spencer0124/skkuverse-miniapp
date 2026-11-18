@@ -62,7 +62,7 @@ Two live demos run in a browser against the fake host. Each lists every message 
 <td width="50%" valign="top">
 <a href="https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/" target="_blank" rel="noreferrer"><img width="400" src="./docs/explanation/assets/eskara-home.gif" alt="A looping capture of the festival home demo: a phone frame with the festival guide's home page beside the message panel, which starts with app.ready. A tap on the shuttle row adds haptic.impact and link.open and opens a sheet. After the sheet closes, a tap on the map row adds haptic.impact and map.openPlace and opens a map card."></a>
 <br>
-<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/" target="_blank" rel="noreferrer">ESKARA home</a> is reshaped from the festival guide's home page. In the app, its rows navigated within the page and sent none of these calls. Here each tap sends one, and the fake host acts it out.
+<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/" target="_blank" rel="noreferrer">ESKARA home</a> is reshaped from the festival guide's home page. Two rows, the shuttle and the map, were added for the demo. In the app, the rows navigated within the page and sent none of these calls. Here each tap sends one, and the fake host acts it out.
 </td>
 </tr>
 </table>
