@@ -18,9 +18,9 @@ describe('the wave run demo on the fake host', () => {
 
   beforeAll(async () => {
     // The page guard pins the timers on its window for good, so the page gets a window of its own and the runner keeps its.
-    const win = new Window();
+    const win = new Window({ settings: { disableJavaScriptEvaluation: true, disableJavaScriptFileLoading: true } });
     win.HTMLCanvasElement.prototype.getContext = noopContext as never;
-    win.document.body.innerHTML = /<body>([\s\S]*)<\/body>/.exec(page)![1]!.replace(/<script[\s\S]*?<\/script>/, '');
+    win.document.write(page);
     vi.stubGlobal('window', win);
     vi.stubGlobal('document', win.document);
     host.install();
