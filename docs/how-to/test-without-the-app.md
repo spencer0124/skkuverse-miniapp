@@ -57,7 +57,7 @@ audience: public
 
 ## Related
 
-- [Wave run demo](../../examples/wave-run), a playable game on the fake host, with a live panel of every message the page and the app trade
+- [Wave run demo](https://spencer0124.github.io/skkuverse-miniapp/examples/wave-run/), a playable game on the fake host, with a live panel of every message the page and the app trade
 - [game-contract README](../../packages/game-contract/README.md), for the rules and the exit codes of `game-contract`
 - [protocol.md](../reference/protocol.md), for the game protocol the contract checks
 - [Ship a miniapp](ship-a-miniapp.md), for where a test sits on a miniapp's way to the app

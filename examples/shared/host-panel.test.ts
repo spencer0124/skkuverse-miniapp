@@ -49,6 +49,19 @@ describe('host panel', () => {
     });
   });
 
+  it('shows the newest message in the latest bar, and the list keeps them all', () => {
+    const bar = panel.querySelector<HTMLElement>('.hp-latest')!;
+    expect(bar.hidden).toBe(true);
+    log.push({ from: 'page', raw: '{}', message: { method: 'game.ready' } });
+    vi.advanceTimersByTime(60);
+    log.push({ from: 'page', raw: '{}', message: { method: 'game.over', params: {} } });
+    vi.advanceTimersByTime(60);
+    expect(bar.hidden).toBe(false);
+    expect(bar.dataset.method).toBe('game.over');
+    expect(bar.textContent).toBe('page to appgame.over');
+    expect(panel.querySelectorAll('.hp-entry')).toHaveLength(2);
+  });
+
   it('calls the host from the pause and resume buttons', () => {
     const [pause, resume] = panel.querySelectorAll<HTMLButtonElement>('.hp-button');
     pause!.click();

@@ -1,4 +1,4 @@
-The tone renderer (packages/game-kit/src/zzfx.ts) is ZzFX (https://github.com/KilledByAPixel/ZzFX):
+The tone renderer (src/kit/zzfx.ts) is ZzFX (https://github.com/KilledByAPixel/ZzFX):
 
 MIT License
 

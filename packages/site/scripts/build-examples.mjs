@@ -20,6 +20,8 @@ for (const name of fs.readdirSync(examplesDir).sort()) {
   // the output folder is passed relative to the example, which keeps a space in the checkout path out of the command.
   const npm = (...args) => execFileSync('npm', args, { cwd: dir, stdio: 'inherit', shell: process.platform === 'win32' });
   npm('ci', '--no-audit', '--no-fund');
+  const { scripts = {} } = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  if (scripts.test) npm('test');
   npm('run', 'build', '--', '--base', `${site.base}examples/${name}/`, '--outDir', path.relative(dir, path.join(outDir, 'examples', name)), '--emptyOutDir');
   console.log(`build-examples: ${name} -> ${path.relative(siteDir, path.join(outDir, 'examples', name))}`);
 }

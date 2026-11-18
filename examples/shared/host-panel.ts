@@ -143,7 +143,11 @@ export function mountHostPanel(options: PanelOptions): PanelHandle {
     button.addEventListener('click', run);
     controls.append(button);
   }
-  panel.replaceChildren(title, controls, list, empty);
+  // On a phone the list sits below the fold, so the newest message also shows in a bar that stays in view beside the frame.
+  const latest = el('div', 'hp-latest');
+  latest.setAttribute('aria-hidden', 'true');
+  latest.hidden = true;
+  panel.replaceChildren(title, controls, list, empty, latest);
 
   const later = (fn: () => void, ms: number) => {
     const timer = setTimeout(() => {
@@ -218,6 +222,15 @@ export function mountHostPanel(options: PanelOptions): PanelHandle {
       list.firstElementChild?.remove();
     }
     list.scrollTop = list.scrollHeight;
+    const newest = entries[entries.length - 1];
+    if (newest) {
+      latest.hidden = false;
+      latest.dataset.method = newest.method;
+      latest.replaceChildren(
+        el('span', 'hp-latest-label', newest.direction === 'page-to-app' ? 'page to app' : 'app to page'),
+        el('code', 'hp-latest-method', newest.method),
+      );
+    }
   };
 
   // The fake host announces its own events, such as the automatic game.init, to no one, so the log is polled.
