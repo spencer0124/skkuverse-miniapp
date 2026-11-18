@@ -98,7 +98,7 @@ describe('host panel', () => {
     expect(frame.classList.contains('hp-shake')).toBe(false);
   });
 
-  it('draws a map card for map.openPlace and a plain sheet for link.open, and dismisses either', () => {
+  it('draws a map card for map.openPlace and a plain sheet for link.open, and closes either from its button', () => {
     handle.dispose();
     handle = mountHostPanel({
       frame,
@@ -120,20 +120,6 @@ describe('host panel', () => {
 
     frame.querySelector<HTMLButtonElement>('.hp-sheet .hp-button')!.click();
     expect(frame.querySelector('.hp-sheet')).toBeNull();
-
-    log.push({ from: 'page', raw: '{}', message: { method: 'link.open', params: { url: 'https://skkuverse.com/p/m/y' } } });
-    vi.advanceTimersByTime(60);
-    frame.querySelector<HTMLElement>('.hp-sheet')!.click();
-    expect(frame.querySelector('.hp-sheet')).toBeNull();
-  });
-
-  it('keeps a sheet with no dismiss open on a tap of the backdrop', () => {
-    handle.dispose();
-    handle = mountHostPanel({ frame, panel, host, sheet: () => ({ title: 'Crashed' }) });
-    log.push({ from: 'page', raw: '{}', message: { method: 'game.over', params: {} } });
-    vi.advanceTimersByTime(60);
-    frame.querySelector<HTMLElement>('.hp-sheet')!.click();
-    expect(frame.querySelector('.hp-sheet')).not.toBeNull();
   });
 
   it('keeps no more entries than the limit', () => {

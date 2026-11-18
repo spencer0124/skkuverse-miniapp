@@ -27,16 +27,16 @@ export const METHOD_NOTES: Record<string, MethodNote> = {
   'game.init': { label: 'The app answers with its settings. No run starts before this.' },
   'game.start': { label: 'A run began.' },
   'game.phase': { label: 'The run moved to another phase.' },
-  'game.haptic': { label: 'The page asks the phone for a tap of feedback.' },
+  'game.haptic': { label: 'The page asks for a tap of feedback.' },
   'game.over': { label: 'The run ended. The app draws what comes next.', effect: 'sheet' },
   'game.pause': { label: 'The app pauses the page.' },
   'game.resume': { label: 'The app resumes the page.' },
   'game.restart': { label: 'The app starts a new run.' },
   'game.reset': { label: 'The app sends the page back to its title.' },
   'game.sound': { label: 'The app changes the sound setting.' },
-  'haptic.impact': { label: 'The page asks the phone for a tap of feedback.', effect: 'shake' },
-  'link.open': { label: 'The page asks the app to open an address.', effect: 'sheet' },
-  'map.openPlace': { label: 'The page asks the app to close it and open the campus map on a place.', effect: 'map' },
+  'haptic.impact': { label: 'The page asks for a tap of feedback.', effect: 'shake' },
+  'link.open': { label: 'The page asks the app to open a link.', effect: 'sheet' },
+  'map.openPlace': { label: 'The page asks the app to open the map.', effect: 'map' },
   response: { label: 'The app answers a request.' },
 };
 
@@ -63,7 +63,7 @@ export interface SheetSpec {
   /** A line under the title, such as the address or place the page asked for. */
   detail?: string;
   action?: { label: string; run(): void };
-  /** The label of a button that closes the sheet, which a tap on the backdrop also does. */
+  /** The label of a button that closes the sheet. */
   dismiss?: string;
 }
 
@@ -192,9 +192,6 @@ export function mountHostPanel(options: PanelOptions): PanelHandle {
       button.type = 'button';
       button.addEventListener('click', closeSheet);
       mine.append(button);
-      mine.addEventListener('click', (event) => {
-        if (event.target === mine) closeSheet();
-      });
     }
     frame.append(mine);
   };
