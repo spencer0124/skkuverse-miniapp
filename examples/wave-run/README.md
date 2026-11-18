@@ -1,7 +1,7 @@
 # Wave run example
 
 A playable runner on the published `@skkuverse/miniapp`, which runs in a plain browser.
-It is a copy of the game 초록의 파도 with its ranking, its server check, its ad-paid comeback and its play statistics removed. <!-- conventions:allow-korean -->
+It is a copy of the game 초록의 파도 that keeps only what the demo needs: it has no ranking, no comeback and no play statistics. <!-- conventions:allow-korean -->
 
 [Open the live demo](https://spencer0124.github.io/skkuverse-miniapp/examples/wave-run/), which the docs site serves as static files. To run it here instead:
 
