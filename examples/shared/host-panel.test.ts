@@ -90,6 +90,37 @@ describe('host panel', () => {
     expect(frame.querySelector('.hp-sheet')).toBeNull();
   });
 
+  it('shakes the frame for a haptic tap', () => {
+    log.push({ from: 'page', raw: '{}', message: { method: 'haptic.impact', params: { style: 'light' } } });
+    vi.advanceTimersByTime(60);
+    expect(frame.classList.contains('hp-shake')).toBe(true);
+    vi.advanceTimersByTime(500);
+    expect(frame.classList.contains('hp-shake')).toBe(false);
+  });
+
+  it('draws a map card for map.openPlace and a plain sheet for link.open, and closes either from its button', () => {
+    handle.dispose();
+    handle = mountHostPanel({
+      frame,
+      panel,
+      host,
+      sheet: (entry) => ({ title: entry.method, detail: JSON.stringify(entry.params), dismiss: 'Close' }),
+    });
+    log.push({ from: 'page', raw: '{}', message: { method: 'link.open', params: { url: 'https://skkuverse.com/p/m/x' } } });
+    vi.advanceTimersByTime(60);
+    expect(frame.querySelector('.hp-sheet-title')!.textContent).toBe('link.open');
+    expect(frame.querySelector('.hp-map')).toBeNull();
+
+    log.push({ from: 'page', raw: '{}', message: { method: 'map.openPlace', params: { place: 'event:a' } } });
+    vi.advanceTimersByTime(60);
+    expect(frame.querySelectorAll('.hp-sheet')).toHaveLength(1);
+    expect(frame.querySelector('.hp-map')).not.toBeNull();
+    expect(frame.querySelector('.hp-sheet-detail')!.textContent).toBe('{"place":"event:a"}');
+
+    frame.querySelector<HTMLButtonElement>('.hp-sheet .hp-button')!.click();
+    expect(frame.querySelector('.hp-sheet')).toBeNull();
+  });
+
   it('keeps no more entries than the limit', () => {
     handle.dispose();
     handle = mountHostPanel({ frame, panel, host, maxEntries: 2 });

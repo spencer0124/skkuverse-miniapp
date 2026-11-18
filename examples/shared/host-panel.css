@@ -7,7 +7,7 @@
   --hp-accent: #0b7a54;
   --hp-accent-fg: #ffffff;
   --hp-flash: #cdeedd;
-  --hp-backdrop: rgba(7, 62, 50, 0.72);
+  --hp-backdrop: #0a3d31;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,7 +20,7 @@
     --hp-accent: #3fd49a;
     --hp-accent-fg: #06251a;
     --hp-flash: #1f4d3a;
-    --hp-backdrop: rgba(0, 0, 0, 0.72);
+    --hp-backdrop: #050a09;
   }
 }
 
@@ -253,6 +253,23 @@ body {
   color: #ffffff;
   font-size: 22px;
   font-weight: 700;
+}
+
+.hp-sheet-detail {
+  max-width: 90%;
+  color: #ffffff;
+  font-size: 13px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.hp-map {
+  width: 240px;
+  height: 140px;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 46%, var(--hp-accent) 7px, transparent 8px),
+    repeating-linear-gradient(45deg, var(--hp-card) 0 20px, var(--hp-line) 20px 21px);
 }
 
 .hp-toast {
