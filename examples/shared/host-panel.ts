@@ -140,7 +140,11 @@ export function mountHostPanel(options: PanelOptions): PanelHandle {
     const button = el('button', 'hp-button', label);
     button.type = 'button';
     button.disabled = host === null;
-    button.addEventListener('click', run);
+    button.addEventListener('click', () => {
+      run();
+      // Focus left on the button would turn the game's next Space into another press of it.
+      button.blur();
+    });
     controls.append(button);
   }
   // On a phone the list sits below the fold, so the newest message also shows in a bar that stays in view beside the frame.

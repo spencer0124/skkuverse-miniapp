@@ -37,13 +37,20 @@ export function bindInput(el: HTMLElement, press: (i: Input) => void): () => voi
         : null;
   const onKeyDown = (e: KeyboardEvent) => {
     const action = keyAction(e.code);
-    if (!action) return;
+    // A focused button keeps its own Space and Enter, so the retry button works from the keyboard.
+    if (!action || (e.target instanceof Element && e.target.closest('button'))) return;
     e.preventDefault();
     if (!e.repeat) press(action);
   };
   const onKeyUp = (e: KeyboardEvent) => {
     const action = keyAction(e.code);
     if (action) press(action === 'jump' ? 'jumpEnd' : 'duckEnd');
+  };
+  // A key released while the page has no focus never arrives, so a held duck or jump would stay on.
+  const onBlur = () => {
+    held.clear();
+    press('jumpEnd');
+    press('duckEnd');
   };
   const noMenu = (e: Event) => e.preventDefault();
 
@@ -52,6 +59,7 @@ export function bindInput(el: HTMLElement, press: (i: Input) => void): () => voi
   window.addEventListener('pointercancel', onUp);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
+  window.addEventListener('blur', onBlur);
   el.addEventListener('contextmenu', noMenu);
   return () => {
     el.removeEventListener('pointerdown', onDown);
@@ -59,6 +67,7 @@ export function bindInput(el: HTMLElement, press: (i: Input) => void): () => voi
     window.removeEventListener('pointercancel', onUp);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('blur', onBlur);
     el.removeEventListener('contextmenu', noMenu);
   };
 }
