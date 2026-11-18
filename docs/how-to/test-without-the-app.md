@@ -3,7 +3,7 @@ title: Test A Miniapp Without The App
 type: how-to
 status: accepted
 owner: zoyoong124@gmail.com
-last-updated: 2026-11-15
+last-updated: 2026-11-18
 audience: public
 ---
 
@@ -57,6 +57,7 @@ audience: public
 
 ## Related
 
+- [Wave run demo](../../examples/wave-run), a playable game on the fake host, with a live panel of every message the page and the app trade
 - [game-contract README](../../packages/game-contract/README.md), for the rules and the exit codes of `game-contract`
 - [protocol.md](../reference/protocol.md), for the game protocol the contract checks
 - [Ship a miniapp](ship-a-miniapp.md), for where a test sits on a miniapp's way to the app
