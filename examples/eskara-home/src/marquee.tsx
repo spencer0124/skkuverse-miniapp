@@ -13,7 +13,7 @@ function ensureMarqueeStyles() {
 .eskara-marquee-viewport:hover .eskara-marquee-track { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) {
   .eskara-marquee-track { animation: none; }
-  .eskara-marquee-viewport { overflow-x: auto; }
+  .eskara-marquee-viewport { overflow-x: auto !important; }
 }`;
   document.head.appendChild(el);
 }
