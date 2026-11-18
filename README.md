@@ -1,12 +1,12 @@
 # skkuverse-miniapp &middot; [![CI](https://github.com/spencer0124/skkuverse-miniapp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/spencer0124/skkuverse-miniapp/actions/workflows/ci.yml?query=branch%3Amain) [![npm](https://img.shields.io/npm/v/@skkuverse/miniapp?logo=npm)](https://www.npmjs.com/package/@skkuverse/miniapp) [![Apache-2.0 License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 
-[Docs](https://spencer0124.github.io/skkuverse-miniapp/) · [llms.txt](https://spencer0124.github.io/skkuverse-miniapp/llms.txt) · [Live demo](https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/)
+[Docs](https://spencer0124.github.io/skkuverse-miniapp/) · [llms.txt](https://spencer0124.github.io/skkuverse-miniapp/llms.txt) · [Game demo](https://spencer0124.github.io/skkuverse-miniapp/examples/wave-run/) · [Festival home demo](https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/)
 
 skkuverse-miniapp is the SDK, the design system and the tools for skkuverse miniapps, the small Vite and React pages that run inside the skkuverse app. Each tool ends in a check that can fail, so a person or an LLM can prove that a change works before it ships.
 
 - `@skkuverse/miniapp` gives a page typed calls to the app, such as `haptic()` and `share()`, over the [bridge protocol](https://spencer0124.github.io/skkuverse-miniapp/docs/reference/protocol). Outside the app, each call does nothing or falls back to the browser.
 - `miniapp-cli check` reads a package's files, and `miniapp-contract` loads the built miniapp in Chromium and watches what it does. Together they hold a package to every rule the [miniapp spec](https://spencer0124.github.io/skkuverse-miniapp/docs/reference/miniapp-spec) marks `checked`, and each names a broken rule by its ID. `check` alone does not hold N1 to N4.
-- A fake host from `@skkuverse/miniapp/testing` runs the app's real bootstrap script in a test or a browser, as the live demo does.
+- A fake host from `@skkuverse/miniapp/testing` runs the app's real bootstrap script in a test or a browser, as the live demos do.
 - Six miniapps built on these packages ran at Sungkyunkwan University's ESKARA 2026 festival, where the festival shuttle alone was used on 1,070 devices in two days ([case study](docs/explanation/case-study-eskara-2026.md)).
 - CI compiles every TypeScript example in the docs and fails when a generated count drifts from the code ([what CI checks](docs/explanation/ci-and-branch-protection.md#workflows)).
 
@@ -50,9 +50,24 @@ createRoot(document.getElementById('root')!).render(
 );
 ```
 
-The [live demo](https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/) is a page built this way. It runs in a browser against the fake host and lists each message the page sends to the app.
+Two live demos run in a browser against the fake host. Each lists every message the page and the host trade, so you can watch the SDK work.
 
-<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/" target="_blank" rel="noreferrer"><img width="320" src="./docs/explanation/assets/stage-timetable.png" alt="The stage timetable demo at phone width: four acts with Star and Share buttons, one act starred, above the log of messages the page sent to the fake host, app.ready and haptic.impact"></a>
+<table>
+<tr>
+<td width="50%" valign="top">
+<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/wave-run/" target="_blank" rel="noreferrer"><img width="400" src="./docs/explanation/assets/wave-run.gif" alt="A looping capture of the wave run demo: a phone frame with a pixel-art runner beside the message panel. The panel lists game.ready and game.init at boot, then game.start and game.phase as the run begins. The runner jumps twice and crashes, the host draws its retry screen, and the panel adds game.haptic, game.phase and game.over. A tap on the retry button adds game.restart and a new run starts."></a>
+<br>
+<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/wave-run/" target="_blank" rel="noreferrer">Wave run</a> is a runner game booted through the SDK's game entry, copied from a skkuverse game with its score, validation and revives removed.
+</td>
+<td width="50%" valign="top">
+<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/" target="_blank" rel="noreferrer"><img width="400" src="./docs/explanation/assets/eskara-home.gif" alt="A looping capture of the festival home demo: a phone frame with the festival guide's home page beside the message panel, which starts with app.ready. A tap on the shuttle row adds haptic.impact and link.open and opens a sheet. After the sheet closes, a tap on the map row adds haptic.impact and map.openPlace and opens a map card."></a>
+<br>
+<a href="https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/" target="_blank" rel="noreferrer">ESKARA home</a> is reshaped from the festival guide's home page. Two rows, the shuttle and the map, were added for the demo. In the app, the rows navigated within the page and sent none of these calls. Here each tap sends one, and the fake host acts it out.
+</td>
+</tr>
+</table>
+
+The smallest example is the [stage timetable](https://spencer0124.github.io/skkuverse-miniapp/examples/stage-timetable/), whose source is in [`examples/stage-timetable`](examples/stage-timetable).
 
 In a repository laid out as the [CLI README](packages/cli/README.md) describes, these steps create a miniapp, check it against the spec and deploy a preview. The second line is an edit to make by hand, not a command.
 
@@ -98,7 +113,7 @@ Each command below exits with a non-zero code and names what broke. Run the one 
 
 Six miniapps built on `@skkuverse/miniapp` ran inside the skkuverse app at ESKARA 2026, Sungkyunkwan University's festival, on 2026-10-01 and 2026-10-02 (KST). The [ESKARA 2026 case study](docs/explanation/case-study-eskara-2026.md) defines each number and lists what the festival changed in the SDK. Over those two days, the app's analytics counted 2,118 devices that used the app, 1,477 that used one of the six miniapps or the map's festival layer, and 1,070 that used the festival shuttle, the most used miniapp.
 
-The miniapps' source lives outside this repository. The live demo is a miniapp of the same shape, and lists every message it sends to the app.
+The miniapps' source lives outside this repository. The [festival home demo](https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/) is a miniapp of the same shape, reshaped from the festival guide's home page, and lists every message the page and the fake host trade.
 
 <br clear="right">
 
