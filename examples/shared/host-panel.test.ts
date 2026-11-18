@@ -114,7 +114,6 @@ describe('host panel', () => {
     log.push({ from: 'page', raw: '{}', message: { method: 'map.openPlace', params: { place: 'event:a' } } });
     vi.advanceTimersByTime(60);
     expect(frame.querySelectorAll('.hp-sheet')).toHaveLength(1);
-    expect(frame.querySelector('.hp-sheet')!.classList.contains('hp-sheet-map')).toBe(true);
     expect(frame.querySelector('.hp-map')).not.toBeNull();
     expect(frame.querySelector('.hp-sheet-detail')!.textContent).toBe('{"place":"event:a"}');
 

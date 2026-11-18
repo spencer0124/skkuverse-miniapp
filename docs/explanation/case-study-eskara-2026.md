@@ -32,7 +32,7 @@ Each miniapp was a Vite and React page that the app opened from a tile on its ho
 | Food roulette (`mukja`) | Picks something to eat at the festival, at random | `haptic`, `MapButton`, and `@skkuverse/ui` components |
 | Booth draw (`booth-box`) | Picks a booth at random and shares it | `useIsInApp`, `useCanOpenMap`, `openMapPlace`, `share`, `canShare`, and `haptic` |
 
-The [stage timetable example](../../examples/stage-timetable) in this repository is shaped like the festival's stage timetable, with made-up acts, plus a haptic and a share call to show the bridge. It runs in a browser on the fake host and lists each bridge message it sends. The [festival home demo](https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/) is the festival guide's home page as it ran. Each tap on a row sends the SDK call that row sent, and the fake host acts it out beside the same message list.
+The [stage timetable example](../../examples/stage-timetable) in this repository is shaped like the festival's stage timetable, with made-up acts, plus a haptic and a share call to show the bridge. It runs in a browser on the fake host and lists each bridge message it sends. The [festival home demo](https://spencer0124.github.io/skkuverse-miniapp/examples/eskara-home/) is reshaped from the festival guide's home page. It keeps the notice, the lineup strip and the page list, but each row tap sends an SDK call that the fake host acts out beside the same message list, and two rows (the shuttle and the map) were added for the demo. In the app, the rows navigated within the page.
 
 ## What was counted
 

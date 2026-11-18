@@ -15,7 +15,7 @@ export function tapRow(row: Row): void {
 
 export default function Home() {
   useEffect(() => ready(), []);
-  // The map row, like the real page's map button, renders only where the app grants a map.
+  // The map row renders only where the app grants a map.
   const rows = ROWS.filter((row) => row.action.kind !== 'map' || canOpenMap());
 
   return (

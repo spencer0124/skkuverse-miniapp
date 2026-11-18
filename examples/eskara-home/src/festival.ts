@@ -4,7 +4,7 @@ export const FESTIVAL = {
   subtitle: '초록의 파도', // conventions:allow-korean
 } as const;
 
-export const ARCHIVE_NOTICE = '2026년 ESKARA가 끝난 뒤 보관한 안내예요. 앱에서 실제로 돌았던 화면이에요.'; // conventions:allow-korean
+export const ARCHIVE_NOTICE = '2026년 ESKARA가 끝난 뒤 보관한 안내예요. 데모용으로 다시 만든 화면이에요.'; // conventions:allow-korean
 
 export const MINIAPP_ID = 'eskara-2026';
 

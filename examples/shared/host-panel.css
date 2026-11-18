@@ -7,7 +7,7 @@
   --hp-accent: #0b7a54;
   --hp-accent-fg: #ffffff;
   --hp-flash: #cdeedd;
-  --hp-backdrop: rgba(7, 62, 50, 0.72);
+  --hp-backdrop: #0a3d31;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,7 +20,7 @@
     --hp-accent: #3fd49a;
     --hp-accent-fg: #06251a;
     --hp-flash: #1f4d3a;
-    --hp-backdrop: rgba(0, 0, 0, 0.72);
+    --hp-backdrop: #050a09;
   }
 }
 

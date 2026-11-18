@@ -175,7 +175,7 @@ export function mountHostPanel(options: PanelOptions): PanelHandle {
 
   const showSheet = (spec: SheetSpec, effect: 'sheet' | 'map') => {
     closeSheet();
-    const mine = el('div', effect === 'map' ? 'hp-sheet hp-sheet-map' : 'hp-sheet');
+    const mine = el('div', 'hp-sheet');
     sheet = mine;
     mine.setAttribute('role', 'dialog');
     if (effect === 'map') mine.append(el('div', 'hp-map'));
